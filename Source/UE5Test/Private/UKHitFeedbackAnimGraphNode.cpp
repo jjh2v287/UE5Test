@@ -96,7 +96,7 @@ void FUKHitFeedbackAnimNode::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	// n초 후에는 진폭을 시간에 따라 감소시켜 원점으로 돌아오게 함
 	else
 	{
-		float ReturnTime = (TimeElapsed - HalfMaxTime) * 2;
+		float ReturnTime = (TimeElapsed - HalfMaxTime);
 		Amplitude = InitialAmplitude * FMath::Exp(-Damping * ReturnTime);
 	}
 	NewPosition = (DirectionNormal * Amplitude * FMath::Sin(AngularVelocity * TimeElapsed));
