@@ -48,20 +48,38 @@ void FUKHitFeedbackAnimNode::EvaluateSkeletalControl_AnyThread(FComponentSpacePo
 	FCompactPoseBoneIndex ParentBoneIndex = RequiredBones.GetParentBoneIndex(PoseBoneIndex);
 	USkeletalMeshComponent* SkelMesh = Output.AnimInstanceProxy->GetSkelMeshComponent();
 	TArray<FCompactPoseBoneIndex> CompactPoseBones = RequiredBones.GetCompactPoseParentBoneArray();
-	TArray<FCompactPoseBoneIndex> ChildBones;
-	for (FCompactPoseBoneIndex CompactPoseBone : CompactPoseBones)
-	{
-		FCompactPoseBoneIndex BoneIndex = RequiredBones.GetParentBoneIndex(CompactPoseBone);
-		do
-		{
-			if (BoneIndex == ParentBoneIndex)
-			{
-				// ChildBones.Emplace();
-			}
-			BoneIndex = RequiredBones.GetParentBoneIndex(BoneIndex);
 
-		} while (BoneIndex != INDEX_NONE);
-	}
+	/*{
+		TArray<TPair<FCompactPoseBoneIndex, FName>> ChildBones;
+		for (FCompactPoseBoneIndex CompactPoseBone : CompactPoseBones)
+		{
+			if(CompactPoseBone == INDEX_NONE)
+			{
+				continue;
+			}
+		
+			bool IsChildBone = RequiredBones.BoneIsChildOf(CompactPoseBone, PoseBoneIndex);
+			if(IsChildBone)
+			{
+				FName Name = SkelMesh->GetBoneName(CompactPoseBone.GetInt());
+				ChildBones.Emplace(CompactPoseBone,Name);
+			}
+		}
+	}*/
+
+	/*{
+		// Gather all bone indices between root and tip.
+		TArray<FCompactPoseBoneIndex> BoneIndices;
+		{
+			FCompactPoseBoneIndex BoneIndex = PoseBoneIndex;
+			do
+			{
+				BoneIndices.Insert(BoneIndex, 0);
+				BoneIndex = Output.Pose.GetPose().GetParentBoneIndex(BoneIndex);
+			} while (BoneIndex != INDEX_NONE && BoneIndex != 0);
+			BoneIndices.Insert(BoneIndex, 0);
+		}
+	}*/
 	
 	OwnerActor = SkelMesh->GetOwner();
 	TimeElapsed += OwnerActor->GetWorld()->GetDeltaSeconds();
