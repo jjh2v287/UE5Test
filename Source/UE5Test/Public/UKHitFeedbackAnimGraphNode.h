@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "AnimGraphNode_SkeletalControlBase.h"
-#include "UObject/ObjectMacros.h"
 #include "BoneContainer.h"
 #include "BonePose.h"
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
