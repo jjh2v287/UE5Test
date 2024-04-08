@@ -13,6 +13,14 @@
 				"UMG",
 				"AnimGraph"
 			]
+		},
+		{
+			"Name": "UE5Editor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"UnrealEd"
+			]
 		}
 	],
 	"Plugins": [

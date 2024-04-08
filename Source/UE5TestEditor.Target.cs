@@ -9,7 +9,8 @@ public class UE5TestEditorTarget : TargetRules
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V4;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_3;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		ExtraModuleNames.Add("UE5Test");
+		ExtraModuleNames.AddRange(new string[] { "UE5Editor" });
 	}
 }

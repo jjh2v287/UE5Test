@@ -10,10 +10,9 @@ public class UE5Test : ModuleRules
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"AnimGraph",
-			"BlueprintGraph"
+			"AnimGraphRuntime",
 		});
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "AnimGraphRuntime" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
 	}
 }
