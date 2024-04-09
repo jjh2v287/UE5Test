@@ -3,6 +3,7 @@
 
 #include "UETest/Public/UKMapCaptureActor.h"
 
+#include "AssetToolsModule.h"
 #include "DrawDebugHelpers.h"
 #include "MathUtil.h"
 #include "Components/SceneCaptureComponent2D.h"
@@ -74,6 +75,54 @@ void AUKMapCaptureActor::Destroyed()
 }
 
 #if WITH_EDITOR
+UTexture2D* AUKMapCaptureActor::RenderTargetCreateStaticTexture2DEditorOnly(UTextureRenderTarget2D* RenderTarget, FString InName, TextureCompressionSettings CompressionSettings, TextureMipGenSettings MipSettings)
+{
+	if (!RenderTarget)
+	{
+		return nullptr;
+	}
+
+	if (!RenderTarget->GetResource())
+	{
+		return nullptr;
+	}
+	
+	FString Name;
+	FString PackageName;
+	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	InName.RemoveFromStart(TEXT("/"));
+	InName.RemoveFromStart(TEXT("Content/"));
+	InName.StartsWith(TEXT("Game/")) == true ? InName.InsertAt(0, TEXT("/")) : InName.InsertAt(0, TEXT("/Game/"));
+	AssetTools.CreateUniqueAssetName(InName, TEXT(""), PackageName, Name);
+
+	UObject* NewObj = nullptr;
+
+	// create a static 2d texture
+	NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips | CTF_SkipPostEdit, nullptr);
+	UTexture2D* NewTex = Cast<UTexture2D>(NewObj);
+
+	if (NewTex != nullptr)
+	{
+		// package needs saving
+		NewObj->MarkPackageDirty();
+
+		// Update Compression and Mip settings
+		NewTex->CompressionSettings = CompressionSettings;
+		NewTex->MipGenSettings = MipSettings;
+		NewTex->CompressionNoAlpha = true;
+
+		NewTex->PostEditChange();
+
+		// Notify the asset registry
+		FAssetRegistryModule::AssetCreated(NewObj);
+
+		return NewTex;
+	}
+	
+	return nullptr;
+}
+
 void AUKMapCaptureActor::UpdateSceneCaptureBox()
 {
 	UWorld* EditorWorld = GetWorld();
@@ -340,7 +389,7 @@ void AUKMapCaptureActor::CapturePlay(class UTextureRenderTarget2D* TextureTarget
 		SceneCaptureComponent->CaptureScene();
 
 		// Texture Save Asset
-		auto NewTexture2D = UKismetRenderingLibrary::RenderTargetCreateStaticTexture2DEditorOnly(SceneCaptureComponent->TextureTarget, CaptureTexturePath + Element.Name, TextureCompressionSettings::TC_Default, TextureMipGenSettings::TMGS_FromTextureGroup);
+		auto NewTexture2D = RenderTargetCreateStaticTexture2DEditorOnly(SceneCaptureComponent->TextureTarget, CaptureTexturePath + Element.Name, TextureCompressionSettings::TC_Default, TextureMipGenSettings::TMGS_FromTextureGroup);
 		Element.Name = NewTexture2D->GetName();
 
 		FString DataName = EnclosingBoxName + "-" + FString::FromInt(idx++);

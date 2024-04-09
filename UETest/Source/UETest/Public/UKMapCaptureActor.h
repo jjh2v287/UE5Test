@@ -111,13 +111,14 @@ public:
 	TMap<uint32, TWeakObjectPtr<AUKMapCaptureBox>> CaptureBoxs;
 #endif
 	
-public:	
+public:
 	// Sets default values for this actor's properties
 	explicit AUKMapCaptureActor(const FObjectInitializer& ObjectInitializer);
 	virtual bool ShouldTickIfViewportsOnly() const override { return true; }
 	virtual void OnConstruction(const FTransform& Transform) override;
-	
+
 #if WITH_EDITOR
+	UTexture2D* RenderTargetCreateStaticTexture2DEditorOnly(UTextureRenderTarget2D* RenderTarget, FString InName = "Texture", enum TextureCompressionSettings CompressionSettings = TC_Default, enum TextureMipGenSettings MipSettings = TMGS_FromTextureGroup);
 	void UpdateSceneCaptureBox();
 	void CreateCaptureBox();
 	void GenerateEnclosingBox(FVector& NewBoxCenter, FVector& NewBoxExtent);
