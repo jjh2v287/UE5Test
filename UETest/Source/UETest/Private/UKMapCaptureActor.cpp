@@ -2,7 +2,6 @@
 
 
 #include "UETest/Public/UKMapCaptureActor.h"
-
 #include "AssetToolsModule.h"
 #include "DrawDebugHelpers.h"
 #include "MathUtil.h"
@@ -98,8 +97,16 @@ UTexture2D* AUKMapCaptureActor::RenderTargetCreateStaticTexture2DEditorOnly(UTex
 
 	UObject* NewObj = nullptr;
 
+	TArray<uint8> AlphaOverride;
+	const int32 TotalPixels = RenderTarget->SizeX * RenderTarget->SizeY;
+	AlphaOverride.Reserve(TotalPixels);
+	for (int32 Pixel = 0; Pixel < TotalPixels; Pixel++)
+	{
+		AlphaOverride.Emplace(255);
+	}
+	
 	// create a static 2d texture
-	NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips | CTF_SkipPostEdit, nullptr);
+	NewObj = RenderTarget->ConstructTexture2D(CreatePackage( *PackageName), Name, RenderTarget->GetMaskedFlags() | RF_Public | RF_Standalone, CTF_Default | CTF_AllowMips | CTF_SkipPostEdit, &AlphaOverride);
 	UTexture2D* NewTex = Cast<UTexture2D>(NewObj);
 
 	if (NewTex != nullptr)
