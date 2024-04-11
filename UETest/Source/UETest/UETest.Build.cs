@@ -22,7 +22,7 @@ public class UETest : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"AnimGraphRuntime", "UETestEditor"
+			"AnimGraphRuntime", 
 		});
 	}
 }
