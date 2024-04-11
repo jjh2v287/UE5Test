@@ -1,0 +1,42 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.1",
+	"FriendlyName": "Narrative Navigator",
+	"Description": "Maps, Compasses, Markers - everything you need for your games navigation. Great on its own or alongside other Narrative plugins. ",
+	"Category": "Narrative",
+	"CreatedBy": "Narrative Tools, Inc.",
+	"CreatedByURL": "narrativetools.io",
+	"DocsURL": "https://docs.google.com/document/d/1Q20fv9Stw-AzwWQTMosE7dmRlr9iFrSyQnVja4Sz7r8/edit?usp=sharing",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/46d407c1917d4575bfc2a8bb1cb5185d",
+	"SupportURL": "mailto:contact@reubs.io",
+	"EngineVersion": "5.3.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "NarrativeNavigator",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Android",
+				"Linux",
+				"Mac",
+				"IOS"
+			]
+		},
+		{
+			"Name": "NarrativeNavigatorEditor",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [
+				"Win64",
+				"Android",
+				"Linux",
+				"Mac",
+				"IOS"
+			]
+		}
+	]
+}

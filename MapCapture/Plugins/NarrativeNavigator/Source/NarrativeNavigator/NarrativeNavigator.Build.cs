@@ -2,21 +2,21 @@
 
 using UnrealBuildTool;
 
-public class UE5Editor : ModuleRules
+public class NarrativeNavigator : ModuleRules
 {
-	public UE5Editor(ReadOnlyTargetRules Target) : base(Target)
+	public NarrativeNavigator(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		OverridePackageType = PackageOverrideType.EngineDeveloper;
+		
 		PublicIncludePaths.AddRange(
 			new string[] {
-				"UE5Editor"
+				// ... add public include paths required here ...
 			}
 			);
 				
+		
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
 			}
 			);
 			
@@ -25,9 +25,6 @@ public class UE5Editor : ModuleRules
 			new string[]
 			{
 				"Core",
-				"AnimGraph",
-				"AnimGraphRuntime",
-				"UE5Test"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -40,14 +37,11 @@ public class UE5Editor : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
-				"InputCore",
-				"EditorFramework",
-				"EditorStyle",
-				"UnrealEd",
-				"LevelEditor",
-				"AnimGraph",
-				"InteractiveToolsFramework",
-				"EditorInteractiveToolsFramework"
+                "UMG",
+                "Slate",
+                "SlateCore",
+				"GameplayTags"
+
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
