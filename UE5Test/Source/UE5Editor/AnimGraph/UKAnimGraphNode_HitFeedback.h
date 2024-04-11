@@ -10,7 +10,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(MinimalAPI)
 class UUKAnimGraphNode_HitFeedback : public UAnimGraphNode_SkeletalControlBase
 {
 	GENERATED_BODY()

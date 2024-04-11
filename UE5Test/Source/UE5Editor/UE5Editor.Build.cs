@@ -46,6 +46,8 @@ public class UE5Editor : ModuleRules
 				"UnrealEd",
 				"LevelEditor",
 				"AnimGraph",
+				"AnimGraphRuntime",
+				"BlueprintGraph",
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework"
 				// ... add private dependencies that you statically link with here ...	
