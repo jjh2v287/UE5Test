@@ -2,7 +2,9 @@
 
 
 #include "UETest/Public/UKMapCaptureActor.h"
+#if WITH_EDITOR
 #include "AssetToolsModule.h"
+#endif
 #include "DrawDebugHelpers.h"
 #include "MathUtil.h"
 #include "Components/SceneCaptureComponent2D.h"
