@@ -40,6 +40,7 @@ public class UE5Editor : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"UE5Test",
 				"InputCore",
 				"EditorFramework",
 				"EditorStyle",
