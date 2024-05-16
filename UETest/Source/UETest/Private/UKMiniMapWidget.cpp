@@ -5,6 +5,8 @@
 #include <Components/Image.h>
 #include <Blueprint/WidgetTree.h>
 #include <Engine/AssetManager.h>
+
+#include "MathUtil.h"
 #include "Components/CanvasPanelSlot.h"
 #include "UETest/Public/UKMapCaptureActor.h"
 #include "Camera/CameraComponent.h"
