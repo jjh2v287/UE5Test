@@ -1,0 +1,40 @@
+{
+	"FileVersion": 3,
+	"Version": 5,
+	"VersionName": "1.2.0",
+	"FriendlyName": "Component Timeline",
+	"Description": "Place timeline nodes directly in your blueprint components",
+	"Category": "Blueprints",
+	"CreatedBy": "Tomasz Klin",
+	"CreatedByURL": "",
+	"DocsURL": "https://docs.google.com/document/d/1Oanzyl16xd9dQuyUh3CzOSfaMKZVGrAqZJaDzuOQaXo/edit?usp=sharing",
+	"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/a861fe34f1f94dcca67cdb2ce376bd24",
+	"SupportURL": "tomasz.klin@gmail.com",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "ComponentTimelineRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Android",
+				"Linux"
+			]
+		},
+		{
+			"Name": "ComponentTimelineUncooked",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Android",
+				"Linux"
+			]
+		}
+	]
+}
