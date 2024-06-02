@@ -43,6 +43,11 @@
 			"Name": "ThreadExecutionBlueprintNode",
 			"Enabled": true,
 			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/68ebbf08b0e54d1894a478b743345c3e"
+		},
+		{
+			"Name": "Actions",
+			"Enabled": true,
+			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/14365ff405cd4df99a85dfc90cc5dff2"
 		}
 	]
 }
