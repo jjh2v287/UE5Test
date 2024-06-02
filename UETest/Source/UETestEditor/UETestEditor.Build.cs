@@ -36,6 +36,7 @@ public class UETestEditor : ModuleRules
 				"AnimGraphRuntime",
 				"BlueprintGraph",
 				"UETest",
+				"KismetCompiler",
 			}
 			);
 			

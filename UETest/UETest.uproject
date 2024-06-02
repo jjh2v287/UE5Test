@@ -17,7 +17,8 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"UnrealEd"
+				"UnrealEd",
+				"BlueprintGraph"
 			]
 		}
 	],
