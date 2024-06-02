@@ -38,6 +38,11 @@
 			"Name": "BasicAsync",
 			"Enabled": true,
 			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/49a81d22ed294c7d97183a2a7a03fb1f"
+		},
+		{
+			"Name": "ThreadExecutionBlueprintNode",
+			"Enabled": true,
+			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/68ebbf08b0e54d1894a478b743345c3e"
 		}
 	]
 }

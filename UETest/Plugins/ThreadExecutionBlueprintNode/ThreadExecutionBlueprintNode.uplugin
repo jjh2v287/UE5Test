@@ -1,0 +1,29 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.2",
+	"FriendlyName": "ThreadExecutionBlueprintNode",
+	"Description": "Multiple nodes capable of creating threads and executing tasks asynchronously or synchronously within the threads",
+	"Category": "Blueprints",
+	"CreatedBy": "YTSS",
+	"CreatedByURL": "https://space.bilibili.com/12018736",
+	"DocsURL": "https://ppytsspp.github.io/English%20Document/ThreadExecutionBlueprintNode_en.html",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/68ebbf08b0e54d1894a478b743345c3e",
+	"SupportURL": "mailto:abc981140197@163.com",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "ThreadExecutionBlueprintNode",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ThreadExecutionBlueprintGraph",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "None"
+		}
+	]
+}
