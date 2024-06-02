@@ -1,11 +1,10 @@
 // Copyright Kong Studios, Inc. All Rights Reserved.
 
 
-#include "Components/UKHomingComponent.h"
-#include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "UKHomingComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "BehaviorTree/BlackboardComponent.h"
-#include "BlueprintLibrary/UKMathLibrary.h"
+#include "Blueprint/AIBlueprintHelperLibrary.h"
 
 UUKHomingComponent::UUKHomingComponent()
 {
@@ -89,7 +88,7 @@ void UUKHomingComponent::HomingUpdate(const float DeltaTime)
 	AActor* Owner = GetOwner();
 	const float FinalSpeed = HomingStartInfo.HomingRotateSpeed * DeltaTime;
 	const FRotator CurrentRotator = Owner->GetActorRotation();
-	const FRotator HomingRotator = UUKMathLibrary::GetHomingRotator(Owner, HomingTargetActor.Get(), FinalSpeed);
+	const FRotator HomingRotator = GetHomingRotator(Owner, HomingTargetActor.Get(), FinalSpeed);
 	const float DeltaYaw = GetCalculateAngleDelta(HomingRotator.Yaw, HomingStartRotator.Yaw);
 	const bool bOverMaxAngle = FMath::Abs(DeltaYaw) > HomingStartInfo.HomingMaxAngle;
 	const bool bIsHomingStopMaxAngle = bOverMaxAngle && HomingStartInfo.HomingStopType == EUKHomingStopType::MaxAngle;

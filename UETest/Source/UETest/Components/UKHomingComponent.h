@@ -45,7 +45,7 @@ struct FUKHomingStartPram
 };
 
 UCLASS( meta=(BlueprintSpawnableComponent, DisplayName="UK Homing") )
-class UKGAME_API UUKHomingComponent : public UActorComponent
+class UETEST_API UUKHomingComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
