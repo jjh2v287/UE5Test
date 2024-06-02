@@ -1,0 +1,155 @@
+// Copyright Kong Studios, Inc. All Rights Reserved.
+
+
+#include "Components/UKHomingComponent.h"
+#include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "BehaviorTree/BlackboardComponent.h"
+#include "BlueprintLibrary/UKMathLibrary.h"
+
+UUKHomingComponent::UUKHomingComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UUKHomingComponent::BeginPlay()
+{
+	Super::BeginPlay();
+}
+
+void UUKHomingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	HomingUpdate(DeltaTime);
+}
+
+void UUKHomingComponent::HomingStart(const FUKHomingStartPram HomingStartPram)
+{
+	AActor* Owner =GetOwner();
+	HomingStartInfo = HomingStartPram;
+	
+    HomingStartRotator = Owner->GetActorRotation();
+    HomingTargetActorFindProcess(Owner);
+
+	const bool bNotHomingTarget = !HomingTargetActor.IsValid(); 
+	if (bNotHomingTarget)
+	{
+		HomingStop();
+		return;
+	}
+	
+	HomingState = EUKHomingState::Homing;
+
+	if (HomingEndTimer.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(HomingEndTimer);
+	}
+
+	const bool bIsHomingStopTimeer = HomingStartInfo.HomingStopType == EUKHomingStopType::Time;
+	if (bIsHomingStopTimeer)
+	{
+		GetWorld()->GetTimerManager().SetTimer(HomingEndTimer, this, &UUKHomingComponent::HomingStop, HomingStartInfo.Duration);
+	}
+}
+
+void UUKHomingComponent::HomingStop()
+{
+	HomingStartRotator = FRotator::ZeroRotator;
+	HomingTargetActor = nullptr;
+	HomingState = EUKHomingState::Stop;
+
+	if (HomingEndTimer.IsValid())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(HomingEndTimer);
+	}
+	
+	if (OnHomingEndEvent.IsBound())
+	{
+		OnHomingEndEvent.Broadcast();
+	}
+}
+
+const bool UUKHomingComponent::IsHomingMove() const
+{
+	return HomingState == EUKHomingState::Homing;
+}
+
+const bool UUKHomingComponent::IsHomingStop() const
+{
+	return HomingState == EUKHomingState::Stop;
+}
+
+void UUKHomingComponent::HomingUpdate(const float DeltaTime)
+{
+	if (IsHomingStop())
+	{
+		return;
+	}
+	
+	AActor* Owner = GetOwner();
+	const float FinalSpeed = HomingStartInfo.HomingRotateSpeed * DeltaTime;
+	const FRotator CurrentRotator = Owner->GetActorRotation();
+	const FRotator HomingRotator = UUKMathLibrary::GetHomingRotator(Owner, HomingTargetActor.Get(), FinalSpeed);
+	const float DeltaYaw = GetCalculateAngleDelta(HomingRotator.Yaw, HomingStartRotator.Yaw);
+	const bool bOverMaxAngle = FMath::Abs(DeltaYaw) > HomingStartInfo.HomingMaxAngle;
+	const bool bIsHomingStopMaxAngle = bOverMaxAngle && HomingStartInfo.HomingStopType == EUKHomingStopType::MaxAngle;
+	FRotator FinalRotator = CurrentRotator;
+	float FinalAngle = HomingRotator.Yaw;
+
+	if (bOverMaxAngle)
+	{
+		float MaxAngle = HomingStartInfo.HomingMaxAngle;
+		const bool bIsLeft = DeltaYaw < 0.0f;
+
+		if (bIsLeft)
+		{
+			MaxAngle *= -1.0f;
+		}
+		
+		FinalAngle = HomingStartRotator.Yaw + MaxAngle;
+	}
+
+	FinalRotator.Yaw = FinalAngle;
+	Owner->SetActorRotation(FinalRotator);
+	
+	if (bIsHomingStopMaxAngle)
+	{
+		HomingStop();
+	}
+}
+
+void UUKHomingComponent::HomingTargetActorFindProcess(AActor* Owner)
+{
+	const UWorld* World = Owner->GetWorld();
+	AActor* PlayerActor = UGameplayStatics::GetPlayerPawn(World, 0);
+	const UBlackboardComponent* Blackboard = UAIBlueprintHelperLibrary::GetBlackboard(Owner);
+
+	const bool IsNotBlackboard = Blackboard == nullptr;
+	if (IsNotBlackboard)
+	{
+		HomingTargetActor = PlayerActor;
+		return;
+	}
+
+	HomingTargetActor = Cast<AActor>(Blackboard->GetValueAsObject(HomingStartInfo.BlackboardValueName));
+	const bool IsNotBlackboardValue = HomingTargetActor == nullptr;
+	if (IsNotBlackboardValue)
+	{
+		HomingTargetActor = PlayerActor;
+	}
+}
+
+const float UUKHomingComponent::GetCalculateAngleDelta(const float CurrentAngle, const float StartAngle)
+{
+	float YawDifference = CurrentAngle - StartAngle;
+
+	// Normalize the angle to be within -180 to 180 degrees
+	YawDifference = FMath::Fmod(YawDifference + 180.0f, 360.0f);
+	if (YawDifference < 0.0f)
+	{
+		YawDifference += 360.0f;
+	}
+	YawDifference -= 180.0f;
+
+	return YawDifference;
+}
