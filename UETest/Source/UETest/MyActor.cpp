@@ -15,7 +15,7 @@ void AMyActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UBlueprint* ObjectToSpawn = Cast<UBlueprint>(SpawnType);
+	// UBlueprint* ObjectToSpawn = Cast<UBlueprint>(SpawnType);
 	//if(ObjectToSpawn)
 	{
 		FActorSpawnParameters spawnParams;

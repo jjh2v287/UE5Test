@@ -22,7 +22,7 @@ void UUKHomingComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 	HomingUpdate(DeltaTime);
 }
 
-void UUKHomingComponent::HomingStart(const FUKHomingStartPram HomingStartPram)
+UUKEventTask* UUKHomingComponent::HomingStart(const FUKHomingStartPram HomingStartPram)
 {
 	AActor* Owner =GetOwner();
 	HomingStartInfo = HomingStartPram;
@@ -34,7 +34,7 @@ void UUKHomingComponent::HomingStart(const FUKHomingStartPram HomingStartPram)
 	if (bNotHomingTarget)
 	{
 		HomingStop();
-		return;
+		return nullptr;
 	}
 	
 	HomingState = EUKHomingState::Homing;
@@ -49,6 +49,10 @@ void UUKHomingComponent::HomingStart(const FUKHomingStartPram HomingStartPram)
 	{
 		GetWorld()->GetTimerManager().SetTimer(HomingEndTimer, this, &UUKHomingComponent::HomingStop, HomingStartInfo.Duration);
 	}
+
+	TestEventTast = NewObject<UUKEventTask>();
+	Owner->GetGameInstance()->RegisterReferencedObject(TestEventTast);
+	return TestEventTast;
 }
 
 void UUKHomingComponent::HomingStop()
@@ -61,10 +65,15 @@ void UUKHomingComponent::HomingStop()
 	{
 		GetWorld()->GetTimerManager().ClearTimer(HomingEndTimer);
 	}
-	
-	if (OnHomingEndEvent.IsBound())
+
+	if(IsValid(TestEventTast))
 	{
-		OnHomingEndEvent.Broadcast();
+		if (TestEventTast.Get()->OnHomingEnd.IsBound())
+		{
+			TestEventTast.Get()->OnHomingEnd.Broadcast();
+		}
+
+		TestEventTast = nullptr;
 	}
 }
 

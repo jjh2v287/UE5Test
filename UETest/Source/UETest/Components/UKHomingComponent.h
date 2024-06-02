@@ -8,6 +8,17 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHomingEventDelegate);
 
+UCLASS()
+class UETEST_API UUKEventTask : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(BlueprintAssignable)
+	FOnHomingEventDelegate OnHomingUpdate;
+	UPROPERTY(BlueprintAssignable)
+	FOnHomingEventDelegate OnHomingEnd;
+};
+
 UENUM(BlueprintType, Category = "UK Homing")
 enum class EUKHomingStopType : uint8
 {
@@ -57,7 +68,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	UFUNCTION(BlueprintCallable, Category="UK Homing")
-	void HomingStart(const FUKHomingStartPram HomingStartPram);
+	UUKEventTask* HomingStart(const FUKHomingStartPram HomingStartPram);
 
 	UFUNCTION(BlueprintCallable, Category="UK Homing")
 	void HomingStop();
@@ -92,8 +103,9 @@ private:
 	const float GetCalculateAngleDelta(const float CurrentAngle, const float StartAngle);
 
 public:
-	UPROPERTY(BlueprintAssignable, VisibleAnywhere, BlueprintCallable, Category = "UK Homing")
-	FOnHomingEventDelegate OnHomingEndEvent;
+	// UPROPERTY(BlueprintAssignable, VisibleAnywhere, BlueprintCallable, Category = "UK Homing")
+	// FOnHomingEventDelegate OnHomingEndEvent;
+	TObjectPtr<UUKEventTask> TestEventTast;
 	
 private:
 	FUKHomingStartPram HomingStartInfo;

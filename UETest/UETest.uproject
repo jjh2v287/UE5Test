@@ -33,6 +33,11 @@
 			"Name": "ComponentTimeline",
 			"Enabled": true,
 			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/a861fe34f1f94dcca67cdb2ce376bd24"
+		},
+		{
+			"Name": "BasicAsync",
+			"Enabled": true,
+			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/49a81d22ed294c7d97183a2a7a03fb1f"
 		}
 	]
 }

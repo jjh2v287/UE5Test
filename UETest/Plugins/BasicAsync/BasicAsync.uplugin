@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "BasicAsync",
+	"Description": "Blueprint nodes to create background tasks and timer tasks in Game Thread",
+	"Category": "Other",
+	"CreatedBy": "Cubeap Electronics",
+	"CreatedByURL": "https://www.youtube.com/@Cubeap",
+	"DocsURL": "https://docs.google.com/document/d/1XWtL1KrqXVDDgIekb_yWvYwotVlzsi2iGBss1DlOtQg/edit?usp=sharing",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/49a81d22ed294c7d97183a2a7a03fb1f",
+	"SupportURL": "cubeapelectronics@gmail.com",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "BasicAsync",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux",
+				"Android"
+			]
+		}
+	]
+}
