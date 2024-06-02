@@ -1,0 +1,32 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.1",
+	"FriendlyName": "BlueprintPro",
+	"Description": "",
+	"Category": "Blueprints",
+	"CreatedBy": "XUSJTUER",
+	"CreatedByURL": "https://github.com/xusjtuer",
+	"DocsURL": "https://github.com/xusjtuer/BlueprintPro/blob/main/README.md",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/8c573d9d796f4a9193c307df963bd9d2",
+	"SupportURL": "https://github.com/xusjtuer/BlueprintPro",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"SupportedTargetPlatforms": [
+		"Win64",
+		"Mac"
+	],
+	"Modules": [
+		{
+			"Name": "BlueprintPro",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "BlueprintProEditor",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	]
+}
