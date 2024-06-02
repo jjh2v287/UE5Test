@@ -71,9 +71,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category="UK Homing")
 	UUKEventTask* HomingStart(const FUKHomingStartPram HomingStartPram);
 	
-	UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject"), Category="UK Homing")
-	static UUKEventTask* HomingNewStart(const UObject* WorldContextObject);
-
 	UFUNCTION(BlueprintCallable, Category="UK Homing")
 	void HomingStop();
 
