@@ -152,3 +152,27 @@ const float UUKHomingComponent::GetCalculateAngleDelta(const float CurrentAngle,
 
 	return YawDifference;
 }
+
+FVector UUKHomingComponent::GetHomingVector(const AActor* Owner, const AActor* Target, const float HomingSpeed)
+{
+	return GetHomingRotator(Owner, Target, HomingSpeed).Vector();
+}
+
+FRotator UUKHomingComponent::GetHomingRotator(const AActor* Owner, const AActor* Target, const float HomingSpeed)
+{
+	const bool bIsNotCalculation = Owner == nullptr || Target == nullptr;
+	if (bIsNotCalculation)
+	{
+		return FRotator::ZeroRotator;
+	}
+	
+	const FRotator OwnerRotator = Owner->GetActorRotation();
+	const FVector DirectionVector = FVector(Target->GetActorLocation() - Owner->GetActorLocation()).GetSafeNormal();
+	const FRotator DirectionRotator = DirectionVector.ToOrientationRotator();
+
+	const FQuat TargetQuat(DirectionRotator);
+	const FQuat OwnerQuat(OwnerRotator);
+	const FQuat Result = FQuat::Slerp(OwnerQuat, TargetQuat, FMath::Min(HomingSpeed, 1.0f));
+
+	return Result.Rotator();
+}

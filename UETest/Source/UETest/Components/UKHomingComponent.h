@@ -67,6 +67,24 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="UK Homing")
 	const bool IsHomingStop() const;
+
+	/**
+		 * @param Owner - Rotation value change target.
+		 * @param Target - Lookup target.
+		 * @param HomingSpeed - 0.0(Owner Rotation) ~ 1.0(Calculation Target Rotation)
+		 * @return FVector
+		 */
+	UFUNCTION(BlueprintPure, Category = "Homing")
+	static FVector GetHomingVector(const AActor* Owner, const AActor* Target, const float HomingSpeed);
+	
+	/**
+	 * @param Owner - Rotation value change target.
+	 * @param Target - Lookup target.
+	 * @param HomingSpeed - 0.0(Owner Rotation) ~ 1.0(Calculation Target Rotation)
+	 * @return FRotator
+	 */
+	UFUNCTION(BlueprintPure, Category = "Homing")
+	static FRotator GetHomingRotator(const AActor* Owner, const AActor* Target, const float HomingSpeed);
 	
 private:
 	void HomingUpdate(const float DeltaTime);
