@@ -52,11 +52,25 @@ UUKEventTask* UUKHomingComponent::HomingStart(const FUKHomingStartPram HomingSta
 
 	TestEventTast = NewObject<UUKEventTask>();
 	Owner->GetGameInstance()->RegisterReferencedObject(TestEventTast);
-	return TestEventTast;
+	return TestEventTast.Get();
+}
+
+UUKEventTask* UUKHomingComponent::HomingNewStart(const UObject* WorldContextObject)
+{
+	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
+	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	{
+		return nullptr;
+	}
+	
+	UUKEventTask* TestEventTast2 = NewObject<UUKEventTask>();
+	WorldContextObject->GetWorld()->GetGameInstance()->RegisterReferencedObject(TestEventTast2);
+	return TestEventTast2;
 }
 
 void UUKHomingComponent::HomingStop()
 {
+	AActor* Owner =GetOwner();
 	HomingStartRotator = FRotator::ZeroRotator;
 	HomingTargetActor = nullptr;
 	HomingState = EUKHomingState::Stop;
@@ -73,6 +87,7 @@ void UUKHomingComponent::HomingStop()
 			TestEventTast.Get()->OnHomingEnd.Broadcast();
 		}
 
+		Owner->GetGameInstance()->UnregisterReferencedObject(TestEventTast);
 		TestEventTast = nullptr;
 	}
 }

@@ -6,7 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "UKHomingComponent.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHomingEventDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnHomingEventPin);
 
 UCLASS()
 class UETEST_API UUKEventTask : public UObject
@@ -14,9 +14,9 @@ class UETEST_API UUKEventTask : public UObject
 	GENERATED_BODY()
 public:
 	UPROPERTY(BlueprintAssignable)
-	FOnHomingEventDelegate OnHomingUpdate;
+	FOnHomingEventPin OnHomingUpdate;
 	UPROPERTY(BlueprintAssignable)
-	FOnHomingEventDelegate OnHomingEnd;
+	FOnHomingEventPin OnHomingEnd;
 };
 
 UENUM(BlueprintType, Category = "UK Homing")
@@ -67,8 +67,12 @@ public:
 	UUKHomingComponent();
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	// UFUNCTION(BlueprintCallable, Category="UK Homing")
 	UFUNCTION(BlueprintCallable, Category="UK Homing")
 	UUKEventTask* HomingStart(const FUKHomingStartPram HomingStartPram);
+	
+	UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject"), Category="UK Homing")
+	static UUKEventTask* HomingNewStart(const UObject* WorldContextObject);
 
 	UFUNCTION(BlueprintCallable, Category="UK Homing")
 	void HomingStop();
