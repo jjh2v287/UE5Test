@@ -38,22 +38,34 @@
 		{
 			"Name": "BasicAsync",
 			"Enabled": true,
-			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/49a81d22ed294c7d97183a2a7a03fb1f"
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/49a81d22ed294c7d97183a2a7a03fb1f"
 		},
 		{
 			"Name": "ThreadExecutionBlueprintNode",
 			"Enabled": true,
-			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/68ebbf08b0e54d1894a478b743345c3e"
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/68ebbf08b0e54d1894a478b743345c3e"
 		},
 		{
 			"Name": "Actions",
 			"Enabled": true,
-			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/14365ff405cd4df99a85dfc90cc5dff2"
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/14365ff405cd4df99a85dfc90cc5dff2"
 		},
 		{
 			"Name": "BlueprintPro",
 			"Enabled": true,
-			"MarketplaceURL": "https://publish.unrealengine.com/v3/edit-product/8c573d9d796f4a9193c307df963bd9d2"
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/8c573d9d796f4a9193c307df963bd9d2",
+			"SupportedTargetPlatforms": [
+				"Win64",
+				"Mac"
+			]
+		},
+		{
+			"Name": "MetasoundsAudioMathUtils",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/f3e310e86da44c53ad187698f6cb5db0",
+			"SupportedTargetPlatforms": [
+				"Win64"
+			]
 		}
 	]
 }
