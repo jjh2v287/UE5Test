@@ -76,25 +76,25 @@ void FEventReferenceHelperDetails::CustomizeHeader( TSharedRef<IPropertyHandle> 
 		}
 	}
 
-	// HeaderRow.NameContent()
-	// [
-	// 	SNew(SBorder)
-	// 	.BorderImage(FAppStyle::GetBrush("ToolBar.Background"))
-	// 	[
-	// 		SNew(SEventReferenceTree)
-	// 		.ItemHeight(24)
-	// 		.TreeItemsSource(&TreeItems)
-	// 		.OnGenerateRow(this, &FEventReferenceHelperDetails::OnGenerateWidgetForGameplayCueListView)
-	// 		.OnGetChildren( SEventReferenceTree::FOnGetChildren::CreateLambda([](TSharedPtr<FEventReferenceTreeItem> Item, TArray< TSharedPtr<FEventReferenceTreeItem> >& Children) { } ) )
-	// 		.HeaderRow
-	// 		(
-	// 			SNew(SHeaderRow)
-	// 			+ SHeaderRow::Column(EventColumnName)
-	// 			.DefaultLabel(NSLOCTEXT("EventReferenceHelper", "EventReferenceHelperColumn", "Event Referencers (does not include native code)"))
-	// 			.FillWidth(0.50)
-	// 		)
-	// 	]
-	// ];
+	HeaderRow.NameContent()
+	[
+		SNew(SBorder)
+		.BorderImage(FAppStyle::GetBrush("ToolBar.Background"))
+		[
+			SNew(SEventReferenceTree)
+			.ItemHeight(24)
+			.TreeItemsSource(&TreeItems)
+			.OnGenerateRow(this, &FEventReferenceHelperDetails::OnGenerateWidgetForGameplayCueListView)
+			.OnGetChildren( SEventReferenceTree::FOnGetChildren::CreateLambda([](TSharedPtr<FEventReferenceTreeItem> Item, TArray< TSharedPtr<FEventReferenceTreeItem> >& Children) { } ) )
+			.HeaderRow
+			(
+				SNew(SHeaderRow)
+				+ SHeaderRow::Column(EventColumnName)
+				.DefaultLabel(NSLOCTEXT("EventReferenceHelper", "EventReferenceHelperColumn", "Event Referencers (does not include native code)"))
+				.FillWidth(0.50)
+			)
+		]
+	];
 }
 
 void FEventReferenceHelperDetails::CustomizeChildren( TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils )
@@ -217,19 +217,19 @@ void FEventCreationWidgetHelperDetails::CustomizeChildren( TSharedRef<IPropertyH
 	const float MaxPropertyWidth = 480.0f;
 	const float MaxPropertyHeight = 240.0f;
 
-	// StructBuilder.AddCustomRow( LOCTEXT("NewTag", "NewTag") )
-	// .ValueContent()
-	// .MaxDesiredWidth(MaxPropertyWidth)
-	// [
-	// 	SAssignNew(TagWidget, SEventWidget, TArray<SEventWidget::FEditableEventContainerDatum>())
-	// 	.Filter(FilterString)
-	// 	.NewTagName(FilterString)
-	// 	.MultiSelect(false)
-	// 	.EventUIMode(EEventUIMode::ManagementMode)
-	// 	.MaxHeight(MaxPropertyHeight)
-	// 	.NewTagControlsInitiallyExpanded(true)
-	// 	//.OnTagChanged(this, &FEventsSettingsCustomization::OnTagChanged)
-	// ];
+	StructBuilder.AddCustomRow( LOCTEXT("NewTag", "NewTag") )
+	.ValueContent()
+	.MaxDesiredWidth(MaxPropertyWidth)
+	[
+		SAssignNew(TagWidget, SEventWidget, TArray<SEventWidget::FEditableEventContainerDatum>())
+		.Filter(FilterString)
+		.NewTagName(FilterString)
+		.MultiSelect(false)
+		.EventUIMode(EEventUIMode::ManagementMode)
+		.MaxHeight(MaxPropertyHeight)
+		.NewTagControlsInitiallyExpanded(true)
+		//.OnTagChanged(this, &FEventsSettingsCustomization::OnTagChanged)
+	];
 	
 }
 
