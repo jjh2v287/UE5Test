@@ -1,0 +1,48 @@
+{
+	"FileVersion": 3,
+	"Version": 2,
+	"VersionName": "1.3",
+	"FriendlyName": "EventSystem",
+	"Description": "",
+	"Category": "butterfly",
+	"CreatedBy": "butterfly",
+	"CreatedByURL": "",
+	"DocsURL": "https://www.youtube.com/watch?v=IpKZDVSJw08",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c8ad6bb586e64428986becc5a1ed3cbf",
+	"SupportURL": "",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "EventSystemRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Android",
+				"IOS"
+			]
+		},
+		{
+			"Name": "EventsRuntime",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Android",
+				"IOS"
+			]
+		},
+		{
+			"Name": "EventsEditor",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Android",
+				"IOS"
+			]
+		}
+	]
+}
