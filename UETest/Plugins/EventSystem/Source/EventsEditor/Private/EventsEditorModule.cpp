@@ -208,7 +208,7 @@ public:
 		UEventsSettings* Settings = GetMutableDefault<UEventsSettings>();
 		
 		// The refresh has already set the in memory version of this to be correct, just need to save it out now
-		if (!GConfig->GetSectionPrivate(TEXT("Events"), false, true, DefaultEnginePath))
+		if (!GConfig->GetSection(TEXT("Events"), false, DefaultEnginePath))
 		{
 			// Already migrated or no data
 			return;
@@ -220,7 +220,7 @@ public:
 		// Delete gameplay tags section entirely. This modifies the disk version
 		GConfig->EmptySection(TEXT("Events"), DefaultEnginePath);
 
-		FConfigSection* PackageRedirects = GConfig->GetSectionPrivate(TEXT("/Script/Engine.Engine"), false, false, DefaultEnginePath);
+		FConfigSection* PackageRedirects = const_cast<FConfigSection*>(GConfig->GetSection(TEXT("/Script/Engine.Engine"), false, DefaultEnginePath));
 
 		if (PackageRedirects)
 		{

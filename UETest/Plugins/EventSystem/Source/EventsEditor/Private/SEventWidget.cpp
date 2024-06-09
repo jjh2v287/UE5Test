@@ -1077,7 +1077,7 @@ void SEventWidget::VerifyAssetTagValidity()
 				Arguments.Add(TEXT("Objects"), FText::FromString( InvalidTagNames ));
 				FText DialogText = FText::Format( LOCTEXT("EventWidget_InvalidEvents", "Invalid Events that have been removed: \n\n{Objects}"), Arguments );
 				FText DialogTitle = LOCTEXT("EventWidget_Warning", "Warning");
-				FMessageDialog::Open( EAppMsgType::Ok, DialogText, &DialogTitle );
+				FMessageDialog::Open( EAppMsgType::Ok, DialogText, DialogTitle );
 			}
 		}
 	}

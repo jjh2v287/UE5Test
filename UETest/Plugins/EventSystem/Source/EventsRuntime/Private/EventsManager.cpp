@@ -355,7 +355,7 @@ void UEventsManager::ConstructEventTree()
 
 		// Check the deprecated location
 		bool bFoundDeprecated = false;
-		FConfigSection* PackageRedirects = GConfig->GetSectionPrivate(TEXT("/Script/Engine.Engine"), false, true, GEngineIni);
+		FConfigSection* PackageRedirects = const_cast<FConfigSection*>(GConfig->GetSection(TEXT("/Script/Engine.Engine"), false, GEngineIni));
 
 		if (PackageRedirects)
 		{

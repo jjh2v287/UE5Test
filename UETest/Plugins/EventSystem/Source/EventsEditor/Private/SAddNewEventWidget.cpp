@@ -310,7 +310,7 @@ void SAddNewEventWidget::CreateNewEvent()
 		)
 	{
 		FText MessageTitle(LOCTEXT("InvalidEvent", "Invalid Event"));
-		FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg, &MessageTitle);
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMsg, MessageTitle);
 		return;
 	}
 
