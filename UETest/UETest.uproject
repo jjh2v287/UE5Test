@@ -70,10 +70,7 @@
 		{
 			"Name": "EventSystem",
 			"Enabled": true,
-			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c8ad6bb586e64428986becc5a1ed3cbf",
-			"SupportedTargetPlatforms": [
-				"Win64"
-			]
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c8ad6bb586e64428986becc5a1ed3cbf"
 		}
 	]
 }
