@@ -1,0 +1,88 @@
+Random N초마다 이벤트를 발생으로 랜덤값 생성
+
+Trigger Repeat(트리거 리핏) N초마다 트리거 이벤트를 발생
+Trigger Counter(트리거 카운터) 트리거의 카운트를 샌다
+Trigger Compare(트리거 컴페어) 트리거 이벤트 발생시 값의 비교 True False
+Trigger Route(트리거 루터) 소리를 열었다 닫았다 소리를 바꿔줄수있다
+Trigger Control(트리거 컨트롤) Open에서 소리가 나오고 Close에서 소리가 안나온다. 리듬을 쪼개고 엇박을 만든다 Open에서 토글로 신호가 오면 Close가 되고 반대로 Close에서 토글로 신호가 오면 Open이 된다
+Trigger Filter(트리거 필터) Probability 1이면 Heads로 나가고 0이면 Tails로 나간다 0.5면 랜덤으로 나간다. 스위칭 시키면서 나가게 할수있다
+Trigger Pipe(트리거 파이프) 딜레이를 주어서 N초 뒤부터 신호가 나가게 처리한다
+Trigger Any(트리거 애니) 인풋이 3개인데 3개중 어느 인풋이라도 하나 들어오면 아웃으로 나간다
+Trigger Accumulate(트리거 어큘레이트) 인풋이 3개인데 3개모두 들어와야 아웃으로 나간다. 시간의 흐름에 따라 3개가 차례로 모두 들어왔으면 아웃으로 나간다(길이가 각각 다른 사운드의 종료시점)
+Trigger Sequence(트리거 시퀀스) 인으로 트리거가 들어오면 순서대로 아웃이 나간다(리듬 만드는데 사용)
+
+오실레이터 
+{
+	Sine 싸인파 원형 모양 둥글둥글하게 음파가 나감
+
+	Square 스퀘어파 사각형 모양 각이지게 나감
+
+	Sawtooth 쏘우투스파 톱니 모양 톱니처럼 거친 사운드
+
+	Triangle 트라이앵글파 삼각형 모양 쏘우투스파보다 비교적 둥글게
+}
+
+Map Range 맴 레인지 값의 범위 지정
+
+BPM to Second BPM을 시간으로 변환 Trigger Repeat 페이로드 값 대입
+
+
+Noise
+{
+	화이트 노이즈 시끄럽고 귀아픔
+	핑크 노이즈 화이트보다 비교적 매끄러움 부드러운 느낌
+}
+
+Filter 필터 소리를 깍는 역할을 한다 음역 Hz를 거른다(좀더 공부가 필요하다)
+{
+	Biquad Filter(바이오 쿼드 필터)
+}
+
+해르츠 1초에 몃번 진동하느냐 1hz는 1초에 한번 위아래로 파동, 파동이 많으면 음이 높다, 파장이 짧을 수록 음이 높다
+
+https://ssomu.tistory.com/entry/%EB%A3%A8%EB%B0%94%ED%86%A0%EB%9E%A9-Rubato-Lab-MIDI-Musical-Instrument-Digital-Interface-1
+MIDI(Musical Instrument Digital Interface : 미디 노트표)는 컴퓨터로 음악을 표현하는 방법 중의 하나이다. 실제 피아노 (88건반) 음계 middle C 는 MIDI note number 60(도)으로 결정된다. 예 62(레)64(미)
+
+https://ttriton.tistory.com/92
+ADSR envelope
+{
+	처음 건반을 누른 순간 Attack 시간 동안 값이 0에서 1까지 증가한다.
+	그리고 Decay 시간 동안 Sustain 단계의 레벨 만큼 서서히 줄어든다.
+	그리고 건반을 계속 누르고 있을 동안엔 Sustain 레벨이 유지가 된다.
+	마지막으로 건반을 떼는 순간 Release 시간 동안 0으로 줄어든다.
+	
+	Attack : Note on 이벤트 발생시 가장 강한 소리를 내는 것 까지 걸리는 시간
+	Decay : Attack 발생 후 소리가 sustain 크기로 떨어지는 시간
+	Sustain : 일정한 크기로 음이 지속되는 시간
+	Release : Note off 이벤트 발생시 음의 소리가 사라지는 시간, 세기도 0이 된다.
+}
+
+AD envelope
+{
+	처음 건반을 누른 순간 Attack 시간 동안 값이 0에서 1까지 증가한다.
+	그리고 Decay 시간 동안 Sustain 단계의 레벨 만큼 서서히 줄어든다.
+}
+
+https://docs.unrealengine.com/4.27/ko/WorkingWithAudio/Overview/
+{
+	덕킹(ducking)
+	{
+		더킹은 보통, 대화처럼, 들려주고자 하는 것을 제외한 다른 모든 사운드의 볼륨을 낮추는 데 사용됩니다.
+
+		SoundClasses 시네마틱이 실행하면 인게임의 모든 사운드는 음소거 처리
+		SoundMix SoundClasses를 포함하고 있다 실제 게임에서는 Mix를 사용한다
+
+		사이드 체인(Side-Chain)
+		{
+			https://www.youtube.com/watch?v=388Cg5DuCgI
+			https://forums.unrealengine.com/t/soundclass-vs-submix/493742/3
+			SoundSubmix
+			AudioBus
+		}
+	}
+
+	SoundAttenuation(어테뉴에이션) 감쇠 사운드 공간감을 위해 사용 거리에 비례해서 소리가 크게  또는 작게 들리게
+	SoundConcurrency 3대의 로봇이 동시에 총알을 쏜다고 해 봅시다. 이 경우 3개의 소리는 합쳐져서 엄청나게 큰 소리가 나게 됩니다. 귀가 아프죠. 이를 막기 위해 보정을 해 줘야 하는데, 그것이 concurrency (동시성) 입니다.
+
+	Reverb Effect (반향 이펙트)는 여러가지 정의가능한 프로퍼티로 된 애셋으로, 쉽게 조절하여 레벨에 배치된 Audio Volume 에 적용할 수 있습니다. 반향 이펙트 는 (아래 그림과 같은) 메아리 밀도, 전반적인 반향 증가, 공기 흡수 등과 같은 세팅을 조절하여 원하는 효과를 낼 수 있습니다.
+}
