@@ -81,8 +81,10 @@ https://docs.unrealengine.com/4.27/ko/WorkingWithAudio/Overview/
 		}
 	}
 
+	Spatialization (스페셜라이제이션)공간화
+	
 	SoundAttenuation(어테뉴에이션) 감쇠 사운드 공간감을 위해 사용 거리에 비례해서 소리가 크게  또는 작게 들리게
 	SoundConcurrency 3대의 로봇이 동시에 총알을 쏜다고 해 봅시다. 이 경우 3개의 소리는 합쳐져서 엄청나게 큰 소리가 나게 됩니다. 귀가 아프죠. 이를 막기 위해 보정을 해 줘야 하는데, 그것이 concurrency (동시성) 입니다.
-
+	
 	Reverb Effect (반향 이펙트)는 여러가지 정의가능한 프로퍼티로 된 애셋으로, 쉽게 조절하여 레벨에 배치된 Audio Volume 에 적용할 수 있습니다. 반향 이펙트 는 (아래 그림과 같은) 메아리 밀도, 전반적인 반향 증가, 공기 흡수 등과 같은 세팅을 조절하여 원하는 효과를 낼 수 있습니다.
 }
