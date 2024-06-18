@@ -47,8 +47,9 @@ void UUKAudioEngineSubsystem::Update()
 		{
 			return;
 		}
-		
-		for (FActiveSound* ActiveSound : AudioDevice->GetActiveSounds())
+
+		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
+		for (FActiveSound* ActiveSound : ActiveSounds)
 		{
 			const USoundBase* SoundBase = ActiveSound->GetSound();
 			if(SoundBase == nullptr)
