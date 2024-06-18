@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "TracerPro",
+	"Description": "Blueprint nodes for asynchronous line tracing",
+	"Category": "Other",
+	"CreatedBy": "Cubeap Electronics",
+	"CreatedByURL": "https://www.youtube.com/@Cubeap",
+	"DocsURL": "https://docs.google.com/document/d/1DaOf5L7vV9SR7d4TqvUwoMfKIrMF5skufERxilxRkf8/edit?usp=sharing",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/f384f0b841d840e6ab57e3a292e7d790",
+	"SupportURL": "cubeapelectronics@gmail.com",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "TracerPro",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux",
+				"Android"
+			]
+		}
+	]
+}
