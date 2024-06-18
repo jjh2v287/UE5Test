@@ -20,6 +20,7 @@ public class UETest : ModuleRules
 			
 			"AudioExtensions",
 			"DeveloperSettings",
+			"MetasoundEngine",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]

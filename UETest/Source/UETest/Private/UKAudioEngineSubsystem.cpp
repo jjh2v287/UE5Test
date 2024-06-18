@@ -2,6 +2,7 @@
 
 #include "UKAudioEngineSubsystem.h"
 #include "AudioDevice.h"
+#include "MetasoundSource.h"
 #include "UKAudioSettings.h"
 
 bool UUKAudioEngineSubsystem::ShouldCreateSubsystem(UObject* Outer) const
@@ -51,7 +52,7 @@ void UUKAudioEngineSubsystem::Update()
 		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
 		for (FActiveSound* ActiveSound : ActiveSounds)
 		{
-			const USoundBase* SoundBase = ActiveSound->GetSound();
+			const UMetaSoundSource* SoundBase = Cast<UMetaSoundSource>(ActiveSound->GetSound());
 			if(SoundBase == nullptr)
 			{
 				continue;
