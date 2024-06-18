@@ -17,12 +17,16 @@ public class UETest : ModuleRules
 			"EnhancedInput",
 			"AnimGraphRuntime",
 			"UMG",
+			
+			"AudioExtensions",
+			"DeveloperSettings",
+			// "MetasoundEngined",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"AnimGraphRuntime", "AIModule", 
+			"AnimGraphRuntime", "AIModule",
 		});
 	}
 }

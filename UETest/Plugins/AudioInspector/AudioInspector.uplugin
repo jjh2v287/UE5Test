@@ -1,0 +1,28 @@
+{
+	"FileVersion": 3,
+	"Version": 2,
+	"VersionName": "1.1.0",
+	"FriendlyName": "SweejTech Audio Inspector",
+	"Description": "An editor-based view of active sounds, for debugging, content creation and enjoyment",
+	"Category": "Audio",
+	"CreatedBy": "SweejTech Ltd",
+	"CreatedByURL": "https://sweej.tech/",
+	"DocsURL": "https://github.com/SweejTech/Documentation/blob/main/AudioInspector",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/10d3f0d1ed654d89927afb8f4fa5acc0",
+	"SupportURL": "hello@sweej.tech",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "AudioInspector",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
+			]
+		}
+	]
+}
