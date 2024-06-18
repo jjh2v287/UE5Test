@@ -1,6 +1,5 @@
 // Copyright Kong Studios, Inc. All Rights Reserved.
 
-
 #include "UKAudioEngineSubsystem.h"
 #include "AudioDevice.h"
 #include "UKAudioSettings.h"
@@ -28,52 +27,70 @@ void UUKAudioEngineSubsystem::Update()
 {
 	Super::Update();
 	
-	Audio::FDeviceId CurrentDeviceId = GetAudioDeviceId();
+	const Audio::FDeviceId CurrentDeviceId = GetAudioDeviceId();
 	FAudioThread::RunCommandOnAudioThread([CurrentDeviceId]()
 	{
-		if (FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get())
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		if(AudioDeviceManager == nullptr)
 		{
-			FAudioDeviceHandle DeviceHandle = AudioDeviceManager->GetAudioDevice(CurrentDeviceId);
-			if (DeviceHandle.IsValid())
+			return;
+		}
+		
+		const FAudioDeviceHandle DeviceHandle = AudioDeviceManager->GetAudioDevice(CurrentDeviceId);
+		if (!DeviceHandle.IsValid())
+		{
+			return;
+		}
+		
+		const FAudioDevice* AudioDevice = DeviceHandle.GetAudioDevice();
+		if(AudioDevice == nullptr)
+		{
+			return;
+		}
+		
+		for (FActiveSound* ActiveSound : AudioDevice->GetActiveSounds())
+		{
+			const USoundBase* SoundBase = ActiveSound->GetSound();
+			if(SoundBase == nullptr)
 			{
-				FAudioDevice* AudioDevice = DeviceHandle.GetAudioDevice();
-				for (FActiveSound* ActiveSound : AudioDevice->GetActiveSounds())
-				{
-					if (USoundBase* SoundBase = Cast<USoundBase>(ActiveSound->GetSound()))
-					{
-						if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
-						{
-							Audio::FParameterInterfacePtr OcclusionInterface = Audio::OcclusionInterface::GetInterface();
-							bool bImplementsOcclusion = SoundBase->ImplementsParameterInterface(OcclusionInterface);
-							if(bImplementsOcclusion)
-							{
-								int32 ClosestListenerIndex = ActiveSound->FindClosestListener();
-								check(ClosestListenerIndex != INDEX_NONE);
-								FVector ListenerLocation;
-								FVector SoundLocation = ActiveSound->Transform.GetLocation();
-								const bool bAllowOverride = false;
-								bool bIsOccluded = false;
-								AudioDevice->GetListenerPosition(ClosestListenerIndex, ListenerLocation, bAllowOverride);
-
-								TArray<FAudioParameter> ParamsToUpdate;
-								if (UWorld* WorldPtr = ActiveSound->GetWorld())
-								{
-									FCollisionQueryParams Params(SCENE_QUERY_STAT(SoundOcclusion), true);
-									Params.AddIgnoredActor( ActiveSound->GetOwnerID() );
-									bIsOccluded = WorldPtr->LineTraceTestByChannel(SoundLocation, ListenerLocation, ECollisionChannel::ECC_Visibility, Params);
-
-									ParamsToUpdate.Append(
-								{
-										{ Audio::OcclusionInterface::Inputs::Occlusion, bIsOccluded ? 0.3f : 1.0f },
-									});
-								}
-								
-								Transmitter->SetParameters(MoveTemp(ParamsToUpdate));
-							}
-						}
-					}
-				}
+				continue;
 			}
+
+			const UWorld* WorldPtr = ActiveSound->GetWorld();
+			if (WorldPtr == nullptr)
+			{
+				continue;
+			}
+
+			Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter();
+			if (Transmitter == nullptr)
+			{
+				continue;
+			}
+
+			TArray<FAudioParameter> ParamsToUpdate;
+			const Audio::FParameterInterfacePtr OcclusionInterface = Audio::OcclusionInterface::GetInterface();
+			const bool bImplementsOcclusion = SoundBase->ImplementsParameterInterface(OcclusionInterface);
+
+			if(bImplementsOcclusion)
+			{
+				const int32 ClosestListenerIndex = ActiveSound->FindClosestListener();
+				check(ClosestListenerIndex != INDEX_NONE);
+				const FVector SoundLocation = ActiveSound->Transform.GetLocation();
+				FVector ListenerLocation;
+				AudioDevice->GetListenerPosition(ClosestListenerIndex, ListenerLocation, false);
+
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(SoundOcclusion), true);
+				Params.AddIgnoredActor( ActiveSound->GetOwnerID() );
+				const bool bIsOccluded = WorldPtr->LineTraceTestByChannel(SoundLocation, ListenerLocation, ECollisionChannel::ECC_Visibility, Params);
+
+				ParamsToUpdate.Append(
+			{
+					{ Audio::OcclusionInterface::Inputs::Occlusion, bIsOccluded ? 0.3f : 1.0f },
+				});
+			}
+
+			Transmitter->SetParameters(MoveTemp(ParamsToUpdate));
 		}
 	});
 }
@@ -118,7 +135,7 @@ namespace Audio
 
 			return InterfacePtr;
 		}
-	} // namespace AttenuationInterface
+	} // namespace OcclusionInterface
 #undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
 } // namespace Audio
 #undef LOCTEXT_NAMESPACE
