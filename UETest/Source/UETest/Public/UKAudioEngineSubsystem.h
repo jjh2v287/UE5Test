@@ -25,8 +25,57 @@ public:
 	//~ Begin UAudioEngineSubsystem interface
 	virtual void Update() override;
 	//~ End UAudioEngineSubsystem interface
+
+private:
+	static void AsyncOcclusionTraceStart(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
+	static void AsyncOcclusionTraceEnd(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
+
+	static void AsyncNavOcclusionStart(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
+	static void AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQueryResult::Type Result, FNavPathSharedPtr NavPath);
+	
+	static const float GetOcclusionRate(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
+	static const float GetNavOcclusionRate(const FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
+
+private:
+	static const bool bAsync = true;
+	static const bool Debugging = false;
+	
+	struct FUKOcclusionAsyncTraceInfo
+	{
+		Audio::FDeviceId AudioDeviceID = 0;
+		FActiveSound* ActiveSound = nullptr;
+	};
+
+	struct FUKOcclusionAsyncTraceCompleteInfo
+    {
+    	FTraceHandle TraceHandle;
+		bool bTaskComplete = false;
+    	bool bHit = false;
+    };
+	
+	static TMap<FTraceHandle, FUKOcclusionAsyncTraceInfo> TraceToActiveSoundMap;
+	static TMap<FActiveSound*, FUKOcclusionAsyncTraceCompleteInfo> TraceCompleteHandleMap;
+	static FTraceDelegate ActiveSoundTraceDelegate;
+
+	struct FUKNavOcclusionAsyncTraceInfo
+	{
+		uint32 AsynId = 0;
+		FActiveSound* ActiveSound = nullptr;
+	};
+
+	struct FUKNavOcclusionAsyncTraceCompleteInfo
+	{
+		uint32 AsynId = 0;
+		bool bTaskComplete = false;
+		float OcclusionRate = 0.0f;
+	};
+	
+	static TMap<uint32, FUKNavOcclusionAsyncTraceInfo> NavOcclusionMap;
+	static TMap<FActiveSound*, FUKNavOcclusionAsyncTraceCompleteInfo> NavOcclusionCompleteMap;
+	static FNavPathQueryDelegate NavPathQueryDelegate;
 };
 
+#pragma region Meta Sound Interface
 namespace Audio
 {
 	namespace OcclusionInterface
@@ -40,4 +89,17 @@ namespace Audio
 
 		Audio::FParameterInterfacePtr GetInterface();
 	} // namespace OcclusionInterface
+
+	namespace NavOcclusionInterface
+	{
+		const extern FName Name;
+
+		namespace Inputs
+		{
+			const extern FName NavOcclusion;
+		} // namespace Inputs
+
+		Audio::FParameterInterfacePtr GetInterface();
+	} // namespace NavOcclusionInterface
 } // namespace Audio
+#pragma endregion Meta Sound Interface

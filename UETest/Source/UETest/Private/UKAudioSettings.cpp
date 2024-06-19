@@ -18,5 +18,6 @@ void UUKAudioSettings::RegisterParameterInterfaces()
 		UE_LOG(LogAudio, Display, TEXT("Registering Audio::OcclusionInterface::GetInterface..."));
 		Audio::IAudioParameterInterfaceRegistry& InterfaceRegistry = Audio::IAudioParameterInterfaceRegistry::Get();
 		InterfaceRegistry.RegisterInterface(Audio::OcclusionInterface::GetInterface());
+		InterfaceRegistry.RegisterInterface(Audio::NavOcclusionInterface::GetInterface());
 	}
 }

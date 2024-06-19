@@ -18,6 +18,7 @@ public class UETest : ModuleRules
 			"AnimGraphRuntime",
 			"UMG",
 			
+			"NavigationSystem",
 			"AudioExtensions",
 			"DeveloperSettings",
 			"MetasoundEngine",
