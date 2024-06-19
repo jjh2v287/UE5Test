@@ -89,5 +89,19 @@ https://docs.unrealengine.com/4.27/ko/WorkingWithAudio/Overview/
 	Reverb Effect (반향 이펙트)는 여러가지 정의가능한 프로퍼티로 된 애셋으로, 쉽게 조절하여 레벨에 배치된 Audio Volume 에 적용할 수 있습니다. 반향 이펙트 는 (아래 그림과 같은) 메아리 밀도, 전반적인 반향 증가, 공기 흡수 등과 같은 세팅을 조절하여 원하는 효과를 낼 수 있습니다.
 }
 
+Meta Sound에서 사용 가능한 기존 공간화(Spatialization) 기능
+{
+	Attenuation(감쇠)
+	리스너와 사운드와의 거리 노드 있음
+	리스너와 사운드와의 각도 노드 있음
+	리스너와 사운드와의 충돌 오쿨루젼 노드 없음
+	오쿨루젼기능을 노드로 사용하고 싶다면 인터페이스를 C++코드 추가 알고리즘 작성해야 합니다
+	
+	Reverb(반향)
+	Delay 노드 있음
+	Reverb 다이나믹하게 공간화기능을 사용하기 위해서는 외부에서 공간화가 되었다는 특정 커스텀 파라미터를 넘겨줘야 가능
+}
+
+
 void FActiveSound::CheckOcclusion(const FVector ListenerLocation, const FVector SoundLocation, const FSoundAttenuationSettings* AttenuationSettingsPtr)
 void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListeners)
