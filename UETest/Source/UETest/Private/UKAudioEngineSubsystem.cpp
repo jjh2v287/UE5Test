@@ -269,7 +269,37 @@ void UUKAudioEngineSubsystem::AsyncOcclusionTraceEnd(const FTraceHandle& TraceHa
 		{
 			return;
 		}
+		
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		const bool bNotValidAudioDeviceManager = AudioDeviceManager == nullptr;
+		if (bNotValidAudioDeviceManager)
+		{
+			return;
+		}
+		
+		const FAudioDeviceHandle DeviceHandle = AudioDeviceManager->GetAudioDevice(TraceDetails->AudioDeviceID);
+		const bool bNotValidDeviceHandle = !DeviceHandle.IsValid(); 
+		if (bNotValidDeviceHandle)
+		{
+			return;
+		}
+		
+		const FAudioDevice* AudioDevice = DeviceHandle.GetAudioDevice();
+		const bool bNotValidAudioDevice = AudioDevice == nullptr;
+		if (bNotValidAudioDevice)
+		{
+			return;
+		}
 
+		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
+		const bool bNotContainsActiveSound = !ActiveSounds.Contains(TraceDetails->ActiveSound);
+		if(bNotContainsActiveSound)
+		{
+			TraceToActiveSoundMap.Remove(TraceHandle);
+			TraceCompleteHandleMap.Remove(TraceDetails->ActiveSound);
+			return;
+		}
+		
 		TraceComplete->bHit = bFoundBlockingHit;
 		TraceComplete->bTaskComplete = true;
 	});
@@ -295,6 +325,7 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 	FUKNavOcclusionAsyncTraceInfo Info;
 	Info.AsynId = QueryID;
 	Info.ActiveSound = ActiveSound;
+	Info.AudioDeviceID = ActiveSound->AudioDevice->DeviceID;
 	NavOcclusionMap.Add(QueryID, Info);
 
 	FUKNavOcclusionAsyncTraceCompleteInfo CompleteInfo;
@@ -317,6 +348,36 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQu
 		const bool bNotValidCompleteInfo = CompleteInfo == nullptr;
 		if(bNotValidCompleteInfo)
 		{
+			return;
+		}
+
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		const bool bNotValidAudioDeviceManager = AudioDeviceManager == nullptr;
+		if (bNotValidAudioDeviceManager)
+		{
+			return;
+		}
+		
+		const FAudioDeviceHandle DeviceHandle = AudioDeviceManager->GetAudioDevice(Info->AudioDeviceID);
+		const bool bNotValidDeviceHandle = !DeviceHandle.IsValid(); 
+		if (bNotValidDeviceHandle)
+		{
+			return;
+		}
+		
+		const FAudioDevice* AudioDevice = DeviceHandle.GetAudioDevice();
+		const bool bNotValidAudioDevice = AudioDevice == nullptr;
+		if (bNotValidAudioDevice)
+		{
+			return;
+		}
+
+		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
+		const bool bNotContainsActiveSound = !ActiveSounds.Contains(Info->ActiveSound);
+		if(bNotContainsActiveSound)
+		{
+			NavOcclusionMap.Remove(QueryID);
+			NavOcclusionCompleteMap.Remove(Info->ActiveSound);
 			return;
 		}
 		

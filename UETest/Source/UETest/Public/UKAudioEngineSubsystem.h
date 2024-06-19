@@ -60,6 +60,7 @@ private:
 	struct FUKNavOcclusionAsyncTraceInfo
 	{
 		uint32 AsynId = 0;
+		Audio::FDeviceId AudioDeviceID = 0;
 		FActiveSound* ActiveSound = nullptr;
 	};
 
