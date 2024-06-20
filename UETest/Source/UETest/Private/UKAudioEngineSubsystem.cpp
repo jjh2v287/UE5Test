@@ -319,7 +319,7 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 	}
 
 	const FNavAgentProperties AgentProperties;
-	const FVector Extent = FVector(0.0f, 0.0f, 500.0f);
+	const FVector Extent = FVector(100.0f, 100.0f, 500.0f);
 	FNavLocation ProjectedLocation;
 	NavigationSystem->ProjectPointToNavigation(ListenerLocation, ProjectedLocation, Extent, &AgentProperties);
 
