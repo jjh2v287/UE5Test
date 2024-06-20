@@ -38,7 +38,6 @@ private:
 
 private:
 	static const bool bAsync = true;
-	static const bool Debugging = false;
 	
 	struct FUKOcclusionAsyncTraceInfo
 	{

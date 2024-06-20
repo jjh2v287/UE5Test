@@ -335,7 +335,7 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 	}
 
 	const FNavAgentProperties AgentProperties;
-	const FVector Extent = FVector(0.0f, 0.0f, 250.0f);
+	const FVector Extent = FVector(0.0f, 0.0f, 500.0f);
 	FNavLocation ProjectedLocation;
 	NavigationSystem->ProjectPointToNavigation(ListenerLocation, ProjectedLocation, Extent, &AgentProperties);
 
@@ -356,7 +356,10 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 
 void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQueryResult::Type Result, FNavPathSharedPtr NavPath)
 {
-	FAudioThread::RunCommandOnAudioThread( [QueryID, NavPath]()
+	const float PathLength = NavPath->GetLength();
+	const float OcclusionRate = UKismetMathLibrary::MapRangeClamped(PathLength, 0.0f, 3600.0f, 0.0f, 1.0f);
+	
+	FAudioThread::RunCommandOnAudioThread( [QueryID, NavPath, OcclusionRate]()
 	{
 		FUKNavOcclusionAsyncTraceInfo* Info = NavOcclusionMap.Find(QueryID);
 		const bool bNotValidInfo = Info == nullptr;
@@ -402,8 +405,6 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQu
 			return;
 		}
 		
-		const float PathLength = NavPath->GetLength();
-		const float OcclusionRate = UKismetMathLibrary::MapRangeClamped(PathLength, 0.0f, 3600.0f, 0.0f, 1.0f);
 		CompleteInfo->bTaskComplete = true;
 		CompleteInfo->OcclusionRate = OcclusionRate;
 	});
@@ -434,33 +435,6 @@ const float UUKAudioEngineSubsystem::GetNavOcclusionRate(const FActiveSound* Act
 		return OcclusionRate;
 	}
 
-	if(Debugging)
-	{
-		AActor* FoundActor = nullptr;
-		const FString OwnerName = ActiveSound->GetOwnerName();
-		for (TActorIterator<AActor> It(ActiveSound->GetWorld()); It; ++It)
-		{
-			if (It->GetName() == OwnerName)
-			{
-				FoundActor = *It;
-				break;
-			}
-		}
-
-		if(FoundActor)
-		{
-			USplineComponent* SplineComponent = FoundActor->GetComponentByClass<USplineComponent>();
-			if(SplineComponent == nullptr)
-			{
-				SplineComponent = Cast<USplineComponent>(FoundActor->AddComponentByClass(USplineComponent::StaticClass(),false, FTransform::Identity, false));
-			}
-			SplineComponent->SetVisibility(true);
-			SplineComponent->SetHiddenInGame(false);
-			SplineComponent->ClearSplinePoints(false);
-			SplineComponent->SetSplinePoints(NavigationPath->PathPoints, ESplineCoordinateSpace::World, true);
-		}
-	}
-	
 	const float PathLength = NavigationPath->GetPathLength();
 	OcclusionRate = UKismetMathLibrary::MapRangeClamped(PathLength, 0.0f, 3600.0f, 0.0f, 1.0f);
 
