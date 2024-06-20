@@ -53,7 +53,7 @@ private:
     	bool bHit = false;
     };
 	
-	static TMap<FTraceHandle, FUKOcclusionAsyncTraceInfo> TraceToActiveSoundMap;
+	static TMap<FTraceHandle, FUKOcclusionAsyncTraceInfo> TraceOcclusionMap;
 	static TMap<FActiveSound*, FUKOcclusionAsyncTraceCompleteInfo> TraceCompleteHandleMap;
 	static FTraceDelegate ActiveSoundTraceDelegate;
 
