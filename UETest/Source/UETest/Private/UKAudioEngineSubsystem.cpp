@@ -2,12 +2,10 @@
 
 #include "UKAudioEngineSubsystem.h"
 #include "AudioDevice.h"
-#include "EngineUtils.h"
 #include "MetasoundSource.h"
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
 #include "UKAudioSettings.h"
-#include "Components/SplineComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "NavFilters/NavigationQueryFilter.h"
 
@@ -124,7 +122,7 @@ void UUKAudioEngineSubsystem::Update()
 
 			const int32 ClosestListenerIndex = ActiveSound->FindClosestListener();
 			const bool bNotValidListener = ClosestListenerIndex == INDEX_NONE;
-			if(bNotValidListener)
+			if (bNotValidListener)
 			{
 				continue;
 			}
@@ -142,29 +140,25 @@ void UUKAudioEngineSubsystem::Update()
 			const bool bParameterNavOcclusion = SoundBase->ImplementsParameterInterface(NavOcclusionInterface);
 
 			const bool bAllNotParameter = !bParameterOcclusion && !bParameterNavOcclusion; 
-			if(bAllNotParameter)
+			if (bAllNotParameter)
 			{
 				continue;
 			}
 			
 			if (bParameterOcclusion)
 			{
-				if(bAsync)
+				if (bAsync)
 				{
 					UUKAudioEngineSubsystem::AsyncOcclusionTraceStart(ActiveSound, SoundLocation, ListenerLocation);
 
 					const FUKOcclusionAsyncTraceCompleteInfo* TraceComplete = TraceCompleteHandleMap.Find(ActiveSound);
 					const bool bTaskComplete = TraceComplete && TraceComplete->bTaskComplete;
-					if(bTaskComplete)
+					if (bTaskComplete)
 					{
 						FUKOcclusionAsyncTraceInfo TraceInfo;
 						if (TraceOcclusionMap.RemoveAndCopyValue(TraceComplete->TraceHandle, TraceInfo))
 						{
-							ParamsToUpdate.Append(
-						{
-								{ Audio::OcclusionInterface::Inputs::Occlusion, TraceComplete->bHit ? 1.0f : 0.0f },
-							});
-
+							ParamsToUpdate.Append( { { Audio::OcclusionInterface::Inputs::Occlusion, TraceComplete->bHit ? 1.0f : 0.0f }, });
 							TraceCompleteHandleMap.Remove(ActiveSound);
 						}
 					}
@@ -172,31 +166,24 @@ void UUKAudioEngineSubsystem::Update()
 				else
 				{
 					const float OcclusionRate = UUKAudioEngineSubsystem::GetOcclusionRate(ActiveSound, SoundLocation, ListenerLocation);
-					ParamsToUpdate.Append(
-				{
-						{ Audio::OcclusionInterface::Inputs::Occlusion, OcclusionRate },
-					});
+					ParamsToUpdate.Append( { { Audio::OcclusionInterface::Inputs::Occlusion, OcclusionRate }, });
 				}
 			}
 
-			if(bParameterNavOcclusion)
+			if (bParameterNavOcclusion)
 			{
-				if(bAsync)
+				if (bAsync)
 				{
 					UUKAudioEngineSubsystem::AsyncNavOcclusionStart(ActiveSound, SoundLocation, ListenerLocation);
 
 					const FUKNavOcclusionAsyncTraceCompleteInfo* TraceComplete = NavOcclusionCompleteMap.Find(ActiveSound);
 					const bool bTaskComplete = TraceComplete && TraceComplete->bTaskComplete;
-					if(bTaskComplete)
+					if (bTaskComplete)
 					{
 						FUKNavOcclusionAsyncTraceInfo TraceInfo;
 						if (NavOcclusionMap.RemoveAndCopyValue(TraceComplete->AsynId, TraceInfo))
 						{
-							ParamsToUpdate.Append(
-						{
-								{ Audio::NavOcclusionInterface::Inputs::NavOcclusion, TraceComplete->OcclusionRate },
-							});
-
+							ParamsToUpdate.Append( { { Audio::NavOcclusionInterface::Inputs::NavOcclusion, TraceComplete->OcclusionRate }, });
 							NavOcclusionCompleteMap.Remove(ActiveSound);
 						}
 					}
@@ -204,10 +191,7 @@ void UUKAudioEngineSubsystem::Update()
 				else
 				{
 					const float NavOcclusionRate = UUKAudioEngineSubsystem::GetNavOcclusionRate(ActiveSound, SoundLocation, ListenerLocation);
-					ParamsToUpdate.Append(
-				{
-						{ Audio::NavOcclusionInterface::Inputs::NavOcclusion, NavOcclusionRate },
-					});
+					ParamsToUpdate.Append( { { Audio::NavOcclusionInterface::Inputs::NavOcclusion, NavOcclusionRate }, });
 				}
 			}
 
@@ -220,7 +204,7 @@ void UUKAudioEngineSubsystem::Update()
 void UUKAudioEngineSubsystem::AsyncOcclusionTraceStart(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation)
 {
 	bool bNotComplete = TraceCompleteHandleMap.Contains(ActiveSound);
-	if(bNotComplete)
+	if (bNotComplete)
 	{
 		return;
 	}
@@ -232,13 +216,13 @@ void UUKAudioEngineSubsystem::AsyncOcclusionTraceStart(FActiveSound* ActiveSound
 	TraceInfo.AudioDeviceID = ActiveSound->AudioDevice->DeviceID;
 	TraceInfo.ActiveSound = ActiveSound;
 	FTraceHandle TraceHandle = ActiveSound->GetWorld()->AsyncLineTraceByChannel(EAsyncTraceType::Test, SoundLocation, ListenerLocation, ECollisionChannel::ECC_Visibility, Params, FCollisionResponseParams::DefaultResponseParam, &ActiveSoundTraceDelegate);
-	TraceOcclusionMap.Add(TraceHandle, TraceInfo);
+	TraceOcclusionMap.Emplace(TraceHandle, TraceInfo);
 
 	FUKOcclusionAsyncTraceCompleteInfo TraceComplete;
 	TraceComplete.TraceHandle = TraceHandle;
 	TraceComplete.bHit = false;
 	TraceComplete.bTaskComplete = false;
-	TraceCompleteHandleMap.Add(ActiveSound, TraceComplete);
+	TraceCompleteHandleMap.Emplace(ActiveSound, TraceComplete);
 }
 
 void UUKAudioEngineSubsystem::AsyncOcclusionTraceEnd(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum)
@@ -293,7 +277,7 @@ void UUKAudioEngineSubsystem::AsyncOcclusionTraceEnd(const FTraceHandle& TraceHa
 
 		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
 		const bool bNotContainsActiveSound = !ActiveSounds.Contains(TraceInfo->ActiveSound);
-		if(bNotContainsActiveSound)
+		if (bNotContainsActiveSound)
 		{
 			TraceOcclusionMap.Remove(TraceHandle);
 			TraceCompleteHandleMap.Remove(TraceInfo->ActiveSound);
@@ -308,7 +292,7 @@ void UUKAudioEngineSubsystem::AsyncOcclusionTraceEnd(const FTraceHandle& TraceHa
 void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation)
 {
 	bool bNotComplete = NavOcclusionCompleteMap.Contains(ActiveSound);
-	if(bNotComplete)
+	if (bNotComplete)
 	{
 		return;
 	}
@@ -347,11 +331,11 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 	Info.AsynId = QueryID;
 	Info.ActiveSound = ActiveSound;
 	Info.AudioDeviceID = ActiveSound->AudioDevice->DeviceID;
-	NavOcclusionMap.Add(QueryID, Info);
+	NavOcclusionMap.Emplace(QueryID, Info);
 
 	FUKNavOcclusionAsyncTraceCompleteInfo CompleteInfo;
 	CompleteInfo.AsynId = QueryID;
-	NavOcclusionCompleteMap.Add(ActiveSound, CompleteInfo);
+	NavOcclusionCompleteMap.Emplace(ActiveSound, CompleteInfo);
 }
 
 void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQueryResult::Type Result, FNavPathSharedPtr NavPath)
@@ -363,14 +347,14 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQu
 	{
 		FUKNavOcclusionAsyncTraceInfo* Info = NavOcclusionMap.Find(QueryID);
 		const bool bNotValidInfo = Info == nullptr;
-		if(bNotValidInfo)
+		if (bNotValidInfo)
 		{
 			return;
 		}
 		
 		FUKNavOcclusionAsyncTraceCompleteInfo* CompleteInfo= NavOcclusionCompleteMap.Find(Info->ActiveSound);
 		const bool bNotValidCompleteInfo = CompleteInfo == nullptr;
-		if(bNotValidCompleteInfo)
+		if (bNotValidCompleteInfo)
 		{
 			return;
 		}
@@ -398,7 +382,7 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQu
 
 		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
 		const bool bNotContainsActiveSound = !ActiveSounds.Contains(Info->ActiveSound);
-		if(bNotContainsActiveSound)
+		if (bNotContainsActiveSound)
 		{
 			NavOcclusionMap.Remove(QueryID);
 			NavOcclusionCompleteMap.Remove(Info->ActiveSound);
@@ -424,7 +408,7 @@ const float UUKAudioEngineSubsystem::GetNavOcclusionRate(const FActiveSound* Act
 	float OcclusionRate = 0.0f;
 	UNavigationPath* NavigationPath = UNavigationSystemV1::FindPathToLocationSynchronously(ActiveSound->GetWorld(), SoundLocation, ListenerLocation);
 	const bool bNotValidNavigationPath = NavigationPath == nullptr;
-	if(bNotValidNavigationPath)
+	if (bNotValidNavigationPath)
 	{
 		return OcclusionRate;
 	}
