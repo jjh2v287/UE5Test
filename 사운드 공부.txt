@@ -1,3 +1,13 @@
+### **MetaSoundSource 및 MetaSoundPatch**
+
+- **MetaSoundSource**
+    - USoundWave를 상속받았으며 비주얼 그래프 기반 사운드 에셋
+    - 실제 소리를 Output 한다.
+    - 블루프린트에 해당
+- **MetaSoundPatch**
+    - 비주얼 그래프 기반 사운드 제작 로직만 처리
+    - 블루프린트 함수라고 생각하면 편합니다.
+
 Random N초마다 이벤트를 발생으로 랜덤값 생성
 
 Trigger Repeat(트리거 리핏) N초마다 트리거 이벤트를 발생
@@ -105,3 +115,7 @@ Meta Sound에서 사용 가능한 기존 공간화(Spatialization) 기능
 
 void FActiveSound::CheckOcclusion(const FVector ListenerLocation, const FVector SoundLocation, const FSoundAttenuationSettings* AttenuationSettingsPtr)
 void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListeners)
+
+Path based Audio Occlusion
+https://www.youtube.com/watch?v=1uNjiSCTX1o
+https://www.youtube.com/watch?v=SRapLtIjGhg

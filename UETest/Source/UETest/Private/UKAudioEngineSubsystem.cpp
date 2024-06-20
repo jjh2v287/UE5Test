@@ -71,6 +71,7 @@ void UUKAudioEngineSubsystem::Deinitialize()
 void UUKAudioEngineSubsystem::Update()
 {
 	Super::Update();
+	TRACE_CPUPROFILER_EVENT_SCOPE(UKAudioEngineSubsystem::Update);
 	
 	const Audio::FDeviceId CurrentDeviceId = GetAudioDeviceId();
 	FAudioThread::RunCommandOnAudioThread([CurrentDeviceId]()
