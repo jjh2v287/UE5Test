@@ -56,22 +56,22 @@ private:
 	static TMap<FActiveSound*, FUKOcclusionAsyncTraceCompleteInfo> TraceCompleteHandleMap;
 	static FTraceDelegate ActiveSoundTraceDelegate;
 
-	struct FUKNavOcclusionAsyncTraceInfo
+	struct FUKNavOcclusionAsyncInfo
 	{
 		uint32 AsynId = 0;
 		Audio::FDeviceId AudioDeviceID = 0;
 		FActiveSound* ActiveSound = nullptr;
 	};
 
-	struct FUKNavOcclusionAsyncTraceCompleteInfo
+	struct FUKNavOcclusionAsyncCompleteInfo
 	{
 		uint32 AsynId = 0;
 		bool bTaskComplete = false;
 		float OcclusionRate = 0.0f;
 	};
 	
-	static TMap<uint32, FUKNavOcclusionAsyncTraceInfo> NavOcclusionMap;
-	static TMap<FActiveSound*, FUKNavOcclusionAsyncTraceCompleteInfo> NavOcclusionCompleteMap;
+	static TMap<uint32, FUKNavOcclusionAsyncInfo> NavOcclusionMap;
+	static TMap<FActiveSound*, FUKNavOcclusionAsyncCompleteInfo> NavOcclusionCompleteMap;
 	static FNavPathQueryDelegate NavPathQueryDelegate;
 };
 
