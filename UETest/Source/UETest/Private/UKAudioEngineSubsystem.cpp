@@ -334,9 +334,11 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 		return;
 	}
 
-	FNavAgentProperties AgentProperties;
+	const FNavAgentProperties AgentProperties;
+	const FVector Extent = FVector(0.0f, 0.0f, 250.0f);
 	FNavLocation ProjectedLocation;
-	NavigationSystem->ProjectPointToNavigation(ListenerLocation, ProjectedLocation, INVALID_NAVEXTENT, &AgentProperties);
+	NavigationSystem->ProjectPointToNavigation(ListenerLocation, ProjectedLocation, Extent, &AgentProperties);
+
 	FPathFindingQuery FindingQuery(nullptr, *NavigationData, SoundLocation, ProjectedLocation.Location, UNavigationQueryFilter::GetQueryFilter(*NavigationData, nullptr, nullptr));
 	FindingQuery.SetAllowPartialPaths(true);
 	uint32 QueryID = NavigationSystem->FindPathAsync(AgentProperties, FindingQuery, NavPathQueryDelegate, EPathFindingMode::Regular);
