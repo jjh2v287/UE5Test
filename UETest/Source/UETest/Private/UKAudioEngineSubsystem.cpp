@@ -6,6 +6,7 @@
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
 #include "UKAudioSettings.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "NavFilters/NavigationQueryFilter.h"
 
@@ -209,8 +210,21 @@ void UUKAudioEngineSubsystem::AsyncOcclusionTraceStart(FActiveSound* ActiveSound
 		return;
 	}
 
+	UWorld* World = ActiveSound->GetWorld();
+	const bool bNotWorld = World == nullptr;
+	if(bNotWorld)
+	{
+		return;
+	}
+	
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(AsyncSoundOcclusion), true);
 	Params.AddIgnoredActor( ActiveSound->GetOwnerID() );
+	const int32 PlayerNum = UGameplayStatics::GetNumPlayerControllers(World);
+	for(int32 i = 0; i < PlayerNum; i++)
+	{
+		Params.AddIgnoredActor( UGameplayStatics::GetPlayerController(World, i) );
+		Params.AddIgnoredActor( UGameplayStatics::GetPlayerPawn(World, i) );
+	}
 	
 	FUKOcclusionAsyncTraceInfo TraceInfo;
 	TraceInfo.AudioDeviceID = ActiveSound->AudioDevice->DeviceID;
@@ -402,8 +416,22 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQu
 
 const float UUKAudioEngineSubsystem::GetOcclusionRate(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation)
 {
+	UWorld* World = ActiveSound->GetWorld();
+	const bool bNotWorld = World == nullptr;
+	if(bNotWorld)
+	{
+		return 0.0f;
+	}
+	
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(SoundOcclusion), true);
 	Params.AddIgnoredActor( ActiveSound->GetOwnerID() );
+	const int32 PlayerNum = UGameplayStatics::GetNumPlayerControllers(World);
+	for(int32 i = 0; i < PlayerNum; i++)
+	{
+		Params.AddIgnoredActor( UGameplayStatics::GetPlayerController(World, i) );
+		Params.AddIgnoredActor( UGameplayStatics::GetPlayerPawn(World, i) );
+	}
+	
 	const bool bIsOccluded = ActiveSound->GetWorld()->LineTraceTestByChannel(SoundLocation, ListenerLocation, ECollisionChannel::ECC_Visibility, Params);
 	const float OcclusionRate = bIsOccluded ? 1.0f : 0.0f;
 
