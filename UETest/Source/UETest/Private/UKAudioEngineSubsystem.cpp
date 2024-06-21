@@ -39,12 +39,7 @@ void UUKAudioEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		NavPathQueryDelegate.BindStatic(&AsyncNavOcclusionEnd);
 	}
-	
-	TraceOcclusionMap.Reset();
-	TraceCompleteHandleMap.Reset();
-
-	NavOcclusionMap.Reset();
-	NavOcclusionCompleteMap.Reset();
+	ResetTaskData();
 }
 
 void UUKAudioEngineSubsystem::Deinitialize()
@@ -60,12 +55,7 @@ void UUKAudioEngineSubsystem::Deinitialize()
 	{
 		NavPathQueryDelegate.Unbind();
 	}
-	
-	TraceOcclusionMap.Reset();
-	TraceCompleteHandleMap.Reset();
-
-	NavOcclusionMap.Reset();
-	NavOcclusionCompleteMap.Reset();
+	ResetTaskData();
 }
 
 void UUKAudioEngineSubsystem::Update()
@@ -202,6 +192,15 @@ void UUKAudioEngineSubsystem::Update()
 	});
 }
 
+void UUKAudioEngineSubsystem::ResetTaskData()
+{
+	TraceOcclusionMap.Reset();
+	TraceCompleteHandleMap.Reset();
+
+	NavOcclusionMap.Reset();
+	NavOcclusionCompleteMap.Reset();
+}
+
 void UUKAudioEngineSubsystem::AsyncOcclusionTraceStart(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation)
 {
 	bool bNotComplete = TraceCompleteHandleMap.Contains(ActiveSound);
@@ -285,8 +284,8 @@ void UUKAudioEngineSubsystem::AsyncOcclusionTraceEnd(const FTraceHandle& TraceHa
 			return;
 		}
 		
-		TraceComplete->bHit = bFoundBlockingHit;
 		TraceComplete->bTaskComplete = true;
+		TraceComplete->bHit = bFoundBlockingHit;
 	});
 }
 

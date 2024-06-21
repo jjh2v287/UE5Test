@@ -27,6 +27,8 @@ public:
 	//~ End UAudioEngineSubsystem interface
 
 private:
+	void ResetTaskData();
+
 	static void AsyncOcclusionTraceStart(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
 	static void AsyncOcclusionTraceEnd(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
 
