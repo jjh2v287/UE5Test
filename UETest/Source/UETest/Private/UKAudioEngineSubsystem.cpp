@@ -191,8 +191,8 @@ void UUKAudioEngineSubsystem::Update()
 				}
 				else
 				{
-					const float NavOcclusionRate = UUKAudioEngineSubsystem::GetNavOcclusionRate(ActiveSound, SoundLocation, ListenerLocation);
-					ParamsToUpdate.Append( { { Audio::NavOcclusionInterface::Inputs::NavOcclusion, NavOcclusionRate }, });
+					const float OcclusionDistance = UUKAudioEngineSubsystem::GetNavOcclusionRate(ActiveSound, SoundLocation, ListenerLocation);
+					ParamsToUpdate.Append( { { Audio::NavOcclusionInterface::Inputs::NavOcclusion, OcclusionDistance }, });
 				}
 			}
 
@@ -407,29 +407,31 @@ const float UUKAudioEngineSubsystem::GetOcclusionRate(FActiveSound* ActiveSound,
 	Params.AddIgnoredActor( ActiveSound->GetOwnerID() );
 	const bool bIsOccluded = ActiveSound->GetWorld()->LineTraceTestByChannel(SoundLocation, ListenerLocation, ECollisionChannel::ECC_Visibility, Params);
 	const float OcclusionRate = bIsOccluded ? 1.0f : 0.0f;
+
 	return OcclusionRate;
 }
 
 const float UUKAudioEngineSubsystem::GetNavOcclusionRate(const FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation)
 {
-	float OcclusionRate = 0.0f;
+	const FVector SourceDirection = SoundLocation - ListenerLocation;
+	const float Distance = SourceDirection.Size();
 	UNavigationPath* NavigationPath = UNavigationSystemV1::FindPathToLocationSynchronously(ActiveSound->GetWorld(), SoundLocation, ListenerLocation);
+
 	const bool bNotValidNavigationPath = NavigationPath == nullptr;
 	if (bNotValidNavigationPath)
 	{
-		return OcclusionRate;
+		return Distance;
 	}
 
 	const bool bNotValidPath = !NavigationPath->GetPath().IsValid();
 	if (bNotValidPath)
 	{
-		return OcclusionRate;
+		return Distance;
 	}
 
-	const float PathLength = NavigationPath->GetPathLength();
-	OcclusionRate = UKismetMathLibrary::MapRangeClamped(PathLength, 0.0f, 3600.0f, 0.0f, 1.0f);
+	const float OcclusionDistance = NavigationPath->GetPathLength();
 
-	return OcclusionRate;
+	return OcclusionDistance;
 }
 
 #pragma region Meta Sound Interface
