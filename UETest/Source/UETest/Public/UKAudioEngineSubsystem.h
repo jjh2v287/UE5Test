@@ -4,34 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/AudioEngineSubsystem.h"
-#include "MetasoundEnumRegistrationMacro.h"
 #include "UKAudioEngineSubsystem.generated.h"
-
-// #define LOCTEXT_NAMESPACE "MetasoundStandardNodes_FootMateSound"
-// namespace Metasound
-// {
-// 	enum class EFootSound : int32
-// 	{
-// 		Hard = 0,
-// 		Soft,
-// 	};
-//
-// 	DECLARE_METASOUND_ENUM(
-// 		EFootSound,
-// 		EFootSound::Hard,
-// 		UETEST_API,
-// 		FEnumFootSound,
-// 		FEnumFootSoundInfo,
-// 		FEnumFootSoundReadRef,
-// 		FEnumFootSoundWriteRef
-// 		);
-//
-// 	DEFINE_METASOUND_ENUM_BEGIN(EFootSound, FEnumFootSound, "FootSound")
-// 		DEFINE_METASOUND_ENUM_ENTRY(EFootSound::Hard, "KneeModeHardDescription", "Hard", "KneeModeHardDescriptionTT", "Only audio strictly above the threshold is affected by the limiter."),
-// 		DEFINE_METASOUND_ENUM_ENTRY(EFootSound::Soft, "KneeModeSoftDescription", "Soft", "KneeModeSoftDescriptionTT", "Limiter activates more smoothly near the threshold."),
-// 	DEFINE_METASOUND_ENUM_END()
-// }
-// #undef LOCTEXT_NAMESPACE
 
 /**
  * 

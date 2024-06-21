@@ -22,13 +22,25 @@ public class UETest : ModuleRules
 			"AudioExtensions",
 			"MetasoundEngine",
 			"MetasoundFrontend",
-			"MetasoundGraphCore"
+			"MetasoundGraphCore",
+			
+			"AudioExtensions",
+			"Serialization",
+			"SignalProcessing",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
 			"AnimGraphRuntime", "AIModule", "DeveloperSettings",
+			
+			"AudioExtensions",
+			"MetasoundEngine",
+			"MetasoundGraphCore",
+			"MetasoundFrontend",
+			"MetasoundGenerator",
+			"SignalProcessing"
 		});
+		
 	}
 }

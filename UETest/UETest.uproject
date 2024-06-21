@@ -72,6 +72,10 @@
 			"Name": "EventSystem",
 			"Enabled": true,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c8ad6bb586e64428986becc5a1ed3cbf"
+		},
+		{
+			"Name": "Harmonix",
+			"Enabled": true
 		}
 	]
 }
