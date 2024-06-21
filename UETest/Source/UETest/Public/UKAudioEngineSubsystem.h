@@ -61,13 +61,14 @@ private:
 		uint32 AsynId = 0;
 		Audio::FDeviceId AudioDeviceID = 0;
 		FActiveSound* ActiveSound = nullptr;
+		float Distance = 0.0f;
 	};
 
 	struct FUKNavOcclusionAsyncCompleteInfo
 	{
 		uint32 AsynId = 0;
 		bool bTaskComplete = false;
-		float OcclusionRate = 0.0f;
+		float OcclusionDistance = 0.0f;
 	};
 	
 	static TMap<uint32, FUKNavOcclusionAsyncInfo> NavOcclusionMap;

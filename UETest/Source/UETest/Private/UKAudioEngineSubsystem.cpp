@@ -184,7 +184,7 @@ void UUKAudioEngineSubsystem::Update()
 						FUKNavOcclusionAsyncInfo TraceInfo;
 						if (NavOcclusionMap.RemoveAndCopyValue(TraceComplete->AsynId, TraceInfo))
 						{
-							ParamsToUpdate.Append( { { Audio::NavOcclusionInterface::Inputs::NavOcclusion, TraceComplete->OcclusionRate }, });
+							ParamsToUpdate.Append( { { Audio::NavOcclusionInterface::Inputs::NavOcclusion, TraceComplete->OcclusionDistance }, });
 							NavOcclusionCompleteMap.Remove(ActiveSound);
 						}
 					}
@@ -319,6 +319,9 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 		return;
 	}
 
+	const FVector SourceDirection = SoundLocation - ListenerLocation;
+	const float Distance = SourceDirection.Size();
+	
 	const FNavAgentProperties AgentProperties;
 	const FVector Extent = FVector(100.0f, 100.0f, 500.0f);
 	FNavLocation ProjectedLocation;
@@ -332,6 +335,7 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 	Info.AsynId = QueryID;
 	Info.ActiveSound = ActiveSound;
 	Info.AudioDeviceID = ActiveSound->AudioDevice->DeviceID;
+	Info.Distance = Distance;
 	NavOcclusionMap.Emplace(QueryID, Info);
 
 	FUKNavOcclusionAsyncCompleteInfo CompleteInfo;
@@ -341,10 +345,7 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionStart(FActiveSound* ActiveSound, 
 
 void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQueryResult::Type Result, FNavPathSharedPtr NavPath)
 {
-	const float PathLength = NavPath->GetLength();
-	const float OcclusionRate = UKismetMathLibrary::MapRangeClamped(PathLength, 0.0f, 3600.0f, 0.0f, 1.0f);
-	
-	FAudioThread::RunCommandOnAudioThread( [QueryID, NavPath, OcclusionRate]()
+	FAudioThread::RunCommandOnAudioThread( [QueryID, NavPath, Result]()
 	{
 		FUKNavOcclusionAsyncInfo* Info = NavOcclusionMap.Find(QueryID);
 		const bool bNotValidInfo = Info == nullptr;
@@ -389,9 +390,14 @@ void UUKAudioEngineSubsystem::AsyncNavOcclusionEnd(uint32 QueryID, ENavigationQu
 			NavOcclusionCompleteMap.Remove(Info->ActiveSound);
 			return;
 		}
+
+		const float Distance = Info->Distance;
+		const float PathLength = NavPath->GetLength();
+		const bool bIsSuccess = Result == ENavigationQueryResult::Success;
+		const float OcclusionDistance = bIsSuccess ? PathLength : Distance;
 		
 		CompleteInfo->bTaskComplete = true;
-		CompleteInfo->OcclusionRate = OcclusionRate;
+		CompleteInfo->OcclusionDistance = OcclusionDistance;
 	});
 }
 
