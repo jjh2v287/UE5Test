@@ -21,6 +21,8 @@ public class UETest : ModuleRules
 			"NavigationSystem",
 			"AudioExtensions",
 			"MetasoundEngine",
+			"MetasoundFrontend",
+			"MetasoundGraphCore"
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]

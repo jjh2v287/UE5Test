@@ -204,6 +204,7 @@ void UUKAudioEngineSubsystem::Update()
 			const UMetaSoundSource* SoundBase = Cast<UMetaSoundSource>(ActiveSound->GetSound());
 			Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter();
 			FAudioParameter AudioParameter = FAudioParameter(TEXT("Angle"), 7777.0f);
+			FAudioParameter AudioParameter = FAudioParameter(TEXT("TriggerName"), EAudioParameterType::Trigger);
 			TArray<FAudioParameter> ParamsToSet;
 			ParamsToSet.Emplace(AudioParameter);
 			Transmitter->SetParameters(MoveTemp(ParamsToSet));
