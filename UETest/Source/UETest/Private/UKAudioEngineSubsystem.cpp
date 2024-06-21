@@ -191,6 +191,24 @@ void UUKAudioEngineSubsystem::Update()
 			Transmitter->SetParameters(MoveTemp(ParamsToUpdate));
 		}
 	});
+
+	/*FAudioThread::RunCommandOnAudioThread([CurrentDeviceId]()
+	{
+		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+		const FAudioDeviceHandle DeviceHandle = AudioDeviceManager->GetAudioDevice(CurrentDeviceId);
+		const FAudioDevice* AudioDevice = DeviceHandle.GetAudioDevice();
+		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
+
+		for (FActiveSound* ActiveSound : ActiveSounds)
+		{
+			const UMetaSoundSource* SoundBase = Cast<UMetaSoundSource>(ActiveSound->GetSound());
+			Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter();
+			FAudioParameter AudioParameter = FAudioParameter(TEXT("Angle"), 7777.0f);
+			TArray<FAudioParameter> ParamsToSet;
+			ParamsToSet.Emplace(AudioParameter);
+			Transmitter->SetParameters(MoveTemp(ParamsToSet));
+		}
+	});*/
 }
 
 void UUKAudioEngineSubsystem::ResetTaskData()
