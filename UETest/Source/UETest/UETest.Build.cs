@@ -20,14 +20,13 @@ public class UETest : ModuleRules
 			
 			"NavigationSystem",
 			"AudioExtensions",
-			"DeveloperSettings",
 			"MetasoundEngine",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"AnimGraphRuntime", "AIModule",
+			"AnimGraphRuntime", "AIModule", "DeveloperSettings",
 		});
 	}
 }
