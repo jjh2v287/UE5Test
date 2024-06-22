@@ -29,11 +29,14 @@ void UUKAsyncOverLap::Activate()
 		break;
 	case EAsyncOverLapShape::Sphere:
 		CollisionShape.ShapeType = ECollisionShape::Type::Sphere;
+		CollisionShape.SetSphere(100.0f);
 		break;
 	default:
 		CollisionShape.ShapeType = ECollisionShape::Type::Line;
 		break;
 	}
+	
+	
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(UKAsyncOverLap), true);
 	Params.AddIgnoredActors(MoveTemp(AsyncOverLapInfo.InIgnoreActors));
 	
@@ -74,6 +77,9 @@ void UUKAsyncOverLap::AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverl
 	}
 
 	FUKAsyncOverLapResult AsyncOverLapResult;
+	AsyncOverLapResult.Loction = OverlapDatum.Pos;
+	AsyncOverLapResult.Rotator = OverlapDatum.Rot.Rotator();
+	AsyncOverLapResult.TraceChannel = OverlapDatum.TraceChannel;
 	for(const FOverlapResult& Result : OverlapDatum.OutOverlaps)
 	{
 		FUkOverlapResult UkOverlapResult;
@@ -81,6 +87,7 @@ void UUKAsyncOverLap::AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverl
 		UkOverlapResult.Component = Result.GetComponent();
 		UkOverlapResult.bBlockingHit = Result.bBlockingHit;
 		UkOverlapResult.ItemIndex = Result.ItemIndex;
+		UkOverlapResult.PhysicsObject = Result.PhysicsObject;
 		
 		AsyncOverLapResult.OutOverlaps.Emplace(UkOverlapResult);
 	}

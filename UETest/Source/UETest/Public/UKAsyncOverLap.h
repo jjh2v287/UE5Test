@@ -39,15 +39,14 @@ struct UETEST_API FUkOverlapResult
 public:
 	UPROPERTY(BlueprintReadOnly)
 	AActor* OverlapActor;
-
 	UPROPERTY(BlueprintReadOnly)
 	UPrimitiveComponent* Component;
-
 	UPROPERTY(BlueprintReadOnly)
 	int32 ItemIndex = INDEX_NONE;
-
 	UPROPERTY(BlueprintReadOnly)
 	uint32 bBlockingHit : 1;
+
+	Chaos::FPhysicsObjectHandle PhysicsObject;
 };
 
 USTRUCT(BlueprintType)
@@ -55,6 +54,14 @@ struct UETEST_API FUKAsyncOverLapResult
 {
 	GENERATED_BODY()
 public:
+	UPROPERTY(BlueprintReadOnly)
+	FVector Loction;
+	UPROPERTY(BlueprintReadOnly)
+	FRotator	Rotator;
+
+	UPROPERTY(BlueprintReadOnly)
+	TEnumAsByte<ECollisionChannel> TraceChannel;
+
 	UPROPERTY(BlueprintReadOnly)
 	TArray<FUkOverlapResult> OutOverlaps;
 };
