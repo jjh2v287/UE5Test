@@ -14,8 +14,6 @@ void UUKAsyncOverlap::Activate()
 	{
 		OverlapDelegate.BindUObject(this, &UUKAsyncOverlap::AsyncOverLapFinish);
 	}
-
-	
 	
 	if(ExecuteType == EUKExecuteType::Channel)
 	{

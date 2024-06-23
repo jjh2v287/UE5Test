@@ -39,11 +39,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "ShapeType == EAsyncOverLapShape::Box", EditConditionHides))
 	FVector BoxExtent = FVector::ZeroVector;
-	/*
-	Capsule.Radius = FMath::Max(Extent.X, Extent.Y);
-	Capsule.HalfHeight = Extent.Z;
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "ShapeType == EAsyncOverLapShape::Capsule", EditConditionHides))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ToolTip = "Radius = Max(Extent.X, Extent.Y) And	HalfHeight = Extent.Z", EditCondition = "ShapeType == EAsyncOverLapShape::Capsule", EditConditionHides))
     FVector CapsuleExtent = FVector::ZeroVector;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "ShapeType == EAsyncOverLapShape::Sphere", EditConditionHides))
 	float SphereRadius = 0.0f;

@@ -259,7 +259,7 @@ void UUKAsyncTrace::ExecuteAsyncSweepByChannel()
 		AsyncSweepInfo.StartLoaction,
 		AsyncSweepInfo.EndLoaction,
 		AsyncSweepInfo.Rotator.Quaternion(),
-		AsyncSweepInfo.CollisionChannel,
+		CollisionChannel,
 		CollisionShape,
 		Params,
 		FCollisionResponseParams::DefaultResponseParam,
