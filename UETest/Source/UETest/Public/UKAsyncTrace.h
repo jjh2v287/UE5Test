@@ -27,8 +27,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FVector EndLoaction = FVector::ZeroVector;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_Visibility;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bTraceComplex = false;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<const AActor*> InIgnoreActors;
@@ -98,12 +96,33 @@ protected:
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
-	static UUKAsyncTrace* UKAsyncLineTraceByChannel(const UObject* WorldContextObject, const FUKAsyncTraceInfo AsyncTraceInfo);
+	static UUKAsyncTrace* UKAsyncLineTraceByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncTraceInfo AsyncTraceInfo);
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
-	static UUKAsyncTrace* UKAsyncSweepByChannel(const UObject* WorldContextObject, const FUKAsyncSweepInfo AsyncSweepInfo);
+	static UUKAsyncTrace* UKAsyncLineTraceByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncTraceInfo AsyncTraceInfo);
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	static UUKAsyncTrace* UKAsyncLineTraceByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncTraceInfo AsyncTraceInfo);
+	
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	static UUKAsyncTrace* UKAsyncSweepByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncSweepInfo AsyncSweepInfo);
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	static UUKAsyncTrace* UKAsyncSweepByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncSweepInfo AsyncSweepInfo);
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	static UUKAsyncTrace* UKAsyncSweepByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncSweepInfo AsyncSweepInfo);
 
 	static const EAsyncTraceType ConvertToAsyncTraceType(const EUKAsyncTraceType Type);
+
+private:
+	void ExecuteAsyncLineTraceByChannel();
+	void ExecuteAsyncLineTraceByProfile();
+	void ExecuteAsyncLineTraceByObjectType();
+	
+	void ExecuteAsyncSweepByChannel();
+	void ExecuteAsyncSweepByProfile();
+	void ExecuteAsyncSweepByObjectType();
 	
 private:
 	FTraceHandle TraceTaskID; 
@@ -112,6 +131,11 @@ private:
 
 	FUKAsyncTraceInfo AsyncTraceInfo;
 	FUKAsyncSweepInfo AsyncSweepInfo;
+
+	EUKExecuteType ExecuteType = EUKExecuteType::Channel;
+	ECollisionChannel CollisionChannel;
+	FName ProfileName = NAME_None;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	
 public:
 	bool bIsSweep = false;

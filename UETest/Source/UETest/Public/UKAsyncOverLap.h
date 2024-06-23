@@ -6,6 +6,13 @@
 #include "Engine/CancellableAsyncAction.h"
 #include "UKAsyncOverlap.generated.h"
 
+enum class EUKExecuteType : uint8
+{
+	Channel,
+	Profile,
+	ObjectType,
+};
+
 UENUM(BlueprintType)
 enum class EUKAsyncShapeType : uint8
 {
@@ -24,9 +31,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	FRotator OverLapRotator = FRotator::ZeroRotator;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	TEnumAsByte<ECollisionChannel> CollisionChannel = ECC_Visibility;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TArray<const AActor*> InIgnoreActors;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bTraceComplex = false;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	EUKAsyncShapeType ShapeType = EUKAsyncShapeType::Sphere;
 
@@ -99,9 +106,20 @@ protected:
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
-	static UUKAsyncOverlap* UKAsyncOverlapByChannel(const UObject* WorldContextObject, const FUKAsyncOverlapInfo AsyncOverLapInfo);
+	static UUKAsyncOverlap* UKAsyncOverlapByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncOverlapInfo AsyncOverLapInfo);
+
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	static UUKAsyncOverlap* UKAsyncOverlapByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncOverlapInfo AsyncOverLapInfo);
+	
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	static UUKAsyncOverlap* UKAsyncOverlapByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncOverlapInfo AsyncOverLapInfo);
 
 	static const FCollisionShape MakeCollisionShape(const EUKAsyncShapeType Type, const FVector BoxExtent, const FVector CapsuleExtent, const float SphereRadius);
+
+private:
+	void ExecuteAsyncOverlapByChannel();
+	void ExecuteAsyncOverlapByProfile();
+	void ExecuteAsyncOverlapByObjectType();
 	
 private:
 	FTraceHandle TraceTaskID; 
@@ -109,6 +127,11 @@ private:
 	FOverlapDelegate OverlapDelegate;
 
 	FUKAsyncOverlapInfo AsyncOverLapInfo;
+
+	EUKExecuteType ExecuteType = EUKExecuteType::Channel;
+	ECollisionChannel CollisionChannel = ECC_WorldStatic;
+	FName ProfileName = NAME_None;
+	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
 	
 public:
 	UPROPERTY(BlueprintAssignable)
