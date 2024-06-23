@@ -2,41 +2,20 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UKAsyncOverLap)
 
-#include "UKAsyncOverLap.h"
+#include "UKAsyncOverlap.h"
 
 #include "Engine/OverlapResult.h"
 
-void UUKAsyncOverLap::Activate()
+void UUKAsyncOverlap::Activate()
 {
 	Super::Activate();
 
 	if (!OverlapDelegate.IsBound())
 	{
-		OverlapDelegate.BindUObject(this, &UUKAsyncOverLap::AsyncOverLapFinish);
+		OverlapDelegate.BindUObject(this, &UUKAsyncOverlap::AsyncOverLapFinish);
 	}
 
-	FCollisionShape CollisionShape;
-	switch (AsyncOverLapInfo.ShapeType)
-	{
-	case EAsyncOverLapShape::Line:
-		CollisionShape.ShapeType = ECollisionShape::Type::Line;
-		break;
-	case EAsyncOverLapShape::Box:
-		CollisionShape.ShapeType = ECollisionShape::Type::Box;
-		break;
-	case EAsyncOverLapShape::Capsule:
-		CollisionShape.ShapeType = ECollisionShape::Type::Capsule;
-		break;
-	case EAsyncOverLapShape::Sphere:
-		CollisionShape.ShapeType = ECollisionShape::Type::Sphere;
-		CollisionShape.SetSphere(100.0f);
-		break;
-	default:
-		CollisionShape.ShapeType = ECollisionShape::Type::Line;
-		break;
-	}
-	
-	
+	const FCollisionShape CollisionShape = MakeCollisionShape(AsyncOverLapInfo.ShapeType, AsyncOverLapInfo.BoxExtent, AsyncOverLapInfo.CapsuleExtent, AsyncOverLapInfo.SphereRadius);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(UKAsyncOverLap), true);
 	Params.AddIgnoredActors(MoveTemp(AsyncOverLapInfo.InIgnoreActors));
 	
@@ -50,7 +29,7 @@ void UUKAsyncOverLap::Activate()
 		&OverlapDelegate);
 }
 
-void UUKAsyncOverLap::Cancel()
+void UUKAsyncOverlap::Cancel()
 {
 	Super::Cancel();
 	if (OverlapDelegate.IsBound())
@@ -59,7 +38,7 @@ void UUKAsyncOverLap::Cancel()
     }
 }
 
-void UUKAsyncOverLap::BeginDestroy()
+void UUKAsyncOverlap::BeginDestroy()
 {
 	Super::BeginDestroy();
 
@@ -69,14 +48,14 @@ void UUKAsyncOverLap::BeginDestroy()
 	}
 }
 
-void UUKAsyncOverLap::AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverlapDatum& OverlapDatum)
+void UUKAsyncOverlap::AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverlapDatum& OverlapDatum)
 {
 	if(TraceTaskID != TraceHandle)
 	{
 		return;
 	}
 
-	FUKAsyncOverLapResult AsyncOverLapResult;
+	FUKAsyncOverlapResult AsyncOverLapResult;
 	AsyncOverLapResult.Loction = OverlapDatum.Pos;
 	AsyncOverLapResult.Rotator = OverlapDatum.Rot.Rotator();
 	AsyncOverLapResult.TraceChannel = OverlapDatum.TraceChannel;
@@ -94,7 +73,7 @@ void UUKAsyncOverLap::AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverl
 	FinishPin.Broadcast(AsyncOverLapResult);
 }
 
-UUKAsyncOverLap* UUKAsyncOverLap::UKAsyncOverLap(const UObject* WorldContextObject, const FUKAsyncOverLapInfo AsyncOverLapInfo)
+UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByChannel(const UObject* WorldContextObject, const FUKAsyncOverlapInfo AsyncOverLapInfo)
 {
 	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
 	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
@@ -102,9 +81,29 @@ UUKAsyncOverLap* UUKAsyncOverLap::UKAsyncOverLap(const UObject* WorldContextObje
 		return nullptr;
 	}
 	
-	UUKAsyncOverLap* Node = NewObject<UUKAsyncOverLap>();
+	UUKAsyncOverlap* Node = NewObject<UUKAsyncOverlap>();
 	Node->WorldContextObject = WorldContextObject->GetWorld();
 	Node->AsyncOverLapInfo = AsyncOverLapInfo;
 	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
 	return Node;
+}
+
+const FCollisionShape UUKAsyncOverlap::MakeCollisionShape(const EUKAsyncShapeType Type, const FVector BoxExtent, const FVector CapsuleExtent, const float SphereRadius)
+{
+	FCollisionShape CollisionShape;
+	
+	if(Type == EUKAsyncShapeType::Box)
+	{
+		CollisionShape = FCollisionShape::MakeBox(BoxExtent);
+	}
+	else if(Type == EUKAsyncShapeType::Capsule)
+	{
+		CollisionShape = FCollisionShape::MakeCapsule(CapsuleExtent);
+	}
+	else if(Type == EUKAsyncShapeType::Sphere)
+	{
+		CollisionShape = FCollisionShape::MakeSphere(SphereRadius);
+	}
+
+	return CollisionShape;
 }
