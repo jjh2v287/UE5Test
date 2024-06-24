@@ -13,8 +13,12 @@ UCLASS()
 class UETEST_API UUKAudioEngineSubsystem : public UAudioEngineSubsystem
 {
 	GENERATED_BODY()
+private:
+	static inline UUKAudioEngineSubsystem* Instance = nullptr;
+	
 public: 
 	virtual ~UUKAudioEngineSubsystem() override = default;
+	static UUKAudioEngineSubsystem* Get() { return Instance; }
 
 	//~ Begin USubsystem interface
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
@@ -76,6 +80,10 @@ private:
 	static TMap<uint32, FUKNavOcclusionAsyncInfo> NavOcclusionMap;
 	static TMap<FActiveSound*, FUKNavOcclusionAsyncCompleteInfo> NavOcclusionCompleteMap;
 	static FNavPathQueryDelegate NavPathQueryDelegate;
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float MasterVolume = 1.0f;
 };
 
 #pragma region Meta Sound Interface

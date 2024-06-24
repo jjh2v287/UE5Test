@@ -27,6 +27,8 @@ void UUKAudioEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
+	Instance = this;
+	
 	UUKAudioSettings* AudioSettings = GetMutableDefault<UUKAudioSettings>();
 	check(AudioSettings);
 	AudioSettings->RegisterParameterInterfaces();
@@ -88,9 +90,23 @@ void UUKAudioEngineSubsystem::Update()
 			return;
 		}
 
+		const bool bNotUKAudioSystem = UUKAudioEngineSubsystem::Get() == nullptr;
+		if(bNotUKAudioSystem)
+		{
+			return;
+		}
+
 		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
 		for (FActiveSound* ActiveSound : ActiveSounds)
 		{
+			const bool bNotValidActiveSound = ActiveSound == nullptr;
+			if (bNotValidActiveSound)
+			{
+				continue;
+			}
+			
+			ActiveSound->SetVolume(UUKAudioEngineSubsystem::Get()->MasterVolume);
+			
 			const UMetaSoundSource* SoundBase = Cast<UMetaSoundSource>(ActiveSound->GetSound());
 			const bool bNotValidSoundBase = SoundBase == nullptr;
 			if (bNotValidSoundBase)
