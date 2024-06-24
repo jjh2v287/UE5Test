@@ -21,7 +21,8 @@ void UUKAudioSettings::RegisterParameterInterfaces()
 		Audio::IAudioParameterInterfaceRegistry& InterfaceRegistry = Audio::IAudioParameterInterfaceRegistry::Get();
 		InterfaceRegistry.RegisterInterface(Audio::OcclusionInterface::GetInterface());
 		InterfaceRegistry.RegisterInterface(Audio::NavOcclusionInterface::GetInterface());
-		
+
+		// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
 		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 	}
 }

@@ -6,6 +6,8 @@
 
 namespace Metasound
 {
+	// FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes(); In EditorModule::StartupModule()
+	
 	DEFINE_METASOUND_ENUM_BEGIN(EUKFootStepSoune, FEnumUKFootStepSouneType, "UKFootStepSoune")
 		DEFINE_METASOUND_ENUM_ENTRY(
 			EUKFootStepSoune::Ground, 
