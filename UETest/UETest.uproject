@@ -74,8 +74,9 @@
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c8ad6bb586e64428986becc5a1ed3cbf"
 		},
 		{
-			"Name": "Harmonix",
-			"Enabled": true
+			"Name": "MusicExtraNodes",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/1b6cad8981604829ab6caa7f9ae55dfd"
 		}
 	]
 }

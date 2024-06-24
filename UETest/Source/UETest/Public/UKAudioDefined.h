@@ -1,26 +1,26 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "MetasoundEnumRegistrationMacro.h"
 
-UENUM()
-enum class ETestType : int32
+enum class EUKFootStepSoune : int32
 {
-	Hard = 0,
-	Soft,
+	Ground = 0,
+	Glass,
+	Iron,
 };
 
 namespace Metasound
 {
 	DECLARE_METASOUND_ENUM(
-		ETestType,
-		ETestType::Hard,
+		EUKFootStepSoune,
+		EUKFootStepSoune::Ground,
 		UETEST_API,
-		FEnumTestTypeType,
-		FEnumTestTypeTypeInfo,
-		FEnumTestTypeTypeReadReference,
-		FEnumTestTypeTypeWriteReference);
+		FEnumUKFootStepSouneType,
+		FEnumUKFootStepSouneTypeInfo,
+		FEnumUKFootStepSouneTypeReadReference,
+		FEnumUKFootStepSouneTypeWriteReference);
 }
 
 // #define LOCTEXT_NAMESPACE "FEnumTestModule"
