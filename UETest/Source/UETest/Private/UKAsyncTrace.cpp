@@ -78,8 +78,8 @@ void UUKAsyncTrace::AsyncTraceFinish(const FTraceHandle& TraceHandle, FTraceDatu
 
 UUKAsyncTrace* UUKAsyncTrace::UKAsyncLineTraceByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncTraceInfo AsyncTraceInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -90,14 +90,14 @@ UUKAsyncTrace* UUKAsyncTrace::UKAsyncLineTraceByChannel(const UObject* WorldCont
 	Node->bIsSweep = false;
 	Node->CollisionChannel = CollisionChannel;
 	Node->ExecuteType = EUKExecuteType::Channel;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncTrace* UUKAsyncTrace::UKAsyncLineTraceByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncTraceInfo AsyncTraceInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -108,14 +108,14 @@ UUKAsyncTrace* UUKAsyncTrace::UKAsyncLineTraceByProfile(const UObject* WorldCont
 	Node->bIsSweep = false;
 	Node->ProfileName = ProfileName;
 	Node->ExecuteType = EUKExecuteType::Profile;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncTrace* UUKAsyncTrace::UKAsyncLineTraceByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncTraceInfo AsyncTraceInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -126,14 +126,14 @@ UUKAsyncTrace* UUKAsyncTrace::UKAsyncLineTraceByObjectType(const UObject* WorldC
 	Node->bIsSweep = false;
 	Node->ObjectTypes = ObjectTypes;
 	Node->ExecuteType = EUKExecuteType::ObjectType;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncTrace* UUKAsyncTrace::UKAsyncSweepByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncSweepInfo AsyncSweepInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -144,14 +144,14 @@ UUKAsyncTrace* UUKAsyncTrace::UKAsyncSweepByChannel(const UObject* WorldContextO
 	Node->bIsSweep = true;
 	Node->CollisionChannel = CollisionChannel;
 	Node->ExecuteType = EUKExecuteType::Channel;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncTrace* UUKAsyncTrace::UKAsyncSweepByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncSweepInfo AsyncSweepInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -162,14 +162,14 @@ UUKAsyncTrace* UUKAsyncTrace::UKAsyncSweepByProfile(const UObject* WorldContextO
 	Node->bIsSweep = true;
 	Node->ProfileName = ProfileName;
 	Node->ExecuteType = EUKExecuteType::Profile;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncTrace* UUKAsyncTrace::UKAsyncSweepByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncSweepInfo AsyncSweepInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -180,7 +180,7 @@ UUKAsyncTrace* UUKAsyncTrace::UKAsyncSweepByObjectType(const UObject* WorldConte
 	Node->bIsSweep = true;
 	Node->ObjectTypes = ObjectTypes;
 	Node->ExecuteType = EUKExecuteType::ObjectType;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 

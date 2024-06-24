@@ -75,8 +75,8 @@ void UUKAsyncOverlap::AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverl
 
 UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncOverlapInfo AsyncOverLapInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -86,14 +86,14 @@ UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByChannel(const UObject* WorldCo
 	Node->AsyncOverLapInfo = AsyncOverLapInfo;
 	Node->CollisionChannel = CollisionChannel;
 	Node->ExecuteType = EUKExecuteType::Channel;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncOverlapInfo AsyncOverLapInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-	if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+	if(bNotWoldContextObject)
 	{
 		return nullptr;
 	}
@@ -103,14 +103,14 @@ UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByProfile(const UObject* WorldCo
 	Node->AsyncOverLapInfo = AsyncOverLapInfo;
 	Node->ProfileName = ProfileName;
 	Node->ExecuteType = EUKExecuteType::Profile;
-	Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+	Node->RegisterWithGameInstance(WorldContextObject);
 	return Node;
 }
 
 UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncOverlapInfo AsyncOverLapInfo)
 {
-	UWorld* WorldContext = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::ReturnNull);
-    if(!ensureAlwaysMsgf(IsValid(WorldContext), TEXT("World Context was not valid.")))
+	bool bNotWoldContextObject = WorldContextObject == nullptr;
+    if(bNotWoldContextObject)
     {
     	return nullptr;
     }
@@ -120,7 +120,7 @@ UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByObjectType(const UObject* Worl
     Node->AsyncOverLapInfo = AsyncOverLapInfo;
     Node->ObjectTypes = ObjectTypes;
 	Node->ExecuteType = EUKExecuteType::ObjectType;
-    Node->RegisterWithGameInstance(WorldContext->GetGameInstance());
+    Node->RegisterWithGameInstance(WorldContextObject);
     return Node;
 }
 
