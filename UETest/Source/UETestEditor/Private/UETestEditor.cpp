@@ -14,9 +14,6 @@ void FUETestEditorModule::StartupModule()
 	UUKAudioSettings* AudioSettings = GetMutableDefault<UUKAudioSettings>();
 	check(AudioSettings);
 	AudioSettings->RegisterParameterInterfaces();
-
-	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module
-	FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 }
 
 void FUETestEditorModule::ShutdownModule()

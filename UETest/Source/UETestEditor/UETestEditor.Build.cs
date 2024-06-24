@@ -37,10 +37,6 @@ public class UETestEditor : ModuleRules
 				"BlueprintGraph",
 				"UETest",
 				"KismetCompiler",
-				
-				"MetasoundFrontend",
-				"MetasoundGraphCore",
-				"MetasoundStandardNodes"
 			}
 			);
 			

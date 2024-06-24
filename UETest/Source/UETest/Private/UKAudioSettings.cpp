@@ -1,6 +1,8 @@
 // Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKAudioSettings.h"
+
+#include "MetasoundFrontendRegistryContainer.h"
 #include "UKAudioEngineSubsystem.h"
 
 UUKAudioSettings::UUKAudioSettings(const FObjectInitializer& ObjectInitializer)
@@ -19,5 +21,7 @@ void UUKAudioSettings::RegisterParameterInterfaces()
 		Audio::IAudioParameterInterfaceRegistry& InterfaceRegistry = Audio::IAudioParameterInterfaceRegistry::Get();
 		InterfaceRegistry.RegisterInterface(Audio::OcclusionInterface::GetInterface());
 		InterfaceRegistry.RegisterInterface(Audio::NavOcclusionInterface::GetInterface());
+		
+		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 	}
 }
