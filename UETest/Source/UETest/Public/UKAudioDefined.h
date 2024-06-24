@@ -4,6 +4,7 @@
 
 #include "MetasoundEnumRegistrationMacro.h"
 
+UENUM()
 enum class EUKFootStepSoune : int32
 {
 	Ground = 0,
