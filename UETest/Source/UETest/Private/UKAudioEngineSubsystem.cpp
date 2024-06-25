@@ -208,6 +208,9 @@ void UUKAudioEngineSubsystem::Update()
 
 			if(bParameterDopplerPitch)
 			{
+				// SoundBase->getv
+				uint32 OwnerID = ActiveSound->GetOwnerID();
+				FUObjectItem* OwnerActor = GUObjectArray.IndexToObject(OwnerID);
 				const TArray<FListener>& Listeners =  AudioDevice->GetListeners();
 				const FListener& Listener = Listeners[ClosestListenerIndex];
 				const float DopplerPitch = UUKAudioEngineSubsystem::GetDopplerPitchMultiplier(Listener, ActiveSound, AudioDevice->GetGameDeltaTime());
