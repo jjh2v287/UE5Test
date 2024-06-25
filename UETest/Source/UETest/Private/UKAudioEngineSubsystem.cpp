@@ -144,10 +144,13 @@ void UUKAudioEngineSubsystem::Update()
 			TArray<FAudioParameter> ParamsToUpdate;
 			const Audio::FParameterInterfacePtr OcclusionInterface = Audio::OcclusionInterface::GetInterface();
 			const Audio::FParameterInterfacePtr NavOcclusionInterface = Audio::NavOcclusionInterface::GetInterface();
+			const Audio::FParameterInterfacePtr NavDopplerPitchInterface = Audio::NavDopplerPitchInterface::GetInterface();
+			
 			const bool bParameterOcclusion = SoundBase->ImplementsParameterInterface(OcclusionInterface);
 			const bool bParameterNavOcclusion = SoundBase->ImplementsParameterInterface(NavOcclusionInterface);
+			const bool bParameterDopplerPitch = SoundBase->ImplementsParameterInterface(NavDopplerPitchInterface);
 
-			const bool bAllNotParameter = !bParameterOcclusion && !bParameterNavOcclusion; 
+			const bool bAllNotParameter = !bParameterOcclusion && !bParameterNavOcclusion && !bParameterDopplerPitch; 
 			if (bAllNotParameter)
 			{
 				continue;
@@ -203,6 +206,14 @@ void UUKAudioEngineSubsystem::Update()
 				}
 			}
 
+			if(bParameterDopplerPitch)
+			{
+				const TArray<FListener>& Listeners =  AudioDevice->GetListeners();
+				const FListener& Listener = Listeners[ClosestListenerIndex];
+				const float DopplerPitch = UUKAudioEngineSubsystem::GetDopplerPitchMultiplier(Listener, ActiveSound, AudioDevice->GetGameDeltaTime());
+				ParamsToUpdate.Append( { { Audio::NavDopplerPitchInterface::Inputs::DopplerPitch, DopplerPitch }, });
+			}
+
 			// Toss Meta Sound Parameter Value
 			Transmitter->SetParameters(MoveTemp(ParamsToUpdate));
 		}
@@ -226,6 +237,21 @@ void UUKAudioEngineSubsystem::Update()
 			Transmitter->SetParameters(MoveTemp(ParamsToSet));
 		}
 	});*/
+
+	/*float CurrentPitchScale = 0.0f;
+	FAudioParameter OutParam;
+	TArray<Audio::FParameterInterface::FInput> ParanInputs = NavDopplerPitchInterface->GetInputs();
+
+	const bool bNotEmptyParanInputs = !ParanInputs.IsEmpty(); 
+	if(bNotEmptyParanInputs)
+	{
+		const FName ParamName = ParanInputs[0].InitValue.ParamName;
+		const bool IsParameter = Transmitter->GetParameter(ParamName, OutParam);
+		if(IsParameter)
+		{
+			CurrentPitchScale = OutParam.FloatParam;
+		}
+	}*/
 }
 
 void UUKAudioEngineSubsystem::ResetTaskData()
@@ -496,6 +522,32 @@ const float UUKAudioEngineSubsystem::GetNavOcclusionRate(const FActiveSound* Act
 	return OcclusionDistance;
 }
 
+const float UUKAudioEngineSubsystem::GetDopplerPitchMultiplier(FListener const& InListener, const FActiveSound* ActiveSound, const float DeltaTime)
+{
+	const FVector SoundLocation = ActiveSound->Transform.GetLocation();
+	const FVector LastLocation = ActiveSound->LastLocation;
+	const FVector SoundVelocity = (SoundLocation - LastLocation) / DeltaTime;
+	
+	// Mach(마하) cm/sec
+	static const float SpeedOfSoundInAirAtSeaLevel = 33000.0f;
+
+	const FVector SourceToListenerNorm = (InListener.Transform.GetLocation() - SoundLocation).GetSafeNormal();
+
+	// find source and listener speeds along the line between them
+	float const SourceVelMagTorwardListener = FVector::DotProduct(SoundVelocity, SourceToListenerNorm);
+	float const ListenerVelMagAwayFromSource = FVector::DotProduct(InListener.Velocity, SourceToListenerNorm);
+
+	// multiplier = 1 / (1 - ((sourcevel - listenervel) / speedofsound) );
+	float const InvDopplerPitchScale = 1.0f - ( (SourceVelMagTorwardListener - ListenerVelMagAwayFromSource) / SpeedOfSoundInAirAtSeaLevel );
+	float const PitchScale = 1.0f / InvDopplerPitchScale;
+
+	// factor in user-specified intensity
+	const float DopplerIntensity = 1.0f;
+	float const FinalPitchScale = ((PitchScale - 1.0f) * DopplerIntensity) /*+ 1.0f*/;
+	
+	return FinalPitchScale;
+}
+
 #pragma region Meta Sound Interface
 #define LOCTEXT_NAMESPACE "AudioParameterInterface"
 #define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UK.Occlusion"
@@ -578,6 +630,46 @@ namespace Audio
 			return InterfacePtr;
 		}
 	} // namespace NavOcclusionInterface
+#undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
+
+#define AUDIO_PARAMETER_INTERFACE_NAMESPACE "UK.DopplerPitch"
+	namespace NavDopplerPitchInterface
+	{
+		const FName Name = AUDIO_PARAMETER_INTERFACE_NAMESPACE;
+
+		namespace Inputs
+		{
+			const FName DopplerPitch = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("DopplerPitch");
+		} // namespace Inputs
+
+		Audio::FParameterInterfacePtr GetInterface()
+		{
+			struct FInterface : public Audio::FParameterInterface
+			{
+				FInterface()
+					: FParameterInterface(NavDopplerPitchInterface::Name, { 1, 0 })
+				{
+					Inputs =
+					{
+						{
+							FText(),
+							NSLOCTEXT("DopplerPitch", "DopplerPitchDescription", "DopplerPitch"),
+							FName(),
+							{ Inputs::DopplerPitch, 0.0f }
+						}
+					};
+				}
+			};
+
+			static FParameterInterfacePtr InterfacePtr;
+			if (!InterfacePtr.IsValid())
+			{
+				InterfacePtr = MakeShared<FInterface>();
+			}
+
+			return InterfacePtr;
+		}
+	} // namespace NavDopplerPitchInterface
 #undef AUDIO_PARAMETER_INTERFACE_NAMESPACE
 	
 } // namespace Audio

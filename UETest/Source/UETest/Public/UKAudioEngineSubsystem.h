@@ -6,6 +6,7 @@
 #include "Subsystems/AudioEngineSubsystem.h"
 #include "UKAudioEngineSubsystem.generated.h"
 
+struct FListener;
 /**
  * 
  */
@@ -42,6 +43,8 @@ private:
 	static const float GetOcclusionRate(FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
 	static const float GetNavOcclusionRate(const FActiveSound* ActiveSound, const FVector SoundLocation, const FVector ListenerLocation);
 
+	static const float GetDopplerPitchMultiplier(FListener const& InListener, const FActiveSound* ActiveSound, const float DeltaTime);
+	
 private:
 	static const bool bAsync = true;
 	
@@ -112,5 +115,18 @@ namespace Audio
 
 		Audio::FParameterInterfacePtr GetInterface();
 	} // namespace NavOcclusionInterface
+
+	namespace NavDopplerPitchInterface
+	{
+		const extern FName Name;
+
+		namespace Inputs
+		{
+			const extern FName DopplerPitch;
+		} // namespace Inputs
+
+		Audio::FParameterInterfacePtr GetInterface();
+	} // namespace NavDopplerPitchInterface
+	
 } // namespace Audio
 #pragma endregion Meta Sound Interface
