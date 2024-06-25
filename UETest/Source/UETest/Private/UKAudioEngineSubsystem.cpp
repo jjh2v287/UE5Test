@@ -210,7 +210,13 @@ void UUKAudioEngineSubsystem::Update()
 			{
 				// SoundBase->getv
 				uint32 OwnerID = ActiveSound->GetOwnerID();
-				FUObjectItem* OwnerActor = GUObjectArray.IndexToObject(OwnerID);
+				FUObjectItem* OwnerObjectItem = GUObjectArray.IndexToObject(OwnerID);
+				TWeakObjectPtr<AActor> OwnerActor = Cast<AActor>(OwnerObjectItem->Object);
+				if(OwnerActor.IsValid())
+				{
+					const FVector Velocity = OwnerActor->GetVelocity();
+				}
+
 				const TArray<FListener>& Listeners =  AudioDevice->GetListeners();
 				const FListener& Listener = Listeners[ClosestListenerIndex];
 				const float DopplerPitch = UUKAudioEngineSubsystem::GetDopplerPitchMultiplier(Listener, ActiveSound, AudioDevice->GetGameDeltaTime());
