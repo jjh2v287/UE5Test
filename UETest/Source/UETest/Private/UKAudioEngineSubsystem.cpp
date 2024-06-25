@@ -208,13 +208,14 @@ void UUKAudioEngineSubsystem::Update()
 
 			if(bParameterDopplerPitch)
 			{
-				// SoundBase->getv
 				uint32 OwnerID = ActiveSound->GetOwnerID();
 				FUObjectItem* OwnerObjectItem = GUObjectArray.IndexToObject(OwnerID);
 				TWeakObjectPtr<AActor> OwnerActor = Cast<AActor>(OwnerObjectItem->Object);
 				if(OwnerActor.IsValid())
 				{
 					const FVector Velocity = OwnerActor->GetVelocity();
+					const int32 rrrr= 0;
+					const int32 ddd = rrrr;
 				}
 
 				const TArray<FListener>& Listeners =  AudioDevice->GetListeners();
