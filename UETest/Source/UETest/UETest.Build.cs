@@ -28,7 +28,8 @@ public class UETest : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"AnimGraphRuntime", "AIModule", "DeveloperSettings",
+			"AnimGraphRuntime", "AIModule", "DeveloperSettings", 
+			"SignalProcessing"
 		});
 		
 	}

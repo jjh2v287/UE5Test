@@ -8,6 +8,8 @@
 #include "UKAudioSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "DSP/VolumeFader.h"
+#include "Sound/AudioVolume.h"
 #include "NavFilters/NavigationQueryFilter.h"
 
 TMap<FTraceHandle, UUKAudioEngineSubsystem::FUKOcclusionAsyncTraceInfo> UUKAudioEngineSubsystem::TraceOcclusionMap;
@@ -43,6 +45,8 @@ void UUKAudioEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		NavPathQueryDelegate.BindStatic(&AsyncNavOcclusionEnd);
 	}
 	ResetTaskData();
+
+	InGameVolumeFader.Deactivate();
 }
 
 void UUKAudioEngineSubsystem::Deinitialize()
@@ -65,7 +69,7 @@ void UUKAudioEngineSubsystem::Update()
 {
 	Super::Update();
 	TRACE_CPUPROFILER_EVENT_SCOPE(UKAudioEngineSubsystem::Update);
-	
+
 	const Audio::FDeviceId CurrentDeviceId = GetAudioDeviceId();
 	FAudioThread::RunCommandOnAudioThread([CurrentDeviceId]()
 	{
@@ -96,6 +100,9 @@ void UUKAudioEngineSubsystem::Update()
 			return;
 		}
 
+		const float GameDeltaTime = AudioDevice->GetGameDeltaTime();
+		UUKAudioEngineSubsystem::Get()->InGameVolumeFader.Update(GameDeltaTime);
+
 		const TArray<FActiveSound*> ActiveSounds = AudioDevice->GetActiveSounds();
 		for (FActiveSound* ActiveSound : ActiveSounds)
 		{
@@ -104,9 +111,7 @@ void UUKAudioEngineSubsystem::Update()
 			{
 				continue;
 			}
-			
-			ActiveSound->SetVolume(UUKAudioEngineSubsystem::Get()->MasterVolume);
-			
+
 			const UMetaSoundSource* SoundBase = Cast<UMetaSoundSource>(ActiveSound->GetSound());
 			const bool bNotValidSoundBase = SoundBase == nullptr;
 			if (bNotValidSoundBase)
@@ -134,6 +139,8 @@ void UUKAudioEngineSubsystem::Update()
 			{
 				continue;
 			}
+
+			ActiveSound->SetVolume(UUKAudioEngineSubsystem::Get()->InGameVolumeFader.GetVolume());
 
 			// Seting Sound And Listener World Location Info
 			FVector ListenerLocation;
@@ -210,8 +217,8 @@ void UUKAudioEngineSubsystem::Update()
 			{
 				uint32 OwnerID = ActiveSound->GetOwnerID();
 				FUObjectItem* OwnerObjectItem = GUObjectArray.IndexToObject(OwnerID);
-				TWeakObjectPtr<AActor> OwnerActor = Cast<AActor>(OwnerObjectItem->Object);
-				if(OwnerActor.IsValid())
+				AActor* OwnerActor = static_cast<AActor*>(OwnerObjectItem->Object);
+				if(OwnerActor != nullptr)
 				{
 					const FVector Velocity = OwnerActor->GetVelocity();
 					const int32 rrrr= 0;
@@ -262,6 +269,16 @@ void UUKAudioEngineSubsystem::Update()
 			CurrentPitchScale = OutParam.FloatParam;
 		}
 	}*/
+}
+
+void UUKAudioEngineSubsystem::StartInGameVolumeFader(float InVolume, float InDuration)
+{
+	if(InGameVolumeFader.IsActive())
+	{
+		return;
+	}
+	InGameVolumeFader.StartFade(InVolume, InDuration, Audio::EFaderCurve::Linear);
+	InGameVolumeFader.SetActiveDuration(InDuration);
 }
 
 void UUKAudioEngineSubsystem::ResetTaskData()

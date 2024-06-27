@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DSP/VolumeFader.h"
 #include "Subsystems/AudioEngineSubsystem.h"
 #include "UKAudioEngineSubsystem.generated.h"
 
@@ -30,6 +31,9 @@ public:
 	//~ Begin UAudioEngineSubsystem interface
 	virtual void Update() override;
 	//~ End UAudioEngineSubsystem interface
+
+	UFUNCTION(BlueprintCallable)
+	void StartInGameVolumeFader(float InVolume, float InDuration);
 
 private:
 	void ResetTaskData();
@@ -84,9 +88,7 @@ private:
 	static TMap<FActiveSound*, FUKNavOcclusionAsyncCompleteInfo> NavOcclusionCompleteMap;
 	static FNavPathQueryDelegate NavPathQueryDelegate;
 
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float MasterVolume = 1.0f;
+	Audio::FVolumeFader InGameVolumeFader;
 };
 
 #pragma region Meta Sound Interface
