@@ -85,12 +85,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOverLapPin, const FUKAsyncOverlapRe
  * 
  */
 UCLASS()
-class UETEST_API UUKAsyncOverlap : public UCancellableAsyncAction
+class UETEST_API UUKAsyncOverlap : public UObject
 {
 	GENERATED_BODY()
 protected:
-	virtual void Activate() override;
-	virtual void Cancel() override;
+	void Activate();
+	void Cancel();
 	virtual void BeginDestroy() override;
 
 	virtual UWorld* GetWorld() const override
@@ -101,13 +101,13 @@ protected:
 	void AsyncOverLapFinish(const FTraceHandle& TraceHandle, FOverlapDatum& OverlapDatum);
 
 public:
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject"), Category="AsyncNodes")
 	static UUKAsyncOverlap* UKAsyncOverlapByChannel(const UObject* WorldContextObject, const ECollisionChannel CollisionChannel, const FUKAsyncOverlapInfo AsyncOverLapInfo);
 
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject"), Category="AsyncNodes")
 	static UUKAsyncOverlap* UKAsyncOverlapByProfile(const UObject* WorldContextObject, const FName ProfileName, const FUKAsyncOverlapInfo AsyncOverLapInfo);
 	
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", ClampMin = "0", WorldContext = "WorldContextObject"), Category="AsyncNodes")
+	UFUNCTION(BlueprintCallable, meta = (WorldContext = "WorldContextObject"), Category="AsyncNodes")
 	static UUKAsyncOverlap* UKAsyncOverlapByObjectType(const UObject* WorldContextObject, const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes, const FUKAsyncOverlapInfo AsyncOverLapInfo);
 
 	static const FCollisionShape MakeCollisionShape(const EUKAsyncShapeType Type, const FVector BoxExtent, const FVector CapsuleExtent, const float SphereRadius);

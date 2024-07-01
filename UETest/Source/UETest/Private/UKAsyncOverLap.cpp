@@ -8,8 +8,6 @@
 
 void UUKAsyncOverlap::Activate()
 {
-	Super::Activate();
-
 	if (!OverlapDelegate.IsBound())
 	{
 		OverlapDelegate.BindUObject(this, &UUKAsyncOverlap::AsyncOverLapFinish);
@@ -31,7 +29,6 @@ void UUKAsyncOverlap::Activate()
 
 void UUKAsyncOverlap::Cancel()
 {
-	Super::Cancel();
 	if (OverlapDelegate.IsBound())
     {
     	OverlapDelegate.Unbind();
@@ -86,7 +83,7 @@ UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByChannel(const UObject* WorldCo
 	Node->AsyncOverLapInfo = AsyncOverLapInfo;
 	Node->CollisionChannel = CollisionChannel;
 	Node->ExecuteType = EUKExecuteType::Channel;
-	Node->RegisterWithGameInstance(WorldContextObject);
+	Node->Activate();
 	return Node;
 }
 
@@ -103,7 +100,7 @@ UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByProfile(const UObject* WorldCo
 	Node->AsyncOverLapInfo = AsyncOverLapInfo;
 	Node->ProfileName = ProfileName;
 	Node->ExecuteType = EUKExecuteType::Profile;
-	Node->RegisterWithGameInstance(WorldContextObject);
+	Node->Activate();
 	return Node;
 }
 
@@ -120,7 +117,7 @@ UUKAsyncOverlap* UUKAsyncOverlap::UKAsyncOverlapByObjectType(const UObject* Worl
     Node->AsyncOverLapInfo = AsyncOverLapInfo;
     Node->ObjectTypes = ObjectTypes;
 	Node->ExecuteType = EUKExecuteType::ObjectType;
-    Node->RegisterWithGameInstance(WorldContextObject);
+	Node->Activate();
     return Node;
 }
 
