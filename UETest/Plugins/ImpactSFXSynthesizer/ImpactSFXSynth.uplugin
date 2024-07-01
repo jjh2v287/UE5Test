@@ -1,0 +1,44 @@
+{
+	"FileVersion": 3,
+	"Version": 7,
+	"VersionName": "1.3.1",
+	"FriendlyName": "ImpactSFXSynth",
+	"Description": "Impact SFX Synthesizer for MetaSounds",
+	"Category": "Audio",
+	"CreatedBy": "Le Binh Son",
+	"CreatedByURL": "https://discord.gg/aCXxZmNvxn",
+	"DocsURL": "https://drive.google.com/file/d/1ZucrSfeiw0gw0oMu9fy0dCeHrMOZWzhc/view?usp=sharing",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c7a1e47c4a2f452d8bedf2d74c02303c",
+	"SupportURL": "https://discord.gg/aCXxZmNvxn",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "ImpactSFXSynth",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		},
+		{
+			"Name": "ImpactSFXSynthEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Metasound",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		}
+	]
+}

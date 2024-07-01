@@ -1,0 +1,453 @@
+﻿// Copyright 2023-2024, Le Binh Son, All Rights Reserved.
+
+#include "HRTFModal.h"
+
+#include "ImpactSFXSynthLog.h"
+#include "DSP/FloatArrayMath.h"
+
+#define THREE_PI_DIV_TWO (UE_PI * 3.0f / 2.0f)
+#define PI_DIV_TWO (UE_PI / 2.0f)
+#define STRENGTH_MIN (0.001f)
+#define MAX_ELEV_CHANGE (UE_PI / 72.0f)
+#define MAX_AZI_CHANGE (UE_PI / 32.0f)
+
+namespace LBSImpactSFXSynth
+{
+	using namespace Audio;
+
+	FHRTFModal::FHRTFModal(float InSamplingRate, int32 InNumFramesPerBlock)
+		: SamplingRate(InSamplingRate), NumFramesPerBlock(InNumFramesPerBlock), HeadRadius(0.f),
+		  bShouldInitBuffers(true), CurrentAzi(-1000.f), CurrentElev(-1000.f),
+		  NumLeftDelay(0), NumRightDelay(0), bIsFirstFrame(true)
+    {
+		checkf((NumModals % AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER) == 0, TEXT("FHRTFModal::FHRTFModal: Misalign number of used modals and num float per vector!"))
+		
+    	SetHeadRadius(GlobalHeadRadius);
+		AmpBufferLeft.SetNumUninitialized(NumModals);
+		AmpBufferRight.SetNumUninitialized(NumModals);
+		AmpTempInterHorBuffer.SetNumUninitialized(NumModals);
+
+		GainFLeft.SetNumUninitialized(NumModals);
+		TwoRCosLeft.SetNumUninitialized(NumModals);
+		GainPhiLeft.SetNumUninitialized(NumModals);
+		Out1DLeft.SetNumUninitialized(NumModals);
+		Out2DLeft.SetNumUninitialized(NumModals);
+
+		GainFRight.SetNumUninitialized(NumModals);
+		TwoRCosRight.SetNumUninitialized(NumModals);
+		GainPhiRight.SetNumUninitialized(NumModals);
+		Out1DRight.SetNumUninitialized(NumModals);
+		Out2DRight.SetNumUninitialized(NumModals);
+
+	    constexpr int32 ResetSize = NumModals * sizeof(float);
+		FMemory::Memzero(Out1DLeft.GetData(), ResetSize);
+		FMemory::Memzero(Out2DLeft.GetData(), ResetSize);
+		FMemory::Memzero(Out1DRight.GetData(), ResetSize);
+		FMemory::Memzero(Out2DRight.GetData(), ResetSize);
+
+		NumFramesTempHold = NumFramesPerBlock + 1;
+		TempBuffer.SetNumUninitialized(NumFramesTempHold);
+    }
+
+	void FHRTFModal::SetHeadRadius(const float InRadius)
+	{
+		const float NewRadius = FMath::Clamp(InRadius, 0.01f, 1.0f); // Max "valid" head radius is 1 meter
+		if(!FMath::IsNearlyEqual(HeadRadius, NewRadius, 0.005f))
+		{
+			HeadRadius = NewRadius;
+			MaxDelaySamples = FMath::CeilToInt32(MaxITDUnit * HeadRadius * SamplingRate) + 1; //Need 1 delay sample even at ITD = 0
+			if(MaxDelaySamples > NumFramesPerBlock)
+				UE_LOG(LogImpactSFXSynth, Warning, TEXT("FHRTFModal::SetHeadRadius: Block rate is lower than the number of delayed samples for the specified head Size! This can lead to pop noise on fast moving object."));
+			
+			CirBuffer.Reset(MaxDelaySamples + NumFramesPerBlock);
+			bShouldInitBuffers = true;
+			CirBuffer.PushZeros(MaxDelaySamples);
+		}
+	}
+
+	bool FHRTFModal::TransferToStereo(const TArrayView<const float>& InAudio, float Azimuth, float Elevation,
+									  float Gain, FMultichannelBufferView& OutAudio,
+	                                  const bool bIsAudioEnd, bool bClampOutput)
+	{
+		if(OutAudio.Num() != 2)
+		{
+			UE_LOG(LogImpactSFXSynth, Error, TEXT("FHRTFModal::TransferToStereo: the number of output channels must be 2!"));
+			return true;
+		}
+		
+		const int32 NumOutputFrames = GetMultichannelBufferNumFrames(OutAudio);
+		const int32 NumAudioFrame = InAudio.Num();
+		if(NumAudioFrame != NumOutputFrames || NumOutputFrames != NumFramesPerBlock)
+		{
+			UE_LOG(LogImpactSFXSynth, Warning, TEXT("FHRTFModal::TransferToStereo: The number of requested frames != the number of frame per block or input audio frames!"));
+			return true;
+		}
+		
+		if(NumOutputFrames <= 0)
+			return bIsAudioEnd;
+		
+		if (IsFinish(bIsAudioEnd))
+			return true;
+
+		SetHeadRadius(GlobalHeadRadius);
+
+		Azimuth = FMath::Clamp(Azimuth, -360.f, 360.f);
+		Elevation = FMath::Clamp(Elevation, -90.f, 90.f);
+		InitBuffers(Azimuth, Elevation, Gain);
+
+		ConvolveModal(OutAudio, InAudio);
+		
+		if(bClampOutput)
+		{			
+			for(int32 Channel = 0; Channel < 2; Channel++)
+			{
+				Audio::ArrayClampInPlace(OutAudio[Channel], -1.f, 1.f);
+			}
+		}
+
+		bIsFirstFrame = false;
+		
+		return false;
+	}
+
+	void FHRTFModal::SetGlobalHeadRadius(const float InRadius)
+	{
+		GlobalHeadRadius =  FMath::Clamp(InRadius, 0.01f, 1.0f); // Max "valid" head radius is 1 meter;
+	}
+
+	float FHRTFModal::MapElevationToCorrectRange(float Elevation)
+	{
+		if(Elevation > UE_PI)
+			Elevation = UE_PI - Elevation;
+		else if(Elevation < -UE_PI)
+			Elevation = -UE_PI - Elevation;
+		
+		if(Elevation > PI_DIV_TWO)
+			Elevation = UE_PI - Elevation;
+		else if(Elevation < -PI_DIV_TWO)
+			Elevation = -UE_PI - Elevation;
+
+		return Elevation;
+	}
+
+	bool FHRTFModal::IsFinish(const bool bIsAudioEnd)
+	{
+		if(bIsAudioEnd)
+		{
+			float* OutL1BufferPtr = Out1DLeft.GetData();
+			float* OutL2BufferPtr = Out2DLeft.GetData();
+			if(NumLeftDelay < NumRightDelay)
+			{
+				OutL1BufferPtr = Out1DRight.GetData();
+				OutL2BufferPtr = Out2DRight.GetData();
+			}
+			
+			VectorRegister4Float SumModalVector = VectorZeroFloat();
+			for(int j = 0; j < NumModals; j+= AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+			{
+				SumModalVector = VectorAdd(VectorAbs(VectorLoadAligned(&OutL1BufferPtr[j])), SumModalVector);
+				SumModalVector = VectorAdd(VectorAbs(VectorLoadAligned(&OutL2BufferPtr[j])), SumModalVector);
+			}
+		
+			float SumVal[4];
+			VectorStore(SumModalVector, SumVal);
+			const float AbsSum = SumVal[0] + SumVal[1] + SumVal[2] + SumVal[3];
+			if(AbsSum < STRENGTH_MIN)
+				return true;
+		}
+		return false;
+	}
+
+	void FHRTFModal::InitBuffers(float InAzimuth, float InElevation, float Gain)
+	{
+		//Elevation in metasound range is [-90, 90].
+		const float Elevation = InElevation / 180.f * UE_PI;
+		
+		//Azimuth in metasound: -90 left. 0 front. 90 right. 180 & -180 back.
+		float Temp;
+		float Azimuth = -InAzimuth + 360.0f; // 450 left, 360 forward, 270 right, 180, 540 back
+		Azimuth = FMath::Modf(Azimuth / 360.f, &Temp) * UE_TWO_PI; //pi/2 left. 0 front. 3pi/2 right. pi back.
+		
+		if(!FMath::IsNearlyEqual(CurrentAzi, Azimuth, 1e-3f) || !FMath::IsNearlyEqual(CurrentElev, Elevation, 1e-3f))
+			bShouldInitBuffers = true;
+
+		if(bShouldInitBuffers)
+		{
+			float DeltaAzi = 0.f;
+			if(bIsFirstFrame)
+			{ 
+				CurrentElev = Elevation;
+				CurrentAzi = Azimuth;
+			}
+			else
+			{
+				CurrentElev += FMath::Clamp(Elevation - CurrentElev, -MAX_ELEV_CHANGE, MAX_ELEV_CHANGE);
+				CurrentElev = FMath::Clamp(CurrentElev, -PI_DIV_TWO, PI_DIV_TWO);
+				
+				DeltaAzi = FindDeltaAngleRadians(CurrentAzi, Azimuth);
+				CurrentAzi += FMath::Clamp(DeltaAzi, -MAX_AZI_CHANGE, MAX_AZI_CHANGE);
+				CurrentAzi = FMath::Modf(CurrentAzi / UE_TWO_PI, &Temp) * UE_TWO_PI;
+				if(CurrentAzi < 0.f)
+					CurrentAzi += UE_TWO_PI;
+			}
+			//Clamp to avoid small number error affects index calculation
+			const float ElevationShift = FMath::Clamp(CurrentElev + PI_DIV_TWO, 0.f, UE_PI);
+			InterpolateAmp(true, CurrentAzi, ElevationShift, AmpBufferLeft, Gain);
+			InterpolateAmp(false, CurrentAzi, ElevationShift, AmpBufferRight, Gain);
+			
+			const float AbsCosElev = FMath::Abs(FMath::Cos(CurrentElev));
+			const float DecayLeft = GetDecay(true, CurrentAzi, AbsCosElev);
+			const float DecayRight = GetDecay(false, CurrentAzi, AbsCosElev);
+			
+			float ITDLeft = 0.f;
+			if(CurrentAzi > UE_PI && CurrentAzi < UE_TWO_PI)
+				ITDLeft = GetInterauralTimeDelay(UE_TWO_PI - CurrentAzi, AbsCosElev);			
+			float ITDRight = 0.f;
+			if(CurrentAzi > 0.f && CurrentAzi < UE_PI)
+				ITDRight = GetInterauralTimeDelay(CurrentAzi, AbsCosElev);
+
+			const int32 NewLeftDelay = FMath::RoundToInt32(ITDLeft * SamplingRate);
+			const int32 NewRightDelay = FMath::RoundToInt32(ITDRight * SamplingRate);
+			if(bIsFirstFrame)
+			{
+				NumLeftDelay = NewLeftDelay;
+				NumRightDelay = NewRightDelay;
+			}
+			else
+			{
+				const int32 DeltaLeftDelay = NewLeftDelay - NumLeftDelay;
+				const int32 DeltaRightDelay = NewRightDelay - NumRightDelay;
+				NumLeftDelay = FMath::Max(0, NumLeftDelay + FMath::Clamp(DeltaLeftDelay, -1, 1));
+				NumRightDelay = FMath::Max(0, NumRightDelay + FMath::Clamp(DeltaRightDelay, -1, 1));
+			}
+			
+			for(int i = 0; i < NumModals; i++)
+			{
+				const float Theta = 2.0f * UE_PI * FHRTFModal::Freqs[i] / SamplingRate;
+				const float CosTheta = FMath::Cos(Theta);
+				const float SinThetaPhi = FMath::Sin(Theta - FHRTFModal::Phis[i]);
+				
+				const float RLeft = FMath::Exp(-DecayLeft / SamplingRate);
+				TwoRCosLeft[i] = 2.0f * RLeft * CosTheta;
+				R2Left = RLeft * RLeft;
+				GainFLeft[i] = AmpBufferLeft[i] * RLeft * SinThetaPhi;
+				GainPhiLeft[i] = AmpBufferLeft[i] * FHRTFModal::SinPhis[i];
+				
+				const float RRight = FMath::Exp(-DecayRight / SamplingRate);
+				TwoRCosRight[i] = 2.0f * RRight * CosTheta;
+				R2Right = RRight * RRight;
+				GainFRight[i] = AmpBufferRight[i] * RRight * SinThetaPhi;
+				GainPhiRight[i] = AmpBufferRight[i] * FHRTFModal::SinPhis[i];
+			}
+
+			if(FMath::IsNearlyEqual(CurrentElev, Elevation, 1e-3f)				
+				&& NumLeftDelay == NewLeftDelay
+				&& NumRightDelay == NewRightDelay)
+			{
+				bShouldInitBuffers = false;
+			}
+		}
+	}
+
+	void FHRTFModal::InterpolateAmp(bool bIsLeftChannel, float Azi, float Elev, const TArrayView<float>& OutBuffer, float Gain)
+	{
+		TArrayView<const float> AmpElevAziView = TArrayView<const float>(FHRTFModal::AmpElevAzi);
+		
+		float VerticalPercent = Elev / AmpElevStep;
+		int32 BottomIdx = FMath::FloorToInt32(VerticalPercent);
+		int32 UpIdx = BottomIdx + 1;
+		VerticalPercent = VerticalPercent - BottomIdx;
+		BottomIdx = BottomIdx * NumAmpAziPerElev;
+
+		if(!bIsLeftChannel && !FMath::IsNearlyZero(Azi, 1e-5f))
+			Azi = UE_TWO_PI - Azi;
+
+		float HorizontalPercent = Azi / AmpAziStep;
+		int32 LeftIdx = FMath::FloorToInt32(HorizontalPercent);
+		int32 RightIdx = (LeftIdx + 1) % NumAmpAziPerElev;
+		HorizontalPercent = HorizontalPercent - LeftIdx;
+		
+		const int32 BottomLeftIndex = (BottomIdx + LeftIdx) * NumModals;
+		TArrayView<const float> BottomLeft =  AmpElevAziView.Slice(BottomLeftIndex, NumModals);
+
+		const int32 BottomRightIndex = (BottomIdx + RightIdx) * NumModals;
+		TArrayView<const float> BottomRight =  AmpElevAziView.Slice(BottomRightIndex, NumModals);
+		
+		Audio::ArrayMultiplyByConstant(BottomLeft, (1.0f - HorizontalPercent) * Gain, OutBuffer);
+		Audio::ArrayMultiplyAddInPlace(BottomRight, HorizontalPercent * Gain, OutBuffer);
+		if(UpIdx >= NumAmpElev)
+			return;
+
+		UpIdx = UpIdx * NumAmpAziPerElev;
+		const int32 UpLeftIndex = (UpIdx + LeftIdx) * NumModals;
+		TArrayView<const float> UpLeft =  AmpElevAziView.Slice(UpLeftIndex, NumModals);
+		
+		const int32 UpRightIndex = (UpIdx + RightIdx) * NumModals;
+		TArrayView<const float> UpRight =  AmpElevAziView.Slice(UpRightIndex, NumModals);
+		Audio::ArrayMultiplyByConstant(UpLeft, (1.0f - HorizontalPercent) * Gain, AmpTempInterHorBuffer);
+		Audio::ArrayMultiplyAddInPlace(UpRight, HorizontalPercent * Gain, AmpTempInterHorBuffer);
+		
+		Audio::ArrayMultiplyByConstantInPlace(OutBuffer, (1.0f - VerticalPercent));
+		Audio::ArrayMultiplyAddInPlace(AmpTempInterHorBuffer, VerticalPercent, OutBuffer);
+	}
+
+	float FHRTFModal::FindDeltaAngleRadians(float A1, float A2)
+	{
+		// Find the difference
+		auto Delta = A2 - A1;
+
+		// If change is larger than 180
+		if (Delta > UE_PI)
+		{
+			// Flip to negative equivalent
+			Delta = Delta - UE_TWO_PI;
+		}
+		else if (Delta < -UE_PI)
+		{
+			// Otherwise, if change is smaller than -180
+			// Flip to positive equivalent
+			Delta = Delta + UE_TWO_PI;
+		}
+
+		// Return delta in [-pi,pi] range
+		return Delta;
+	}
+
+	float FHRTFModal::GetInterauralTimeDelay(float Azi, float AbsCosElev)
+	{
+		if(Azi < 0.f)
+			Azi = Azi + UE_TWO_PI;
+			
+		if(Azi > THREE_PI_DIV_TWO)
+			Azi = Azi - UE_TWO_PI;
+		else if(Azi > PI_DIV_TWO)
+			Azi = UE_PI - Azi;
+
+		return HeadRadius * (Azi + FMath::Sin(Azi)) * AbsCosElev / SoundSpeed;
+	}
+	
+	float FHRTFModal::GetDecay(bool bIsLefChannel, float Azi, float AbsCosElev)
+	{
+		float ExtraDecay = 0.f;
+		if(bIsLefChannel)
+		{
+			if(Azi > UE_PI)
+				ExtraDecay = 0.5f - FMath::Abs(1.5f - Azi / UE_PI);
+			Azi = UE_PI + Azi;
+		}
+		else
+		{
+			if(Azi < UE_PI)
+				ExtraDecay = 0.5f - FMath::Abs(0.5f - Azi / UE_PI);
+		}
+		
+		return (FMath::Sin(Azi) * 413.25f + 949.2f * ExtraDecay) * AbsCosElev + 4240.f;
+	}
+
+	void FHRTFModal::ConvolveModal(FMultichannelBufferView& OutAudio, const TArrayView<const float>& InAudio)
+	{
+		const float* TwoRCosDataLeft = TwoRCosLeft.GetData();
+		const float* GainFDataLeft = GainFLeft.GetData();
+		const float* GainPhiDataLeft = GainPhiLeft.GetData();
+		float* OutL1BufferPtr = Out1DLeft.GetData();
+		float* OutL2BufferPtr = Out2DLeft.GetData();
+		
+		const int32 ToPop = CirBuffer.Num() - MaxDelaySamples;
+		if(ToPop > 0)
+			CirBuffer.Pop(ToPop);
+		CirBuffer.Push(InAudio);
+
+		CirBuffer.Peek(TempBuffer.GetData(), MaxDelaySamples - 1 - NumLeftDelay, NumFramesPerBlock + 1);
+		ConvolveOneChannel(OutAudio[0], TempBuffer, TwoRCosDataLeft, GainFDataLeft, GainPhiDataLeft,
+							OutL1BufferPtr, OutL2BufferPtr,R2Left);
+		
+		const float* TwoRCosDataRight = TwoRCosRight.GetData();
+		const float* GainFDataRight = GainFRight.GetData();
+		const float* GainPhiDataRight = GainPhiRight.GetData();
+		float* OutR1BufferPtr = Out1DRight.GetData();
+		float* OutR2BufferPtr = Out2DRight.GetData();
+		
+		CirBuffer.Peek(TempBuffer.GetData(), MaxDelaySamples - 1 - NumRightDelay, NumFramesPerBlock + 1);
+		ConvolveOneChannel(OutAudio[1], TempBuffer, TwoRCosDataRight, GainFDataRight, GainPhiDataRight,
+							OutR1BufferPtr, OutR2BufferPtr,R2Right);
+	}
+
+	void FHRTFModal::ConvolveOneChannel(TArrayView<float>& OutAudio, const TArrayView<const float>& InAudio,
+										const float* TwoRCosData,
+										const float* GainFData, const float* GainPhiData, float* OutD1BufferPtr, float* OutD2BufferPtr,
+										const float R2, const float Threshold)
+	{
+		VectorRegister4Float R2RegLeft = VectorLoadFloat1(&R2);
+		VectorRegister4Float ThresholdReg = VectorLoadFloat1(&Threshold);
+		
+		for(int i = 0; i < NumFramesPerBlock; i++)
+		{
+			VectorRegister4Float InAudioDelayRegLeft = VectorLoadFloat1(&InAudio[i]);
+			VectorRegister4Float InAudioRegLeft = VectorLoadFloat1(&InAudio[i + 1]);
+			VectorRegister4Float LeftSumVector = VectorZeroFloat();
+			
+			for(int j = 0; j < NumModals; j += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+			{
+				VectorRegister4Float TwoRCos = VectorLoadAligned(&TwoRCosData[j]);
+				VectorRegister4Float GainF = VectorLoadAligned(&GainFData[j]);
+				VectorRegister4Float GainPhi = VectorLoadAligned(&GainPhiData[j]);
+					
+				VectorRegister4Float y1 = VectorLoadAligned(&OutD1BufferPtr[j]);
+				VectorRegister4Float y2 = VectorLoadAligned(&OutD2BufferPtr[j]);
+				VectorRegister4Float DecayLowNumReg = VectorAdd(VectorAbs(y1), VectorAbs(y2));
+				DecayLowNumReg = VectorCompareGE(DecayLowNumReg, ThresholdReg);
+				y1 = VectorBitwiseAnd(y1, DecayLowNumReg);
+				y2 = VectorBitwiseAnd(y2, DecayLowNumReg);
+					
+				VectorStore(y1, &OutD2BufferPtr[j]);
+				y1 = VectorMultiply(TwoRCos, y1);
+				y2 = VectorMultiply(R2RegLeft, y2);
+				y1 = VectorSubtract(y1, y2);
+				y1 = VectorMultiplyAdd(GainF, InAudioDelayRegLeft, y1);
+				y1 = VectorMultiplyAdd(GainPhi, InAudioRegLeft, y1);
+				LeftSumVector = VectorAdd(LeftSumVector, y1);
+				VectorStore(y1, &OutD1BufferPtr[j]);
+			}
+		
+			float SumVal[4];
+			VectorStore(LeftSumVector, SumVal);
+			OutAudio[i] =  SumVal[0] + SumVal[1] + SumVal[2] + SumVal[3];
+		}
+	}
+
+	float FHRTFModal::GlobalHeadRadius = 0.15f;
+	Audio::FAlignedFloatBuffer FHRTFModal::Freqs {41.46103418675386f, 104.37272820008121f, 186.10372079220693f, 288.17281852085597f, 412.2101067651852f, 555.1635010300018f, 693.620842954887f, 867.7691994152219f, 1135.794892562365f, 1369.5765068284588f, 1607.2614133741324f, 1874.915016348307f, 2183.9439101756575f, 2508.321693901123f, 2844.472465224792f, 3238.589421877725f, 3649.510161841638f, 4083.93547245141f, 4634.351987068475f, 5448.969857558467f, 6344.621096873566f, 7330.308736733536f, 8137.823113204275f, 9059.85786356126f, 9940.909343789966f, 10853.730691873765f, 11828.007109445565f, 12863.551722938864f, 14125.563211502846f, 15474.896205139667f, 17000.442335838114f, 18924.752646676723f};
+	Audio::FAlignedFloatBuffer FHRTFModal::Phis {-0.045199401317253037f, -0.09679479733650878f, -0.09808284105908625f, -0.08602219397017187f, -0.0798391529321291f, 0.009933663853020493f, -0.7347996915062422f, 0.2559908549231651f, 0.2727890822115355f, 1.1868118788009072f, 2.237710437826176f, 2.0286305428865754f, 1.8001053177144377f, -3.1415880492693296f, 0.44198040705723457f, -3.141590985569817f, -0.2837540018438183f, 2.790271461482272f, -0.6465273312309207f, -0.8281256480691747f, -0.11948069884900457f, 2.7050589936258445f, 0.3489421167690951f, 0.043479983665305935f, -3.113570424768063f, 2.48425159063997f, 2.697832729151166f, -0.38754664963703633f, -2.0846121031958016f, -1.9250311299239466f, -2.978978820649288f, -2.8205479322588247f};
+	Audio::FAlignedFloatBuffer FHRTFModal::SinPhis {-0.045184012599508765f, -0.09664371929660416f, -0.09792565321494504f, -0.0859161417883014f, -0.0797543603043889f, 0.009933500482013462f, -0.6704385471849109f, 0.25320409859154586f, 0.2694184320183249f, 0.927179354517495f, 0.7857342245960602f, 0.897011890920019f, 0.9738236970720391f, -4.604320463669934e-06f, 0.4277304052040596f, -1.6680199760417231e-06f, -0.2799614967048771f, 0.3441385996362739f, -0.6024182268503065f, -0.7366651209185965f, -0.119196624503159f, 0.4228007354954752f, 0.34190386912896065f, 0.04346628507697704f, -0.02801856157843306f, 0.6110141474845567f, 0.4293382441838828f, -0.37791814725896045f, -0.870875383310452f, -0.9379121893449407f, -0.16189810662852414f, -0.31555807525943835f};
+	
+	Audio::FAlignedFloatBuffer FHRTFModal::AmpElevAzi
+	{
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.09001299776793714f, 0.05620263760588509f, 1.6342710623924397e-05f, 1.72202055392727e-05f, 0.001514055252672502f, 0.10516162107358999f, 2.189275596284531e-05f, 2.77130761486207e-05f, 1.4537564659197477e-05f, 0.06076703117960772f, 0.06178509438923541f, 3.648666202421239e-10f, 0.015580250734803696f, 0.005224725296003021f, 0.002625906453308931f, 0.02977821247757848f, 0.024375961941167975f, 0.006528860412440898f, 0.021991428472263288f, 0.0019680171297369953f, 0.002220618996872216f, 0.02836974692651487f, 0.0026995880165558033f, 2.2441048584483944e-05f, 0.029080700613254667f, 0.003263661439375606f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.12128268116453762f, 0.06512142403884814f, 2.203565378396535e-05f, 2.018458049479931e-05f, 0.019662388338465706f, 0.07328772055644363f, 0.0006044371398797026f, 2.77130761486207e-05f, 1.5440871125891634e-05f, 0.019068764197076583f, 0.036228460957804624f, 4.499449247037238e-06f, 0.0257695990319623f, 0.009184547516199954f, 0.001485981786821942f, 0.023811651621943392f, 0.05704210177230948f, 2.233446811386534e-05f, 0.007291275983236402f, 0.031115505649507585f, 0.0067321726526058875f, 0.030344414779307743f, 0.006575777186191397f, 2.2441048584483944e-05f, 0.023540263969726614f, 0.017081556702030622f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.10907923659539116f, 0.061771899210849614f, 0.0029490975333892693f, 1.3436057997333762e-05f, 0.0030197829478843044f, 0.09016697139976187f, 2.189275596284531e-05f, 0.010757774978322728f, 1.9561212412224604e-05f, 0.014004047808839086f, 0.016793398703977738f, 1.4215035938730367e-06f, 0.02582797707951433f, 0.011325431224131675f, 2.190556717678567e-05f, 0.019626691115092403f, 0.049518253834507774f, 2.233446811386534e-05f, 0.010338820208770872f, 0.02480212717432667f, 0.005385057303778035f, 0.027099945400552314f, 0.002342037254558828f, 3.375474033253243e-05f, 0.0229337140033733f, 0.013174770257314844f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.19360574606463024f, 1.564940563481563e-05f, 2.203565378396535e-05f, 0.05992023193608062f, 1.179949527246802e-06f, 0.08111532021345566f, 2.189275596284531e-05f, 0.02159608294781079f, 0.001477140279854739f, 0.012917915310204538f, 1.2662627437311344e-05f, 4.84588744848703e-06f, 0.049521350884241734f, 2.227832621108961e-05f, 1.583165296729927e-05f, 0.006837425128756787f, 0.051028635533520654f, 2.233446811386534e-05f, 3.814659880353879e-05f, 1.8420058627740133e-07f, 0.006860529636329087f, 0.02491124116392235f, 0.004400776277324082f, 2.2441048584483944e-05f, 1.3452856248990155e-05f, 0.017496048797149066f, 
+		0.33331104133259465f, 2.2035653783965352e-05f, 0.15652283203509224f, 0.0031297396068827588f, 0.00029583087270532827f, 0.004437832168955005f, 0.010765174527550573f, 0.010496505388169155f, 0.039451505037995875f, 0.056372182407256693f, 0.09798952419009206f, 0.01288980195673451f, 2.189275596284531e-05f, 0.08801419870567852f, 0.0013556900781602514f, 0.011324001904254989f, 1.6115151225544424e-05f, 5.85179856961493e-07f, 0.015067948144616011f, 0.0023095306281841633f, 0.004581936571608426f, 0.025233089537731675f, 2.2035653783965352e-05f, 1.7485421895642197e-05f, 0.043355762528872195f, 0.0009189562858649554f, 0.014492113407706349f, 0.08263022466377194f, 2.204932722438927e-05f, 0.005825683312048065f, 0.04048153595814207f, 1.6419649933678396e-05f, 
+		0.08799380407176667f, 0.0855425134638691f, 0.002090541042960448f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.20747256766967534f, 2.203565378396535e-05f, 0.004213204907897536f, 0.0028442490050110923f, 0.07069722117630127f, 1.8683877514719292e-05f, 2.189275596284531e-05f, 0.0008742623759093031f, 0.08967366731924002f, 2.264600049770988e-05f, 2.2313357708516865e-05f, 0.01008633256302579f, 0.07934028195003624f, 0.01063907679297551f, 1.592680282581599e-05f, 0.0036154034364971398f, 0.13495629541482915f, 0.0150209629507667f, 0.013665885028714386f, 0.0067947784086727385f, 1.8096384126473628e-05f, 1.74494136616589e-05f, 3.9592194065536254e-05f, 0.02721182501109706f, 0.0009451950753892988f, 0.011538025501049584f, 
+		2.2275637052721433e-05f, 0.050959538800264416f, 0.008361112149287213f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.20211162519063555f, 0.0002072700759653004f, 2.203565378396535e-05f, 0.06182386085586464f, 4.294382995674449e-06f, 0.013126350048034028f, 0.006659000101626864f, 2.77130761486207e-05f, 0.003337086129550234f, 0.013823050249002515f, 1.2912910677607258e-05f, 0.014607061908002006f, 1.913091043379896e-05f, 2.2397306204429033e-05f, 0.008526453472112698f, 0.00875835268230193f, 0.0043827069109161855f, 0.05930261415688227f, 0.005836998288874958f, 0.004873638166229772f, 1.6969467748228445e-05f, 0.016756140055372282f, 2.204932722438927e-05f, 2.2441048584483944e-05f, 0.009326705922217791f, 2.0936568291602254e-05f, 
+		0.33331104133259465f, 0.30819506259324886f, 0.025219359495952873f, 0.010501807318369865f, 0.0033835470407450447f, 0.009627391175706585f, 0.001386098232449233f, 0.003513940320174568f, 2.2119408782744917e-05f, 0.005411872169237798f, 0.006708150838597331f, 0.07053107803324647f, 2.189275596284531e-05f, 0.009337797752132556f, 1.2365294015991945e-05f, 0.004759574316949565f, 0.0019141222139671548f, 0.0033118648314200663f, 1.1927358612201716e-05f, 1.9787371374656866e-05f, 0.0027263177297490657f, 0.009394404107684443f, 0.003791322664964874f, 2.233446811386534e-05f, 0.0016869587612744425f, 0.0008383933472769562f, 0.0023407853480077808f, 0.0016784365924377752f, 0.014118955420447324f, 0.00602813509025315f, 1.933780528221578e-05f, 1.4822665270720221e-05f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 0.10296514057629214f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 2.2262186834635367e-05f, 2.203565378396535e-05f, 0.021846912373746825f, 0.06056093315262757f, 1.3135229127585514e-05f, 7.890935270639661e-06f, 1.7017591460404694e-05f, 2.6208909479506727e-05f, 0.013086062900239793f, 0.11158901989463195f, 0.008620256984396144f, 0.009931197649211678f, 0.031923061107561844f, 0.045407196791194f, 0.009058164047822198f, 0.002563570692663378f, 1.5503258733463945e-05f, 1.9393779645833447e-05f, 0.03901865879173342f, 0.0055019359368620735f, 1.4327400539020911e-05f, 0.11286231390689194f, 1.6556562595251715e-05f, 0.011141368051457568f, 0.016538942090325297f, 0.002982941337361825f, 
+		0.024229802086012612f, 0.01250316816663754f, 0.004636607370406301f, 2.2035653783965352e-05f, 1.312170517300646e-05f, 1.6354794096862085e-05f, 0.005970555296654943f, 0.004112956765994088f, 0.006629607638884701f, 0.07182384644318403f, 1.507010794425091e-05f, 1.8683877514719292e-05f, 2.189275596284531e-05f, 0.0006683431291570049f, 0.004315426483668527f, 0.0006369533481557317f, 0.002116108786913045f, 0.018969061816439967f, 0.1223898969830239f, 2.3146168634949112e-05f, 1.3644254632706564e-05f, 0.0339874768820808f, 0.02430349831170771f, 0.03840137510265014f, 0.032338954321761273f, 0.19830203772017704f, 0.012254270322488258f, 0.015028322998075322f, 0.025108314109686485f, 0.08330949988300018f, 2.274198112563446e-05f, 1.1806479778737989e-05f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.13352296853586165f, 2.203565378396535e-05f, 0.06370046827053717f, 0.014670156802150556f, 0.0026648465984370167f, 2.280402518902557e-06f, 0.09858579861162743f, 0.0026074975989244017f, 1.4894813530116758e-05f, 0.08493233406266743f, 0.005194401572326138f, 0.004648883173252991f, 0.037278618613887f, 0.010265312995749225f, 1.9798973146545323e-05f, 0.01624116725905084f, 1.5085388460675814e-05f, 0.0008974227695622005f, 0.004763858391370779f, 0.02257277150351962f, 0.005991299784082028f, 0.02627220289837125f, 0.004428268817913442f, 0.0001139953639793494f, 0.003253645845529063f, 1.742475634108603e-05f, 
+		0.33331104133259465f, 0.31348540018155113f, 0.04194944047304614f, 0.020047660131092496f, 0.005687086580214905f, 0.01084032330422506f, 1.6511291891446625e-09f, 0.012659733349497217f, 1.3694775742455349e-05f, 0.054902573597930195f, 0.01514104702736181f, 0.007392399856981546f, 1.683950651839018e-05f, 0.07403058224005643f, 2.027976685095399e-05f, 2.3762255941059586e-05f, 0.0009332294827835162f, 0.003125443025187436f, 0.002132600546011479f, 0.010765934152958366f, 1.8126922743942364e-05f, 0.008127831477216565f, 2.2035653783965352e-05f, 1.5195790617924296e-05f, 0.014471357092026594f, 2.00748499133744e-05f, 1.9902341451161748e-05f, 0.003188321815188634f, 0.004927190324613456f, 0.011231880032729208f, 2.3320886512113352e-05f, 2.2316552024728183e-05f, 
+		0.2368227737870974f, 0.20013871627298385f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 2.7930748169392215e-05f, 2.203565378396535e-05f, 0.07066199703031632f, 2.024417089531098e-05f, 7.186132534152963e-06f, 1.8683877514719292e-05f, 0.08560433532699868f, 0.05540367809069755f, 0.04732928743484907f, 0.10898252058465978f, 2.2313357708516865e-05f, 0.018789553264025517f, 0.0607340926131161f, 2.02573232182926e-05f, 1.774314266474277e-05f, 0.08709793631033229f, 0.06328354521879263f, 2.233446811386534e-05f, 0.06040243305195276f, 0.006008348073254111f, 0.004930150230774461f, 2.2687184539749528e-05f, 0.032078788941404895f, 0.049950106064677126f, 2.274198112563446e-05f, 0.0016500496772825478f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.20849466706251685f, 0.013993230222863655f, 0.04224685410724947f, 0.11859337428373463f, 0.0001568239146440679f, 0.0019870964267087185f, 0.10086244454555095f, 0.13497227890859753f, 1.2512398716178858e-05f, 0.05827256004079704f, 2.2313357708516865e-05f, 0.03564660327757158f, 1.2712483478524425e-05f, 1.855407321772608e-05f, 0.08299821255374788f, 0.14499895938939542f, 1.727372543189333e-05f, 1.902100827568576e-05f, 0.031922306201720374f, 0.02429808311271768f, 0.004891404440891927f, 1.2825531812923772e-05f, 2.1692915080051107e-05f, 0.07023524529605071f, 1.505010190500659e-05f, 2.106672306666166e-05f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.02190752145103671f, 0.07194985903649614f, 0.004837196259838158f, 9.744121517370014e-06f, 0.09762134161762294f, 1.8683877514719292e-05f, 2.189275596284531e-05f, 0.07250290235069755f, 2.2109111331801137e-05f, 0.016785418037785396f, 0.013405308470165932f, 0.04913606279591967f, 0.012359292986221224f, 0.043273329965056645f, 1.864609418863599e-05f, 0.06337685489685711f, 1.185833362413083e-05f, 1.8331722934856016e-05f, 1.7780125280492644e-05f, 1.7464386110647467e-05f, 1.8942642986022823e-05f, 0.01637156943811388f, 0.006671849767681519f, 0.015414664958912945f, 2.2296290881703694e-05f, 1.7782254050041973e-05f, 
+		0.33331104133259465f, 0.3043706492185728f, 0.02702213775994215f, 0.010924301462061754f, 0.0035047068391893432f, 0.006981136622463013f, 2.7930748169392215e-05f, 1.8426537004302106e-05f, 0.014974035653387398f, 0.0038029682969105976f, 0.0009038209202520826f, 0.075500453836976f, 2.189275596284531e-05f, 0.003894220001844233f, 1.7261618390857916e-05f, 0.024302168353429892f, 1.2414972281651581e-05f, 9.51414042840098e-15f, 0.0035106304237033925f, 0.0029917976030751805f, 0.0011375474676187025f, 0.00877225044769471f, 0.017112561134882746f, 0.0032584895266530127f, 1.8361539366683714e-05f, 1.073378537707214e-05f, 1.9810628988198696e-05f, 0.006759658642324941f, 0.002854696592114942f, 0.0014595587511776963f, 0.004110718489900448f, 1.988423699470867e-05f, 
+		2.2275637052721433e-05f, 0.09975156003774234f, 0.04819011702303181f, 0.010113755173360469f, 0.004194627637502395f, 2.2035653783965352e-05f, 0.09657478592853574f, 0.00449598418810261f, 0.007367135324664172f, 0.06508667151920174f, 0.012907090405710158f, 1.7471657490522678e-05f, 1.1723341583086912e-05f, 0.01675853305766078f, 0.08168039960662886f, 2.360022117356398e-05f, 1.6782320893233622e-05f, 0.03955471589978563f, 2.2169832569852186e-05f, 2.3146168634949112e-05f, 1.3970545616509632e-05f, 0.1105760076151056f, 1.3602352127688734e-05f, 2.0768728494350593e-05f, 0.03014945454087176f, 0.007672612800416767f, 1.6337702242519597e-05f, 0.020136210719773496f, 0.03470657685659848f, 1.4536815389155022e-05f, 1.543491940829004e-05f, 1.42565255992691e-05f, 
+		2.2275637052721433e-05f, 2.2035653783965352e-05f, 0.028376196168419108f, 0.006644986504518765f, 0.0011918080231335222f, 0.002269564486090397f, 0.14003988074120047f, 0.006642881459937701f, 0.00327798387705294f, 0.06937734201277203f, 0.10146609977599097f, 9.89353265121087e-06f, 1.1216522751163383e-05f, 0.020361784942364777f, 1.9374212530125122e-05f, 0.06951174767896569f, 1.8736365448152986e-05f, 0.006645573579335946f, 2.2169832569852186e-05f, 0.039457009723935926f, 0.0567716752429018f, 0.12222976422129701f, 1.9310796305982165e-05f, 2.1079482535640476e-05f, 0.03980702819832312f, 0.01802702804613991f, 1.7382982980292196e-05f, 0.0049443084078343675f, 1.2771234795294188e-05f, 2.1354226304537612e-05f, 1.8935596464206067e-05f, 1.9911958006974954e-05f, 
+		2.2275637052721433e-05f, 0.03037455724592116f, 0.017670766726796495f, 0.004702851920257613f, 0.0014526768385599257f, 0.0030953877671131736f, 0.1324711204266201f, 0.008695940571618021f, 2.1262163790861995e-05f, 0.0657769581868791f, 0.09655954349577804f, 1.8683877514719292e-05f, 2.189275596284531e-05f, 0.014509796567018928f, 0.016007276940212044f, 0.00620626441512144f, 0.010871025574827926f, 3.3939526692399273e-06f, 0.020485083761889965f, 0.00391265568318672f, 0.015438499774525083f, 0.10840413178427562f, 2.012443435306008e-05f, 0.04487222306442932f, 0.06226565947460444f, 0.005626596647998579f, 0.008435693729515721f, 0.0017474315560472734f, 0.039153457297154616f, 0.00980974927856267f, 2.0296003931375885e-05f, 2.2096433562155595e-05f, 
+		2.2275637052721433e-05f, 0.333301737030224f, 0.10548134791474974f, 2.2035653783965352e-05f, 2.203565378396536e-05f, 2.2035653783965352e-05f, 0.039469104931818676f, 2.203565378396535e-05f, 2.203565378396535e-05f, 0.07182372006472934f, 1.3758721106238557e-05f, 6.14575487988025e-06f, 0.025044780107901694f, 0.08780011142071203f, 1.1621532525732537e-05f, 0.013045991309388797f, 1.831192638860672e-05f, 1.951802695036105e-06f, 0.021235284025024666f, 0.0041784888254285f, 0.003480036069044993f, 1.0431039716237767e-05f, 0.09056965008966002f, 0.00366491634604225f, 0.013402130255196211f, 0.06258743578806465f, 0.004346929750363078f, 2.2258592332696238e-05f, 0.03535103733904871f, 0.012313334985956421f, 1.4357358522507465e-05f, 2.038940711189785e-05f 
+	};
+
+}
+
+#undef THREE_PI_DIV_TWO
+#undef PI_DIV_TWO
+#undef STRENGTH_MIN
+#undef MAX_ELEV_CHANGE
+#undef MAX_AZI_CHANGE
