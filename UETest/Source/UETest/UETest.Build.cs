@@ -23,6 +23,7 @@ public class UETest : ModuleRules
 			"MetasoundEngine",
 			"MetasoundFrontend",
 			"MetasoundGraphCore",
+			"MetasoundStandardNodes",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
