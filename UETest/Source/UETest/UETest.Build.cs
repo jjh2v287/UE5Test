@@ -17,8 +17,8 @@ public class UETest : ModuleRules
 			"EnhancedInput",
 			"AnimGraphRuntime",
 			"UMG",
-			
 			"NavigationSystem",
+			
 			"AudioExtensions",
 			"MetasoundEngine",
 			"MetasoundFrontend",
