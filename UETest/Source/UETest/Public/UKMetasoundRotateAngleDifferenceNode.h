@@ -41,7 +41,7 @@ namespace Metasound
 		void Execute();
 
 	private:
-		const float GetRotateTheAngleByDifference(const float PramAngle, const float PramDelta);
+		const float GetRotateTheAngleByDifference(const float ParamAngle, const float ParamDelta);
 
 		FFloatReadRef Angle;
 		FFloatReadRef DeltaAngle;

@@ -64,12 +64,12 @@ namespace Metasound
 		*AngleOutput = TempPanningAngle;
 	}
 	
-	const float FUKRotateAngleDifferenceOperator::GetRotateTheAngleByDifference(const float PramAngle, const float PramDelta)
+	const float FUKRotateAngleDifferenceOperator::GetRotateTheAngleByDifference(const float ParamAngle, const float ParamDelta)
 	{
-		float ReturnAngle = PramAngle - PramDelta;
+		float ReturnAngle = ParamAngle - ParamDelta;
 		if (ReturnAngle < 0.0f)
 		{
-			ReturnAngle = (PramDelta - FMath::Abs(ReturnAngle)) + (360.0f - PramDelta);
+			ReturnAngle = (ParamDelta - FMath::Abs(ReturnAngle)) + (360.0f - ParamDelta);
 		}
 		return ReturnAngle;
 	}
@@ -121,8 +121,8 @@ namespace Metasound
 
 		using namespace UKDeltaDegreeVertexNames;
 
-		FFloatReadRef Angle = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputAngle), InParams.OperatorSettings);
-		FFloatReadRef DeltaAngle = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputDeltaAngle), InParams.OperatorSettings);
+		const FFloatReadRef Angle = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputAngle), InParams.OperatorSettings);
+		const FFloatReadRef DeltaAngle = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputDeltaAngle), InParams.OperatorSettings);
 
 		return MakeUnique<FUKRotateAngleDifferenceOperator>(InParams.OperatorSettings, Angle, DeltaAngle);
 	}
