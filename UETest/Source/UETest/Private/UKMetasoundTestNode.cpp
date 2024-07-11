@@ -12,15 +12,26 @@
 #include "MetasoundFacade.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundVertex.h"
+#include "DSP/FloatArrayMath.h"
 
 #define LOCTEXT_NAMESPACE "UKMetasoundTestNode"
 namespace Metasound
 {
-	FUKTestOperator::FUKTestOperator(const FOperatorSettings& InSettings, const FAudioBufferReadRef& InAudio, const FFloatReadRef& InTest)
+	FUKTestOperator::FUKTestOperator(const FOperatorSettings& InSettings, const FAudioBufferReadRef& InAudio, const FFloatReadRef& InHeadRadius, const FFloatReadRef& InAzimuth, const FFloatReadRef& InElevation)
 		: AudioInput(InAudio)
-		, TestInput(InTest)
-		, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+		, HeadRadiusInput(InHeadRadius)
+		, AzimuthInput(InAzimuth)
+		, ElevationInput(InElevation)
+		, AudioLeftOutput(FAudioBufferWriteRef::CreateNew(InSettings))
+		, AudioRightOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 	{
+		SamplingRate = InSettings.GetSampleRate();
+		NumFramesPerBlock = InSettings.GetNumFramesPerBlock();
+		InAudioView = TArrayView<const float>(AudioInput->GetData(), AudioInput->Num());
+		OutputAudioView.Empty(2);
+		OutputAudioView.Emplace(AudioLeftOutput->GetData(), AudioLeftOutput->Num());
+		OutputAudioView.Emplace(AudioRightOutput->GetData(), AudioRightOutput->Num());
+		
 	}
 
 	void FUKTestOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
@@ -28,14 +39,17 @@ namespace Metasound
 		using namespace UKTestOperatorNames;
 
 		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputAudio), AudioInput);
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTest), TestInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(HeadRadius), HeadRadiusInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(Azimuth), AzimuthInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(Elevation), ElevationInput);
 	}
 
 	void FUKTestOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace UKTestOperatorNames;
 
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudio), AudioOutput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioLeft), AudioLeftOutput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputAudioRight), AudioRightOutput);
 	}
 
 	FDataReferenceCollection FUKTestOperator::GetInputs() const
@@ -56,25 +70,88 @@ namespace Metasound
 
 	void FUKTestOperator::Reset(const IOperator::FResetParams& InParams)
 	{
-		AudioOutput->Zero();
+		AudioLeftOutput->Zero();
+		AudioRightOutput->Zero();
 	}
 
 	void FUKTestOperator::Execute()
 	{
-		ProcessAudioBuffer(AudioInput->GetData(), AudioOutput->GetData(), AudioInput->Num());
+		TransferToStereo(*AzimuthInput, *ElevationInput, 1.0f);
 	}
 
-	void FUKTestOperator::ProcessAudioBuffer(const float * InputBuffer, float * OutputBuffer, const int32 NumSamples)
+	bool FUKTestOperator::TransferToStereo(float Azimuth, float Elevation, float Gain)
 	{
-		for (int SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+		if (OutputAudioView.Num() != 2)
 		{
-			const float InputSample = InputBuffer[SampleIndex];
-			const float LPF = *TestInput;
-			
-			OutputBuffer[SampleIndex] = InputSample;
+			return true;
+		}
+
+		const int32 NumOutputFrames = Audio::GetMultichannelBufferNumFrames(OutputAudioView);
+		const int32 NumAudioFrame = InAudioView.Num();
+		if (NumAudioFrame != NumOutputFrames || NumOutputFrames != NumFramesPerBlock)
+		{
+			return true;
+		}
+
+		const float TempHeadRadius = FMath::Clamp(*HeadRadiusInput, 0.01f, 1.0f);
+		MaxDelaySamples = FMath::CeilToInt32(0.001f * TempHeadRadius * SamplingRate) + 1;
+
+		Azimuth = FMath::Clamp(Azimuth, -180.f, 180.f);
+		Elevation = FMath::Clamp(Elevation, -90.f, 90.f);
+
+		ApplySimpleHRTF(InAudioView, Azimuth, Elevation, Gain, OutputAudioView);
+
+		for (int32 Channel = 0; Channel < 2; Channel++)
+		{
+			Audio::ArrayClampInPlace(OutputAudioView[Channel], -1.f, 1.f);
+		}
+
+		return false;
+	}
+
+	void FUKTestOperator::ApplySimpleHRTF(const TArrayView<const float>& InAudio, float Azimuth, float Elevation, float Gain, Audio::FMultichannelBufferView& OutAudio)
+	{
+		float LeftGain = 1.0f;
+		float RightGain = 1.0f;
+		float ElevationGain = 1.0f;
+
+		// Simple panning based on Azimuth
+		if (Azimuth < 0)
+		{
+			RightGain = 1.0f + Azimuth / 180.0f;
+		}
+		else
+		{
+			LeftGain = 1.0f - Azimuth / 180.0f;
+		}
+
+		// Simple elevation effect
+		ElevationGain = 1.0f - FMath::Abs(Elevation) / 90.0f;
+
+		// Interaural Time Difference (ITD)
+		int32 LeftDelaySamples = 0;
+		int32 RightDelaySamples = 0;
+		if (Azimuth < 0)
+		{
+			RightDelaySamples = FMath::RoundToInt32((-Azimuth / 180.0f) * MaxDelaySamples);
+		}
+		else
+		{
+			LeftDelaySamples = FMath::RoundToInt32((Azimuth / 180.0f) * MaxDelaySamples);
+		}
+
+		for (int32 Frame = 0; Frame < NumFramesPerBlock; Frame++)
+		{
+			// float LeftSample = (Frame >= LeftDelaySamples) ? InAudio[Frame - LeftDelaySamples] * LeftGain * ElevationGain * Gain : InAudio[Frame] /*0.0f*/;
+			// float RightSample = (Frame >= RightDelaySamples) ? InAudio[Frame - RightDelaySamples] * RightGain * ElevationGain * Gain : InAudio[Frame]/*0.0f*/;
+			float LeftSample = InAudio[Frame] * LeftGain * ElevationGain * Gain;
+			float RightSample = InAudio[Frame] * RightGain * ElevationGain * Gain;
+
+			OutAudio[0][Frame] = 0.05f;
+			OutAudio[1][Frame] = 0.05f;
 		}
 	}
-	
+
 	const FVertexInterface& FUKTestOperator::GetVertexInterface()
 	{
 		using namespace UKTestOperatorNames;
@@ -82,10 +159,13 @@ namespace Metasound
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
 				TInputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAudio)),
-				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputTest), 90.0f)
+				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(HeadRadius), 1.0f),
+				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(Azimuth), 1.0f),
+				TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(Elevation), 1.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudio))
+				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioLeft)),
+				TOutputDataVertex<FAudioBuffer>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputAudioRight))
 			)
 		);
 
@@ -122,10 +202,12 @@ namespace Metasound
 
 		using namespace UKTestOperatorNames;
 
-		const FAudioBufferReadRef Angle = InputData.GetOrCreateDefaultDataReadReference<Metasound::FAudioBuffer>(METASOUND_GET_PARAM_NAME(InputAudio), InParams.OperatorSettings);
-		const FFloatReadRef DeltaAngle = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputTest), InParams.OperatorSettings);
+		const FAudioBufferReadRef InputAudioRef = InputData.GetOrCreateDefaultDataReadReference<Metasound::FAudioBuffer>(METASOUND_GET_PARAM_NAME(InputAudio), InParams.OperatorSettings);
+		const FFloatReadRef HeadRadiusRef = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(HeadRadius), InParams.OperatorSettings);
+		const FFloatReadRef AzimuthRef = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(Azimuth), InParams.OperatorSettings);
+		const FFloatReadRef ElevationRef = InputData.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(Elevation), InParams.OperatorSettings);
 
-		return MakeUnique<FUKTestOperator>(InParams.OperatorSettings, Angle, DeltaAngle);
+		return MakeUnique<FUKTestOperator>(InParams.OperatorSettings, InputAudioRef, HeadRadiusRef, AzimuthRef, ElevationRef);
 	}
 
 	class FUKTestNode : public FNodeFacade
