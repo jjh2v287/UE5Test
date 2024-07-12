@@ -24,13 +24,15 @@ public class UETest : ModuleRules
 			"MetasoundFrontend",
 			"MetasoundGraphCore",
 			"MetasoundStandardNodes",
+			"SignalProcessing",
+			"AudioSynesthesia",
+			"AudioSynesthesiaCore",
 		});
 		
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"Slate",
-			"AnimGraphRuntime", "AIModule", "DeveloperSettings", 
-			"SignalProcessing"
+			"AnimGraphRuntime", "AIModule", "DeveloperSettings",
 		});
 		
 	}

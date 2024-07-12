@@ -12,6 +12,8 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Dsp.h"
 #include "MetasoundVertex.h"
+#include "OnsetAnalyzer.h"
+#include "PeakPicker.h"
 #include "DSP/MultichannelBuffer.h"
 
 #define LOCTEXT_NAMESPACE "UKMetasoundTestNode"
@@ -55,7 +57,13 @@ namespace Metasound
 
 			TArrayView<const float> InAudioView;
 			Audio::FMultichannelBufferView OutputAudioView;
-			
+
+			TUniquePtr<Audio::IFFTAlgorithm> FFT;
+			Audio::FAlignedFloatBuffer ComplexSpectrum;
+		
+			Audio::FOnsetStrengthSettings Settings;
+			Audio::FPeakPickerSettings PeakPickerSettings;
+			TUniquePtr<Audio::FOnsetStrengthAnalyzer> OnsetAnalyzer;
 		private:
 			FAudioBufferReadRef AudioInput;
 			FFloatReadRef HeadRadiusInput;

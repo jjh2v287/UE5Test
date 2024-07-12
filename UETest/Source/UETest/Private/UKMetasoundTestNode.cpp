@@ -31,7 +31,23 @@ namespace Metasound
 		OutputAudioView.Empty(2);
 		OutputAudioView.Emplace(AudioLeftOutput->GetData(), AudioLeftOutput->Num());
 		OutputAudioView.Emplace(AudioRightOutput->GetData(), AudioRightOutput->Num());
-		
+
+		// 설정 및 샘플 레이트 정의
+		const int32 ddd = 512;		
+		Settings.NumWindowFrames = ddd;
+		Settings.NumHopFrames = ddd / 2;
+		Settings.FFTSize = ddd * 2;
+		Settings.ComparisonLag = 1;
+		Settings.MelSettings.NumBands = 40; // 멜 밴드 수를 유효 주파수 빈 수보다 작게 설정
+		Settings.WindowType = Audio::EWindowType::Hamming;
+		OnsetAnalyzer = MakeUnique<Audio::FOnsetStrengthAnalyzer>(Settings, SamplingRate);
+
+		Audio::FFFTSettings FFTSettings;
+		FFTSettings.Log2Size = Audio::CeilLog2(NumFramesPerBlock * 2);
+		FFTSettings.bArrays128BitAligned = true;
+		FFTSettings.bEnableHardwareAcceleration = true;
+		FFT = Audio::FFFTFactory::NewFFTAlgorithm(FFTSettings);
+		ComplexSpectrum.AddUninitialized(FFT->NumOutputFloats());
 	}
 
 	void FUKTestOperator::BindInputs(FInputVertexInterfaceData& InOutVertexData)
@@ -72,11 +88,35 @@ namespace Metasound
 	{
 		AudioLeftOutput->Zero();
 		AudioRightOutput->Zero();
+		OnsetAnalyzer->Reset();
 	}
 
 	void FUKTestOperator::Execute()
 	{
-		TransferToStereo(*AzimuthInput, *ElevationInput, 1.0f);
+		InAudioView = TArrayView<const float>(AudioInput->GetData(), AudioInput->Num());
+
+		FFT->ForwardRealToComplex(AudioInput->GetData(), ComplexSpectrum.GetData());
+		
+		// TransferToStereo(*AzimuthInput, *ElevationInput, 1.0f);
+		
+		// 여기에 오디오 데이터 스트림을 가져오는 코드를 추가합니다
+		// 예를 들어, 파일에서 읽거나 실시간 오디오 스트림을 처리합니다.
+		// InAudioView;
+		// 오디오 데이터 가져오기 (여기서는 예제 데이터를 사용합니다)
+    
+		// 온셋 강도를 계산합니다.
+		TArray<float> OutEnvelopeStrengths;
+		OnsetAnalyzer->CalculateOnsetStrengths(InAudioView, OutEnvelopeStrengths);
+
+		// 온셋 인덱스를 추출합니다.
+		// TArray<int32> OutOnsetIndices;
+		// Audio::OnsetExtractIndices(PeakPickerSettings, OutEnvelopeStrengths, OutOnsetIndices);
+		//
+		// // 온셋 인덱스를 기반으로 타임스탬프를 계산합니다.
+		// for (int32 OnsetIndex : OutOnsetIndices)
+		// {
+		// 	float Timestamp = Audio::FOnsetStrengthAnalyzer::GetTimestampForIndex(Settings, SamplingRate, OnsetIndex);
+		// }
 	}
 
 	bool FUKTestOperator::TransferToStereo(float Azimuth, float Elevation, float Gain)
