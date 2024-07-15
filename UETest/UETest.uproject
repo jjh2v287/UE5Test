@@ -82,6 +82,36 @@
 		{
 			"Name": "Harmonix",
 			"Enabled": true
+		},
+		{
+			"Name": "AudioAnalysisTools",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/54f6567f89184beb9203f6211c791175"
+		},
+		{
+			"Name": "AudioInspector",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/10d3f0d1ed654d89927afb8f4fa5acc0"
+		},
+		{
+			"Name": "ParallelcubeAudioAnalyzer",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/c04ca3c256584bc1a7b94555e9ca0332"
+		},
+		{
+			"Name": "ImpactSFXSynth",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/c7a1e47c4a2f452d8bedf2d74c02303c"
+		},
+		{
+			"Name": "TracerPro",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/f384f0b841d840e6ab57e3a292e7d790"
+		},
+		{
+			"Name": "TimeStretchMetaNodes",
+			"Enabled": true,
+			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/6702d412a1e14a8e8f32b6024659a5de"
 		}
 	]
 }
