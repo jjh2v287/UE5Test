@@ -95,7 +95,17 @@ namespace Metasound
 	{
 		InAudioView = TArrayView<const float>(AudioInput->GetData(), AudioInput->Num());
 
-		FFT->ForwardRealToComplex(AudioInput->GetData(), ComplexSpectrum.GetData());
+		float dddd[] = {1, 0, -1, 0, 1, -1, 0.5, 0, -1, 0.5}; // Sample input
+		Audio::FAlignedFloatBuffer ComplexSpectrum2;
+		Audio::FFFTSettings FFTSettings;
+		FFTSettings.Log2Size = Audio::CeilLog2(10 * 2);
+		FFTSettings.bArrays128BitAligned = true;
+		FFTSettings.bEnableHardwareAcceleration = true;
+		TUniquePtr<Audio::IFFTAlgorithm> FFT2 = Audio::FFFTFactory::NewFFTAlgorithm(FFTSettings);
+		ComplexSpectrum2.AddUninitialized(FFT2->NumOutputFloats());
+		FFT2->ForwardRealToComplex(dddd, ComplexSpectrum2.GetData());
+		
+		// FFT->ForwardRealToComplex(AudioInput->GetData(), ComplexSpectrum.GetData());
 		
 		// TransferToStereo(*AzimuthInput, *ElevationInput, 1.0f);
 		
