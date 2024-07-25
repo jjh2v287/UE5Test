@@ -112,6 +112,10 @@
 			"Name": "TimeStretchMetaNodes",
 			"Enabled": true,
 			"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/6702d412a1e14a8e8f32b6024659a5de"
+		},
+		{
+			"Name": "Soundscape",
+			"Enabled": true
 		}
 	]
 }
