@@ -3,7 +3,7 @@
 #include "UETestEditor.h"
 
 #include "MetasoundFrontendRegistryContainer.h"
-#include "UKAudioSettings.h"
+#include "UETest/Metasound/UKAudioSettings.h"
 
 #define LOCTEXT_NAMESPACE "FUETestEditorModule"
 
