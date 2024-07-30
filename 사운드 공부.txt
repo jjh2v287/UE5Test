@@ -119,3 +119,7 @@ void FActiveSound::UpdateInterfaceParameters(const TArray<FListener>& InListener
 Path based Audio Occlusion
 https://www.youtube.com/watch?v=1uNjiSCTX1o
 https://www.youtube.com/watch?v=SRapLtIjGhg
+
+오디오 콘솔 명령
+au.debug.sounds 1: 레벨에 있는 모든 활성 사운드 목록과 뷰포트에 있는 관련 정보를 표시합니다.
+au.3dVisualize.Enabled 1: 3D 공간에서 활성 사운드의 위치를 ​​표시합니다.
