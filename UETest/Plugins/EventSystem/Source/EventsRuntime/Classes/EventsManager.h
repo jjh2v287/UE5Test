@@ -220,24 +220,27 @@ struct FEventNode
 	FORCEINLINE bool IsExplicitTag() const {
 #if WITH_EDITORONLY_DATA
 		return bIsExplicitTag;
-#endif
+#else
 		return true;
+#endif
 	}
 
 	/** Returns true if the tag is a restricted tag and allows non-restricted children */
 	FORCEINLINE bool GetAllowNonRestrictedChildren() const { 
 #if WITH_EDITORONLY_DATA
-		return bAllowNonRestrictedChildren;  
-#endif
+		return bAllowNonRestrictedChildren;
+#else
 		return true;
+#endif
 	}
 
 	/** Returns true if the tag is a restricted tag */
 	FORCEINLINE bool IsRestrictedEvent() const {
 #if WITH_EDITORONLY_DATA
 		return bIsRestrictedTag;
-#endif
+#else
 		return true;
+#endif
 	}
 	TArray<FEventParameter> Parameters;
 private:
