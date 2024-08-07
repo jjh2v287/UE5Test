@@ -138,18 +138,18 @@ DSP 처리를 오디오 렌더링 스레드로 분리되어 게임 스레드의 
 
 오디오 렌더링 스레드의 부하 원인
 Mono에서 다채널로 분할하여 각 채널에 DSP 적용:
-
 Mono 신호를 여러 채널로 분할한 후 각 채널에 DSP를 적용하는 경우, 처리해야 할 데이터 양이 증가하여 오디오 렌더링 스레드에 부하가 가중됩니다.
-Mono에서 밴드 분할하여 다채널 생성:
 
+Mono에서 밴드 분할하여 다채널 생성:
 Mono 신호를 주파수 대역별로 분할하여 여러 채널로 생성하고 각 채널에 DSP를 적용하는 방식도 부하를 증가시킵니다. 이 방식은 특정 주파수 대역에서의 사운드 효과를 극대화할 수 있지만, 처리 리소스 소모가 커집니다.
+
 부하 관리 필요성
 오디오 렌더링 스레드는 한 프레임당 480개의 사운드 샘플을 반복적으로 처리합니다. 다채널을 사용할 경우, 채널 수에 비례하여 N * 480개의 샘플을 처리하게 되므로, 다채널 사용 시 적절한 관리가 필요합니다.
 
 Stereo Band Splitter(5 Channe)내부 오디오 샘플 처리 로직 
 for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
 	for (int32 BandId = 0; BandId < NumBands; BandId++)
-		for (int32 FrameId = 0; FrameId < NumFrames; FrameId++)
+		for (int32 SampleId = 0; SampleId < NumSamples; SampleId++)
 
 Ex. Unreal Ctiy Sample 동시 출력 사운드 객체의 수
 Unreal Ctiy Sample 분석시 동시에 출력되는 사운드 객체의 수는 최대 100 ~ 150 개 내외로 판단됩니다. 평균적으로는 100개 내외입니다.
