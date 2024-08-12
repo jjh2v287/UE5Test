@@ -116,6 +116,14 @@
 		{
 			"Name": "Soundscape",
 			"Enabled": true
+		},
+		{
+			"Name": "AudioModulation",
+			"Enabled": true
+		},
+		{
+			"Name": "WaveformEditor",
+			"Enabled": true
 		}
 	]
 }
