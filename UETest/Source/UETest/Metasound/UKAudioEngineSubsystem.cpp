@@ -73,6 +73,10 @@ void UUKAudioEngineSubsystem::Update()
 	const Audio::FDeviceId CurrentDeviceId = GetAudioDeviceId();
 	FAudioThread::RunCommandOnAudioThread([CurrentDeviceId]()
 	{
+		UUKAudioEngineSubsystem::Get()->TODTime += 0.0001f;
+		if(UUKAudioEngineSubsystem::Get()->TODTime >= 24.0f)
+			UUKAudioEngineSubsystem::Get()->TODTime = 0.0f;
+		
 		FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
 		const bool bNotValidAudioDeviceManager = AudioDeviceManager == nullptr;
 		if (bNotValidAudioDeviceManager)

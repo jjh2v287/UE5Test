@@ -35,6 +35,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void StartInGameVolumeFader(float InVolume, float InDuration);
 
+	float TODTime = 0.0f;
+
 private:
 	void ResetTaskData();
 
