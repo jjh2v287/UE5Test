@@ -91,6 +91,9 @@ private:
 	static FNavPathQueryDelegate NavPathQueryDelegate;
 
 	Audio::FVolumeFader InGameVolumeFader;
+
+	// 트리 계충 구조로 사운드 볼륨을 조절
+	//void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, USoundBase* Sound, float VolumeMultiplier, float PitchMultiplier, float StartTime, USoundConcurrency* ConcurrencySettings, const AActor* OwningActor, bool bIsUISound)
 };
 
 #pragma region Meta Sound Interface
