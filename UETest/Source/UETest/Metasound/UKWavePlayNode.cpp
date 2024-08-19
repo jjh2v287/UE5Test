@@ -20,8 +20,8 @@ namespace Metasound
 	FUKWavePlayOperator::FUKWavePlayOperator(const FOperatorSettings& InSettings, const FAudioBufferReadRef& InAudio, const FWaveAssetReadRef& InWaveAsset, const FBoolReadRef& InLoop)
 		: AudioInput(InAudio)
 		, WaveAsset(InWaveAsset)
-		, OperatorSettings(InSettings)
 		, LoopInput(InLoop)
+		, OperatorSettings(InSettings)
 		, AudioOutput(FAudioBufferWriteRef::CreateNew(InSettings))
 	{
 		UKOnsetDetection = MakeUnique<UUKOnsetDetection>();
