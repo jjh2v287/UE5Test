@@ -430,7 +430,7 @@ void UUKAudioEngineSubsystem::StopBGM(const Audio::FSoundHandleID ID)
 
 void UUKAudioEngineSubsystem::TestVolume(float InVolume)
 {
-	for (auto Element : BGMMap)
+	for (auto& Element : BGMMap)
 	{
 		if(Element.Value.ActiveSound)
 			Element.Value.ActiveSound->SetVolume(InVolume);
