@@ -41,11 +41,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void StartInGameVolumeFader(float InVolume, float InDuration);
 
-	// UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true" ))
-	static void PlayBGM(const UObject* WorldContextObject, USoundBase* Sound, const AActor* OwningActor = nullptr);
+	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true" ))
+	static void PlayBGM2(const UObject* WorldContextObject, USoundBase* Sound, const AActor* OwningActor = nullptr);
 
 	UFUNCTION(BlueprintCallable, Category="Audio", meta=( WorldContext="WorldContextObject"))
-	void PlayBGM(const UObject* WorldContextObject, FString Name);
+	static void PlayBGM(const UObject* WorldContextObject, FString Name);
 	void StopBGM(Audio::FSoundHandleID ID);
 	
 	UFUNCTION(BlueprintCallable)

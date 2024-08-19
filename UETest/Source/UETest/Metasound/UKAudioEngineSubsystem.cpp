@@ -55,12 +55,13 @@ void UUKAudioEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		// TSoftObjectPtr<USoundBase>
 		const TObjectPtr<USoundBase> SoundBase = Element.Value.LoadSynchronous();
+		if(!SoundBase)
+		{
+			continue;
+		}
+		
 		Sounds.Emplace(Element.Key, SoundBase);
 	}
-	// for (const auto& [Type, DatabaseInfo] : AudioSetting->BGMs)
-	// {
-	// 	Sounds.Emplace(Type,&DatabaseInfo);
-	// }
 }
 
 void UUKAudioEngineSubsystem::Deinitialize()
@@ -319,7 +320,7 @@ void UUKAudioEngineSubsystem::StartInGameVolumeFader(float InVolume, float InDur
 	InGameVolumeFader.SetActiveDuration(InDuration);
 }
 
-void UUKAudioEngineSubsystem::PlayBGM(const UObject* WorldContextObject, USoundBase* Sound, const AActor* OwningActor)
+void UUKAudioEngineSubsystem::PlayBGM2(const UObject* WorldContextObject, USoundBase* Sound, const AActor* OwningActor)
 {
 	// UGameplayStatics::PlaySound2D
 	const bool bNotValidSoundEngine = !Sound || !GEngine || !GEngine->UseSound();
@@ -368,8 +369,13 @@ void UUKAudioEngineSubsystem::PlayBGM(const UObject* WorldContextObject, USoundB
 
 void UUKAudioEngineSubsystem::PlayBGM(const UObject* WorldContextObject, FString Name)
 {
-	USoundBase* Sound = Sounds.Find(Name)->Get();
-	
+	if(UUKAudioEngineSubsystem::Get()->Sounds.IsEmpty())
+	{
+		return;
+	}
+
+	// PIE에서는 괜찮은데 빌드뽑힌 버전에서는 세팅 오브젝트에서 넘어옴 객체로 플레이시에 크래시가 난다
+	USoundBase* Sound = UUKAudioEngineSubsystem::Get()->Sounds.Find(Name)->Get();
 	const bool bNotValidSoundEngine = !Sound || !GEngine || !GEngine->UseSound();
 	if (bNotValidSoundEngine)
 	{
@@ -400,16 +406,15 @@ void UUKAudioEngineSubsystem::PlayBGM(const UObject* WorldContextObject, FString
 	NewActiveSound.bAllowSpatialization = false;
 	NewActiveSound.Priority = Sound->Priority;
 	NewActiveSound.SubtitlePriority = Sound->GetSubtitlePriority();
-
-	const AActor* ActiveSoundOwner = UUKAudioEngineSubsystem::GetActorOwnerFromWorldContextObject(World);
 	NewActiveSound.SetOwner(nullptr);
-
+	
 	FUKRealTimeBGMInfo BGMInfo;
-	BGMInfo.Name = Sound->GetName();
+	BGMInfo.Name = Name;
 	const Audio::FSoundHandleID HandleID = NewActiveSound.GetInstanceID();
 	UUKAudioEngineSubsystem::Get()->BGMMap.Emplace(HandleID, BGMInfo);
-
+	
 	TArray<FAudioParameter> Params;
+	const AActor* ActiveSoundOwner = UUKAudioEngineSubsystem::GetActorOwnerFromWorldContextObject(World);
 	UActorSoundParameterInterface::Fill(ActiveSoundOwner, Params);
 	AudioDevice->AddNewActiveSound(NewActiveSound, &Params);
 }
