@@ -6,6 +6,8 @@
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
 #include "UKAudioSettings.h"
+#include "Audio/ActorSoundParameterInterface.h"
+#include "Audio/ISoundHandleSystem.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "DSP/VolumeFader.h"
@@ -47,6 +49,18 @@ void UUKAudioEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	ResetTaskData();
 
 	InGameVolumeFader.Deactivate();
+
+	UUKAudioSettings const* AudioSetting = GetDefault<UUKAudioSettings>();
+	for (auto Element : AudioSetting->BGMs)
+	{
+		// TSoftObjectPtr<USoundBase>
+		const TObjectPtr<USoundBase> SoundBase = Element.Value.LoadSynchronous();
+		Sounds.Emplace(Element.Key, SoundBase);
+	}
+	// for (const auto& [Type, DatabaseInfo] : AudioSetting->BGMs)
+	// {
+	// 	Sounds.Emplace(Type,&DatabaseInfo);
+	// }
 }
 
 void UUKAudioEngineSubsystem::Deinitialize()
@@ -63,6 +77,8 @@ void UUKAudioEngineSubsystem::Deinitialize()
 		NavPathQueryDelegate.Unbind();
 	}
 	ResetTaskData();
+
+	BGMMap.Reset();
 }
 
 void UUKAudioEngineSubsystem::Update()
@@ -144,7 +160,9 @@ void UUKAudioEngineSubsystem::Update()
 				continue;
 			}
 
-			ActiveSound->SetVolume(UUKAudioEngineSubsystem::Get()->InGameVolumeFader.GetVolume());
+			// ActiveSound->SetVolume(UUKAudioEngineSubsystem::Get()->InGameVolumeFader.GetVolume());
+			// ActiveSound->SetVolume(0.3f);
+			// ActiveSound->VolumeMultiplier
 
 			// Seting Sound And Listener World Location Info
 			FVector ListenerLocation;
@@ -275,6 +293,22 @@ void UUKAudioEngineSubsystem::Update()
 	}*/
 }
 
+void UUKAudioEngineSubsystem::OnNotifyAddActiveSound(FActiveSound& ActiveSound)
+{
+	const Audio::FSoundHandleID HandleID = ActiveSound.GetInstanceID();
+	FUKRealTimeBGMInfo* BGMInfo = BGMMap.Find(HandleID);
+	if(BGMInfo != nullptr)
+	{
+		BGMInfo->ActiveSound = &ActiveSound;
+	}
+}
+
+void UUKAudioEngineSubsystem::OnNotifyPendingDelete(const FActiveSound& ActiveSound)
+{
+	const Audio::FSoundHandleID HandleID = ActiveSound.GetInstanceID();
+	BGMMap.Remove(HandleID);
+}
+
 void UUKAudioEngineSubsystem::StartInGameVolumeFader(float InVolume, float InDuration)
 {
 	if(InGameVolumeFader.IsActive())
@@ -283,6 +317,128 @@ void UUKAudioEngineSubsystem::StartInGameVolumeFader(float InVolume, float InDur
 	}
 	InGameVolumeFader.StartFade(InVolume, InDuration, Audio::EFaderCurve::Linear);
 	InGameVolumeFader.SetActiveDuration(InDuration);
+}
+
+void UUKAudioEngineSubsystem::PlayBGM(const UObject* WorldContextObject, USoundBase* Sound, const AActor* OwningActor)
+{
+	// UGameplayStatics::PlaySound2D
+	const bool bNotValidSoundEngine = !Sound || !GEngine || !GEngine->UseSound();
+	if (bNotValidSoundEngine)
+	{
+		return;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	const bool bNotValidWorld = !World || !World->bAllowAudioPlayback || World->IsNetMode(NM_DedicatedServer);
+	if (bNotValidWorld)
+	{
+		return;
+	}
+
+	FAudioDeviceHandle AudioDevice = World->GetAudioDevice();
+	const bool bNotValidAudioDevice = !AudioDevice.IsValid();
+	if (bNotValidAudioDevice)
+	{
+		return;
+	}
+
+	FActiveSound NewActiveSound;
+	NewActiveSound.SetSound(Sound);
+	NewActiveSound.SetWorld(World);
+	NewActiveSound.SetPitch(1.0f);
+	NewActiveSound.SetVolume(1.0f);
+	NewActiveSound.RequestedStartTime = 0.0f;
+	NewActiveSound.bIsUISound = false;
+	NewActiveSound.bAllowSpatialization = false;
+	NewActiveSound.Priority = Sound->Priority;
+	NewActiveSound.SubtitlePriority = Sound->GetSubtitlePriority();
+
+	const AActor* ActiveSoundOwner = OwningActor ? OwningActor : UUKAudioEngineSubsystem::GetActorOwnerFromWorldContextObject(WorldContextObject);
+	NewActiveSound.SetOwner(ActiveSoundOwner);
+
+	FUKRealTimeBGMInfo BGMInfo;
+	BGMInfo.Name = Sound->GetName();
+	const Audio::FSoundHandleID HandleID = NewActiveSound.GetInstanceID();
+	UUKAudioEngineSubsystem::Get()->BGMMap.Emplace(HandleID, BGMInfo);
+
+	TArray<FAudioParameter> Params;
+	UActorSoundParameterInterface::Fill(ActiveSoundOwner, Params);
+	AudioDevice->AddNewActiveSound(NewActiveSound, &Params);
+}
+
+void UUKAudioEngineSubsystem::PlayBGM(const UObject* WorldContextObject, FString Name)
+{
+	USoundBase* Sound = Sounds.Find(Name)->Get();
+	
+	const bool bNotValidSoundEngine = !Sound || !GEngine || !GEngine->UseSound();
+	if (bNotValidSoundEngine)
+	{
+		return;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	const bool bNotValidWorld = !World || !World->bAllowAudioPlayback || World->IsNetMode(NM_DedicatedServer);
+	if (bNotValidWorld)
+	{
+		return;
+	}
+
+	FAudioDeviceHandle AudioDevice = World->GetAudioDevice();
+	const bool bNotValidAudioDevice = !AudioDevice.IsValid();
+	if (bNotValidAudioDevice)
+	{
+		return;
+	}
+
+	FActiveSound NewActiveSound;
+	NewActiveSound.SetSound(Sound);
+	NewActiveSound.SetWorld(World);
+	NewActiveSound.SetPitch(1.0f);
+	NewActiveSound.SetVolume(1.0f);
+	NewActiveSound.RequestedStartTime = 0.0f;
+	NewActiveSound.bIsUISound = false;
+	NewActiveSound.bAllowSpatialization = false;
+	NewActiveSound.Priority = Sound->Priority;
+	NewActiveSound.SubtitlePriority = Sound->GetSubtitlePriority();
+
+	const AActor* ActiveSoundOwner = UUKAudioEngineSubsystem::GetActorOwnerFromWorldContextObject(World);
+	NewActiveSound.SetOwner(nullptr);
+
+	FUKRealTimeBGMInfo BGMInfo;
+	BGMInfo.Name = Sound->GetName();
+	const Audio::FSoundHandleID HandleID = NewActiveSound.GetInstanceID();
+	UUKAudioEngineSubsystem::Get()->BGMMap.Emplace(HandleID, BGMInfo);
+
+	TArray<FAudioParameter> Params;
+	UActorSoundParameterInterface::Fill(ActiveSoundOwner, Params);
+	AudioDevice->AddNewActiveSound(NewActiveSound, &Params);
+}
+
+void UUKAudioEngineSubsystem::StopBGM(const Audio::FSoundHandleID ID)
+{	
+	if(FUKRealTimeBGMInfo* Handle = BGMMap.Find(ID))
+	{
+		FAudioDevice* AudioDevice = GetAudioDeviceHandle().GetAudioDevice();
+		AudioDevice->StopActiveSound(Handle->ActiveSound);
+	}
+}
+
+void UUKAudioEngineSubsystem::TestVolume(float InVolume)
+{
+	for (auto Element : BGMMap)
+	{
+		if(Element.Value.ActiveSound)
+			Element.Value.ActiveSound->SetVolume(InVolume);
+	}
+}
+
+const AActor* UUKAudioEngineSubsystem::GetActorOwnerFromWorldContextObject(const UObject* WorldContextObject)
+{
+	if (const AActor* Actor = Cast<const AActor>(WorldContextObject))
+	{
+		return Actor;
+	}
+	return WorldContextObject->GetTypedOuter<AActor>();
 }
 
 void UUKAudioEngineSubsystem::ResetTaskData()

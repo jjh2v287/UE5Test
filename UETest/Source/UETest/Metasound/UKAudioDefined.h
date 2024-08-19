@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MetasoundEnumRegistrationMacro.h"
+#include "DSP/VolumeFader.h"
 
 UENUM()
 enum class EUKFootStepSoune : int32
@@ -23,6 +24,19 @@ namespace Metasound
 		FEnumUKFootStepSouneTypeReadReference,
 		FEnumUKFootStepSouneTypeWriteReference);
 }
+
+struct FUKRealTimeBGMInfo
+{
+public:
+	FString Name = TEXT("");
+	FActiveSound* ActiveSound = nullptr;
+	Audio::FVolumeFader VolumeFader;
+
+	FUKRealTimeBGMInfo()
+	{
+		VolumeFader.Deactivate();
+	}
+};
 
 // #define LOCTEXT_NAMESPACE "FEnumTestModule"
 // namespace Metasound

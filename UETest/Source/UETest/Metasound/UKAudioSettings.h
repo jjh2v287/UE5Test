@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(config = Game, defaultconfig, meta = (DisplayName = "UKAudio Settings"))
 class UETEST_API UUKAudioSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
@@ -19,6 +19,9 @@ public:
     // initialized as well by consuming plugins (ex. on cook by plugins
     // requiring interface system to be loaded).
     void RegisterParameterInterfaces();
+
+	UPROPERTY(EditAnywhere, config, Category = General)
+	TMap<FString, TSoftObjectPtr<USoundBase>> BGMs;
 
 private:
 	bool bParameterInterfacesRegistered;

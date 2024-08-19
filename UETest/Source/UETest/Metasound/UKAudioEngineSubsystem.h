@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ActiveSoundUpdateInterface.h"
+#include "UKAudioDefined.h"
+#include "Audio/ISoundHandleSystem.h"
 #include "DSP/VolumeFader.h"
 #include "Subsystems/AudioEngineSubsystem.h"
 #include "UKAudioEngineSubsystem.generated.h"
@@ -12,7 +15,7 @@ struct FListener;
  * 
  */
 UCLASS()
-class UETEST_API UUKAudioEngineSubsystem : public UAudioEngineSubsystem
+class UETEST_API UUKAudioEngineSubsystem : public UAudioEngineSubsystem , public IActiveSoundUpdateInterface
 {
 	GENERATED_BODY()
 private:
@@ -32,9 +35,28 @@ public:
 	virtual void Update() override;
 	//~ End UAudioEngineSubsystem interface
 
+	virtual void OnNotifyAddActiveSound(FActiveSound& ActiveSound) override;
+	virtual void OnNotifyPendingDelete(const FActiveSound& ActiveSound) override;
+
 	UFUNCTION(BlueprintCallable)
 	void StartInGameVolumeFader(float InVolume, float InDuration);
 
+	// UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category="Audio", meta=( WorldContext="WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true" ))
+	static void PlayBGM(const UObject* WorldContextObject, USoundBase* Sound, const AActor* OwningActor = nullptr);
+
+	UFUNCTION(BlueprintCallable, Category="Audio", meta=( WorldContext="WorldContextObject"))
+	void PlayBGM(const UObject* WorldContextObject, FString Name);
+	void StopBGM(Audio::FSoundHandleID ID);
+	
+	UFUNCTION(BlueprintCallable)
+	void TestVolume(float InVolume);
+	
+	static const AActor* GetActorOwnerFromWorldContextObject(const UObject* WorldContextObject);
+
+	TMap<Audio::FSoundHandleID, FUKRealTimeBGMInfo> BGMMap;
+
+	TMap<FString, TObjectPtr<USoundBase>> Sounds;
+	
 	float TODTime = 0.0f;
 
 private:
