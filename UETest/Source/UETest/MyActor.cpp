@@ -3,6 +3,8 @@
 
 #include "MyActor.h"
 
+#include "Metasound/UKAudioEngineSubsystem.h"
+
 // Sets default values
 AMyActor::AMyActor()
 {
@@ -23,6 +25,12 @@ void AMyActor::BeginPlay()
 		FVector spawnLocation = FVector(100.0f, 0.0f, 0.0f);
 		GetWorld()->SpawnActor<AActor>(SpawnType, spawnLocation, rotator, spawnParams);
 	}
+
+	UUKAudioEngineSubsystem::Get()->OnAudioFinishedNative.AddLambda([](UAudioComponent* AudioComponent){
+			int32 dsds=0;
+			int32 sdsd=dsds;
+			UE_LOG(LogTemp, Log, TEXT("Hotfix Test"));
+		});
 
 	ElapsedTime = 0.0f;
 	bIsMoving = true;

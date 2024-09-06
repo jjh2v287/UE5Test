@@ -6,6 +6,7 @@
 #include "ActiveSoundUpdateInterface.h"
 #include "UKAudioDefined.h"
 #include "Audio/ISoundHandleSystem.h"
+#include "Components/AudioComponent.h"
 #include "DSP/VolumeFader.h"
 #include "Subsystems/AudioEngineSubsystem.h"
 #include "UKAudioEngineSubsystem.generated.h"
@@ -58,6 +59,9 @@ public:
 	TMap<FString, TObjectPtr<USoundBase>> Sounds;
 	
 	float TODTime = 0.0f;
+
+	/** Shadow delegate for non UObject subscribers */
+	FOnAudioFinishedNative OnAudioFinishedNative;
 
 private:
 	void ResetTaskData();

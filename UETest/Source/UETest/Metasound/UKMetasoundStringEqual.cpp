@@ -11,6 +11,7 @@
 #include "MetasoundFacade.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "MetasoundVertex.h"
+#include "UKAudioEngineSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "UKMetasoundStringEqualNode"
 namespace Metasound
@@ -74,6 +75,10 @@ namespace Metasound
 				if (StringAIn->Compare(*StringBIn) == 0)
 				{
 					TriggerTrueOut->TriggerFrame(0);
+					if(UUKAudioEngineSubsystem::Get()->OnAudioFinishedNative.IsBound())
+					{
+						UUKAudioEngineSubsystem::Get()->OnAudioFinishedNative.Broadcast(nullptr);
+					}
 				}
 				else
 				{

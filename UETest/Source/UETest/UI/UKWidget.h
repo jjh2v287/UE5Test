@@ -13,5 +13,7 @@ UCLASS()
 class UETEST_API UUKWidget : public UUserWidget
 {
 	GENERATED_BODY()
-	
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
+	void FindScreenEdgeLocationForWorldLocation(UObject* WorldContextObject, const FVector& InLocation, const float EdgePercent,  FVector2D& OutScreenPosition, float& OutRotationAngleDegrees, bool &bIsOnScreen);
 };
