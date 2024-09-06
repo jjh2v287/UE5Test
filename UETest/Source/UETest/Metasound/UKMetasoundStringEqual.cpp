@@ -77,7 +77,7 @@ namespace Metasound
 					TriggerTrueOut->TriggerFrame(0);
 					if(UUKAudioEngineSubsystem::Get()->OnAudioFinishedNative.IsBound())
 					{
-						UUKAudioEngineSubsystem::Get()->OnAudioFinishedNative.Broadcast(nullptr);
+						// UUKAudioEngineSubsystem::Get()->OnAudioFinishedNative.Broadcast(nullptr);
 					}
 				}
 				else

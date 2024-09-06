@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "Components/Image.h"
 #include "UKWidget.generated.h"
 
 /**
@@ -16,4 +17,8 @@ class UETEST_API UUKWidget : public UUserWidget
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void FindScreenEdgeLocationForWorldLocation(UObject* WorldContextObject, const FVector& InLocation, const float EdgePercent,  FVector2D& OutScreenPosition, float& OutRotationAngleDegrees, bool &bIsOnScreen);
+
+protected:
+	UPROPERTY(BlueprintReadOnly, Meta = (BindWidget))
+	TObjectPtr<UImage> Marker;
 };

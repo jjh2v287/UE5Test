@@ -19,18 +19,34 @@ void UUKWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	const FVector2D ViewportSize = UWidgetLayoutLibrary::GetViewportSize(this) / ViewportScale;
 	const FVector2D WidgetSize = GetDesiredSize() * 0.5f;
 
-	FVector WorldLocation = FVector(100.0f, 200.0f, 170.0f);
+	FVector WorldLocation = FVector(100000.0f, 200.0f, 170.0f);
+	
+	bool bResult = false;
 	FVector2D ScreenPosition;
-	UGameplayStatics::ProjectWorldToScreen(Player, WorldLocation, ScreenPosition, false);
-
+	// UGameplayStatics::ProjectWorldToScreen(Player, WorldLocation, ScreenPosition, false);
+	ULocalPlayer* const LP = Player ? Player->GetLocalPlayer() : nullptr;
+	if (LP && LP->ViewportClient)
+	{
+		// 이건 화면 밖일때에도 계산하게 처리 bShouldCalcOutsideViewPosition = true
+		FSceneViewProjectionData ProjectionData;
+		if (LP->GetProjectionData(LP->ViewportClient->Viewport, ProjectionData))
+		{
+			FMatrix const ViewProjectionMatrix = ProjectionData.ComputeViewProjectionMatrix();
+			bResult = FSceneView::ProjectWorldToScreen(WorldLocation, ProjectionData.GetConstrainedViewRect(), ViewProjectionMatrix, ScreenPosition, true);
+		}
+	}
+	
 	const float ClampX = true ? WidgetSize.X : -WidgetSize.X;
 	const float ClampY = true ? WidgetSize.Y : -WidgetSize.Y;
-	ScreenPosition = ScreenPosition / ViewportScale;
-	ScreenPosition.X = FMath::Clamp(ScreenPosition.X, ClampX, ViewportSize.X + -ClampX);
-	ScreenPosition.Y = FMath::Clamp(ScreenPosition.Y, ClampY, ViewportSize.Y + -ClampY);
-
-	CanvasPanelSlot->SetPosition(ScreenPosition);
-
+	
+	FVector2D NewScreenPosition = ScreenPosition / ViewportScale;
+	NewScreenPosition.X = FMath::Clamp(NewScreenPosition.X, ClampX, ViewportSize.X + -ClampX);
+	NewScreenPosition.Y = FMath::Clamp(NewScreenPosition.Y, ClampY, ViewportSize.Y + -ClampY);
+	// 이건 밑으로 내리기
+	NewScreenPosition.Y = !bResult ? ViewportSize.Y + -ClampY : NewScreenPosition.Y;
+	
+	Marker->SetRenderTranslation(NewScreenPosition);
+	// CanvasPanelSlot->SetPosition(ScreenPosition);
 
 	FMinimalViewInfo ViewInfo;
 	ACharacter* ControlledCharacter = Cast<ACharacter>(Player->GetPawn());
