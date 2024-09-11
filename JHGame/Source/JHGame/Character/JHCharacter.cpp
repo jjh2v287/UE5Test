@@ -45,13 +45,19 @@ void AJHCharacter::LaunchToTargetWithFriction(const FVector TargetLocation)
 	Params.ActorsToIgnore.Emplace(Cast<AActor>(this));
 	
 	bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(Params, LaunchVelocity);
-	if (bSuccess)
+	// if (bSuccess)
+	// {
+	// 	LaunchCharacter(LaunchVelocity, true, true);
+	// }
+	// else
 	{
-		LaunchCharacter(LaunchVelocity, true, true);
-	}
-	else
-	{
-		LaunchVelocity.Z = GetLaunchCharacterDistanceZ(TargetLocation.Z);
+		LaunchVelocity.Z = CalculateLaunchVelocityForHeight(TargetLocation.Z);
+		float HangTime = CalculateHangTime(TargetLocation.Z);
+
+		// X와 Y축 이동 계산 (X(t) = X0 + Vx * t, Y(t) = Y0 + Vy * t)
+		LaunchVelocity.X = TargetLocation.X / 2;
+		LaunchVelocity.Y = TargetLocation.Y / 2;
+		// LaunchVelocity = CalculateLaunchVelocity2(TargetLocation.Z);
 		LaunchCharacter(LaunchVelocity, true, true);
 	}
 	
@@ -64,19 +70,85 @@ void AJHCharacter::LaunchToTargetWithFriction(const FVector TargetLocation)
 	// LaunchCharacter(LaunchVelocity, true, true);
 }
 
-float AJHCharacter::GetLaunchCharacterDistanceZ(float DistanceZ)
+float AJHCharacter::CalculateLaunchVelocityForHeight(float TargetHeight)
 {
 	float GravityScale = GetCharacterMovement()->GravityScale;
 	float WorldGravity = GetWorld()->GetGravityZ();
-	// 거리를 안다면 초기 스피가값 구하기
-	float sdfsd = (DistanceZ * GravityScale) / FMath::Abs(WorldGravity * GravityScale);
-	sdfsd = sdfsd * (GravityScale * 2);
-	float Sqrt = FMath::Sqrt(sdfsd);//3.19489789
-	float asdfsquarerate = DistanceZ / Sqrt;
-	asdfsquarerate = asdfsquarerate * (GravityScale * 2);
-	UE_LOG(LogTemp, Display, TEXT("----------> fspeedZ2 %f"), asdfsquarerate);
 
-	return asdfsquarerate;
+	// 중력 가속도의 절대값 계산
+	float AbsGravityAcceleration = FMath::Abs(WorldGravity * GravityScale);
+
+	// 초기 속도 제곱 계산을 위한 중간 값
+	float VelocitySquaredFactor = (TargetHeight * GravityScale) / AbsGravityAcceleration;
+	VelocitySquaredFactor *= (GravityScale * 2);
+
+	// 초기 속도 계산
+	float InitialVelocity = FMath::Sqrt(VelocitySquaredFactor);
+
+	// 최종 발사 속도 계산
+	float LaunchVelocity = (TargetHeight / InitialVelocity) * (GravityScale * 2);
+
+	UE_LOG(LogTemp, Display, TEXT("----------> Launch Velocity Z: %f"), LaunchVelocity);
+
+	return LaunchVelocity;
+}
+
+float AJHCharacter::CalculateHangTime(float TargetHeight)
+{
+	float GravityScale = GetCharacterMovement()->GravityScale;
+	float WorldGravity = GetWorld()->GetGravityZ();
+
+	// 실제 적용되는 중력 가속도 계산
+	float EffectiveGravity = FMath::Abs(WorldGravity * GravityScale);
+
+	// 채공 시간 계산
+	float HangTime = FMath::Sqrt(TargetHeight / EffectiveGravity);
+
+	const float Friction = 1.0 - GetPhysicsVolume()->FluidFriction;
+	const float TerminalVelocity = GetPhysicsVolume()->TerminalVelocity;
+
+	HangTime = ((HangTime * 2.0f) * Friction) * 2.0f;
+	
+	// 결과 로그 출력
+	UE_LOG(LogTemp, Display, TEXT("Hang Time: %f seconds"), HangTime);
+
+	// 중력에 의한 채공 시간 계산 (감쇠 없이)
+	float t_up = TargetHeight / EffectiveGravity; // 올라가는 시간
+	float TotalAirTime = 2 * t_up; // 전체 채공 시간
+
+	// 감쇠값을 고려한 근사치 계산 (실제로는 복잡한 적분 필요)
+	// 여기는 간단히 감쇠값을 사용한 실험적 근사치로 계산
+	const float Friction2 = GetPhysicsVolume()->FluidFriction;
+	if (Friction2 > 0)
+	{
+		TotalAirTime *= FMath::Exp(-Friction2 * TotalAirTime); // 감쇠가 적용된 시간
+	}
+
+
+	return HangTime;
+}
+
+FVector AJHCharacter::CalculateLaunchVelocity2(float TargetHeight)
+{
+	// 캐릭터의 현재 Z 위치
+	float StartZ = GetActorLocation().Z;
+	
+	// 목표 높이까지의 실제 거리 계산
+	float ActualHeight = TargetHeight - StartZ;
+	
+	// 실제 중력 계산
+	float GravityScale = GetCharacterMovement()->GravityScale;
+	float Gravity = FMath::Abs(GetWorld()->GetGravityZ() * GravityScale);
+    
+	// 공기 저항을 고려한 초기 속도 계산
+	const float Friction = GetPhysicsVolume()->FluidFriction;
+	const float Braking = GetCharacterMovement()->BrakingDecelerationFalling; // 유체의 마찰 계수 (예: 물)
+	float InitialVelocity = FMath::Sqrt(2 * Gravity * TargetHeight / (1 - Friction));
+    
+	// LaunchVelocity 계산
+	FVector LaunchVelocity(0, 0, InitialVelocity);
+    
+	return LaunchVelocity;
 }
 
 FVector AJHCharacter::CalculateLaunchVelocityWithFriction(const FVector& TargetLocation, const float FrictionCoefficient) const

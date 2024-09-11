@@ -27,9 +27,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void LaunchToTargetWithFriction(const FVector TargetLocation);
 
-	float GetLaunchCharacterDistanceZ(float DistanceZ);
+	float CalculateLaunchVelocityForHeight(float DistanceZ);
+	float CalculateHangTime(float TargetHeight);
 	
 	FVector CalculateLaunchVelocityWithFriction(const FVector& TargetLocation, const float FrictionCoefficient) const;
 
+	FVector CalculateLaunchVelocity2(float TargetHeight);
+	
 	FVector CalculateLaunchVelocity(FVector Start, FVector Target, float LaunchAngle) const;
 };
