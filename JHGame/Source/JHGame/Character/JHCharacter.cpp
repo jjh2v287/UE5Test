@@ -44,19 +44,22 @@ void AJHCharacter::LaunchToTargetWithFriction(const FVector TargetLocation)
 	Params.bDrawDebug = true;
 	Params.ActorsToIgnore.Emplace(Cast<AActor>(this));
 	
-	bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(Params, LaunchVelocity);
+	// bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(Params, LaunchVelocity);
 	// if (bSuccess)
 	// {
 	// 	LaunchCharacter(LaunchVelocity, true, true);
 	// }
 	// else
 	{
-		LaunchVelocity.Z = CalculateLaunchVelocityForHeight(TargetLocation.Z);
+		// LaunchVelocity.Z = CalculateLaunchVelocityForHeight(TargetLocation.Z);
 		float HangTime = CalculateHangTime(TargetLocation.Z);
-
+		LaunchVelocity.Z = TargetLocation.Z;
 		// X와 Y축 이동 계산 (X(t) = X0 + Vx * t, Y(t) = Y0 + Vy * t)
-		LaunchVelocity.X = TargetLocation.X / 2;
-		LaunchVelocity.Y = TargetLocation.Y / 2;
+		float Friction = 0.5f * GetPhysicsVolume()->FluidFriction; // 물리 환경의 마찰력
+		float BrakingDeceleration = GetCharacterMovement()->GetMaxBrakingDeceleration(); // 제동 감속 값
+		float NewVelocity = HangTime - (Friction * HangTime);
+		LaunchVelocity.X = TargetLocation.X / (HangTime - 0.005f);
+		LaunchVelocity.Y = TargetLocation.Y / (HangTime - 0.005f);
 		// LaunchVelocity = CalculateLaunchVelocity2(TargetLocation.Z);
 		LaunchCharacter(LaunchVelocity, true, true);
 	}
@@ -97,34 +100,11 @@ float AJHCharacter::CalculateHangTime(float TargetHeight)
 {
 	float GravityScale = GetCharacterMovement()->GravityScale;
 	float WorldGravity = GetWorld()->GetGravityZ();
-
-	// 실제 적용되는 중력 가속도 계산
-	float EffectiveGravity = FMath::Abs(WorldGravity * GravityScale);
-
-	// 채공 시간 계산
-	float HangTime = FMath::Sqrt(TargetHeight / EffectiveGravity);
-
-	const float Friction = 1.0 - GetPhysicsVolume()->FluidFriction;
-	const float TerminalVelocity = GetPhysicsVolume()->TerminalVelocity;
-
-	HangTime = ((HangTime * 2.0f) * Friction) * 2.0f;
 	
-	// 결과 로그 출력
-	UE_LOG(LogTemp, Display, TEXT("Hang Time: %f seconds"), HangTime);
-
-	// 중력에 의한 채공 시간 계산 (감쇠 없이)
-	float t_up = TargetHeight / EffectiveGravity; // 올라가는 시간
-	float TotalAirTime = 2 * t_up; // 전체 채공 시간
-
-	// 감쇠값을 고려한 근사치 계산 (실제로는 복잡한 적분 필요)
-	// 여기는 간단히 감쇠값을 사용한 실험적 근사치로 계산
-	const float Friction2 = GetPhysicsVolume()->FluidFriction;
-	if (Friction2 > 0)
-	{
-		TotalAirTime *= FMath::Exp(-Friction2 * TotalAirTime); // 감쇠가 적용된 시간
-	}
-
-
+	// 거리를 안다면 초기 스피가값 구하기
+	float HangTime = TargetHeight / FMath::Abs(WorldGravity * GravityScale);
+	HangTime = HangTime * 2;
+	UE_LOG(LogTemp, Display, TEXT("----------> HangTime %f"), HangTime);
 	return HangTime;
 }
 
