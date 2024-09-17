@@ -4,10 +4,12 @@
 #include "JHCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PhysicsVolume.h"
+#include "JHGame/Components/JHCharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 // Sets default values
-AJHCharacter::AJHCharacter()
+AJHCharacter::AJHCharacter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJHCharacterMovementComponent>(CharacterMovementComponentName))
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;

@@ -7,14 +7,13 @@
 #include "GameFramework/Character.h"
 #include "JHCharacter.generated.h"
 
-UCLASS()
+UCLASS(Blueprintable)
 class JHGAME_API AJHCharacter : public ACharacter
 {
 	GENERATED_BODY()
 	
-public:	
-	// Sets default values for this actor's properties
-	AJHCharacter();
+public:
+	AJHCharacter(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	// Called when the game starts or when spawned
