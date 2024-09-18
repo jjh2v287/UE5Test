@@ -38,13 +38,14 @@ void AJHCharacter::LaunchToTargetWithFriction(const FVector TargetLocation)
 	float LaunchSpeed = FVector::Distance(StartLocation, EndLocation);  // 초기 속도
 
 	UGameplayStatics::FSuggestProjectileVelocityParameters Params(
-		GetWorld(),    // 월드 컨텍스트
+		GetWorld(), // 월드 컨텍스트
 		StartLocation, // 시작 위치
-		EndLocation,   // 목표 위치
-		LaunchSpeed    // 발사 속도
+		EndLocation, // 목표 위치
+		LaunchSpeed // 발사 속도
 	);
 	Params.bDrawDebug = true;
 	Params.ActorsToIgnore.Emplace(Cast<AActor>(this));
+
 	
 	// bool bSuccess = UGameplayStatics::SuggestProjectileVelocity(Params, LaunchVelocity);
 	// if (bSuccess)
@@ -60,10 +61,31 @@ void AJHCharacter::LaunchToTargetWithFriction(const FVector TargetLocation)
 		float Friction = 0.5f * GetPhysicsVolume()->FluidFriction; // 물리 환경의 마찰력
 		float BrakingDeceleration = GetCharacterMovement()->GetMaxBrakingDeceleration(); // 제동 감속 값
 		float NewVelocity = HangTime - (Friction * HangTime);
+
 		LaunchVelocity.X = TargetLocation.X / (HangTime - 0.005f);
 		LaunchVelocity.Y = TargetLocation.Y / (HangTime - 0.005f);
 		// LaunchVelocity = CalculateLaunchVelocity2(TargetLocation.Z);
-		LaunchCharacter(LaunchVelocity, true, true);
+
+		float GroundFriction = GetCharacterMovement()->GroundFriction;
+		float BrakingDecelerationWalking = GetCharacterMovement()->BrakingDecelerationWalking; // 제동 감속 값
+		LaunchVelocity = CalculateOptimizedLaunchVelocity(TargetLocation, GroundFriction, BrakingDecelerationWalking);
+
+		{
+			float Speed = TargetLocation.Size();
+			float Deceleration = GroundFriction * BrakingDeceleration;
+			float StopTime = (FMath::Square(Speed)) / (2.0f * Deceleration);/*Speed / Deceleration;*/
+
+			UE_LOG(LogTemp, Display, TEXT("----------> StopTime %f"), StopTime);
+			FVector Direction = TargetLocation.GetSafeNormal();
+			float InitialSpeed = TargetLocation.Size();
+    
+			// s = v0*t - (1/2)at^2
+			float Distance = InitialSpeed * StopTime - 0.5f * Deceleration * StopTime * StopTime;
+    
+			LaunchVelocity = Direction * Distance;
+		}
+		
+		LaunchCharacter(TargetLocation, true, true);
 	}
 	
 	// const float Friction = GetPhysicsVolume()->FluidFriction;
@@ -73,6 +95,24 @@ void AJHCharacter::LaunchToTargetWithFriction(const FVector TargetLocation)
 	
 	// LaunchVelocity = CalculateLaunchVelocity(StartLocation, EndLocation, 45.0f);
 	// LaunchCharacter(LaunchVelocity, true, true);
+}
+
+FVector AJHCharacter::CalculateOptimizedLaunchVelocity(FVector TargetLocation, float GroundFriction, float BrakingDeceleration)
+{
+	// 목표 거리 계산 (2D 평면 거리로 가정)
+	float Distance = FVector::Dist2D(FVector::ZeroVector, TargetLocation);
+
+	// 총 감속 값 (마찰력 + 제동 감속)
+	float TotalDeceleration = GroundFriction + BrakingDeceleration;
+
+	// 초기 속도 계산 (위에서 유도한 공식을 사용)
+	float InitialSpeed = FMath::Sqrt(2 * TotalDeceleration * (Distance * Distance));
+
+	// 목표 위치 방향의 단위 벡터를 얻고 초기 속도를 곱하여 초기 속도 벡터를 구함
+	FVector Direction = TargetLocation.GetSafeNormal2D();
+	FVector LaunchVelocity = Direction * InitialSpeed;
+
+	return LaunchVelocity;
 }
 
 float AJHCharacter::CalculateLaunchVelocityForHeight(float TargetHeight)
