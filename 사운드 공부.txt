@@ -1,5 +1,8 @@
 ### **MetaSoundSource 및 MetaSoundPatch**
 
+au.debug.sounds 1 : 레벨 내 모든 활성 사운드의 목록과 관련 정보를 뷰포트에 표시합니다.
+au.3dVisualize.Enabled 1 : 활성 사운드의 위치를 3D 스페이스에 표시합니다.
+
 - **MetaSoundSource**
     - USoundWave를 상속받았으며 비주얼 그래프 기반 사운드 에셋
     - 실제 소리를 Output 한다.
