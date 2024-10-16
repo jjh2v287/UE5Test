@@ -8,7 +8,14 @@ public class JHGame : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", 
+			"MetasoundEngine",
+			"AudioExtensions",
+			"MetasoundEngine",
+			"MetasoundFrontend",
+			"MetasoundGraphCore",
+			"MetasoundStandardNodes",
+		});
 
 
 		PrivateDependencyModuleNames.AddRange(
@@ -20,7 +27,7 @@ public class JHGame : ModuleRules
 				"GameplayAbilities",
 				"GameplayTags",
 				"GameplayTasks",
-				"AIModule"
+				"AIModule",
 			}
 		);
 		
