@@ -52,25 +52,28 @@ void UUKAnimNotify_PlayMetasound::Notify(USkeletalMeshComponent* MeshComp, UAnim
 	else
 #endif
 	{
-		TWeakObjectPtr<USoundBase> SoundBase = MetaSoundAsset.LoadSynchronous();
-		if (!SoundBase.IsValid())
+		UMetaSoundSource* MetasoundSource = Cast<UMetaSoundSource>(MetaSoundAsset.LoadSynchronous());
+		if (MetasoundSource == nullptr)
 		{
 			return;
 		}
 
+		MetasoundSource->UnregisterGraphWithFrontend();
+		MetasoundSource->InitResources();
+
 		if (USoundClass* SoundClassObject = SoundClassObjectAsset.LoadSynchronous())
 		{
-			SoundBase->SoundClassObject = SoundClassObject;
+			MetasoundSource->SoundClassObject = SoundClassObject;
 		}
 
 		if (USoundAttenuation* AttenuationSettings = AttenuationSettingsAsset.LoadSynchronous())
 		{
-			SoundBase->AttenuationSettings = AttenuationSettings;
+			MetasoundSource->AttenuationSettings = AttenuationSettings;
 		}
 		
 		const EAttachLocation::Type AttachType = bFollow ? EAttachLocation::SnapToTarget : EAttachLocation::KeepWorldPosition;
 		const FVector Location = bFollow ? FVector::ZeroVector : MeshComp->GetComponentLocation();
-		if (UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(SoundBase.Get(), MeshComp, AttachName, Location, AttachType, false, VolumeMultiplier, PitchMultiplier))
+		if (UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(MetasoundSource, MeshComp, AttachName, Location, AttachType, false, VolumeMultiplier, PitchMultiplier))
 		{
 			TArray<UObject*> SendWave;
 			SendWave.Reserve(SoundWaveAssets.Num());
