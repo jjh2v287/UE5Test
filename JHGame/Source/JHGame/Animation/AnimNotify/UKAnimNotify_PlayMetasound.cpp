@@ -58,8 +58,16 @@ void UUKAnimNotify_PlayMetasound::Notify(USkeletalMeshComponent* MeshComp, UAnim
 			return;
 		}
 
+		// Is UnregisterGraph -> RegisterGraphWithFrontend
 		MetasoundSource->UnregisterGraphWithFrontend();
 		MetasoundSource->InitResources();
+
+		const int32 RandIndex = FMath::RandRange(0, SoundWaveAssets.Num() - 1);
+		USoundWave* SendWave =  Cast<USoundWave>(SoundWaveAssets[RandIndex].LoadSynchronous());
+		if (SendWave == nullptr)
+		{
+			return;
+		}
 
 		if (USoundClass* SoundClassObject = SoundClassObjectAsset.LoadSynchronous())
 		{
@@ -73,33 +81,19 @@ void UUKAnimNotify_PlayMetasound::Notify(USkeletalMeshComponent* MeshComp, UAnim
 		
 		const EAttachLocation::Type AttachType = bFollow ? EAttachLocation::SnapToTarget : EAttachLocation::KeepWorldPosition;
 		const FVector Location = bFollow ? FVector::ZeroVector : MeshComp->GetComponentLocation();
-		if (UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(MetasoundSource, MeshComp, AttachName, Location, AttachType, false, VolumeMultiplier, PitchMultiplier))
+		if (UAudioComponent* AudioComponent = UGameplayStatics::SpawnSoundAttached(MetasoundSource, MeshComp, AttachName, Location, AttachType, true, VolumeMultiplier, PitchMultiplier))
 		{
-			TArray<UObject*> SendWave;
-			SendWave.Reserve(SoundWaveAssets.Num());
-			for (int i = 0; i < SoundWaveAssets.Num(); i++)
-			{
-				if (!SoundWaveAssets[i].IsNull())
-				{
-					SendWave.Emplace(SoundWaveAssets[i].LoadSynchronous());
-				}
-			}
-
-			TArray<float> Gains;
-			Gains.Reserve(SendWave.Num());
-			for (int i = 0; i < SendWave.Num(); i++)
-			{
-				if (USoundWave* WaveBase = Cast<USoundWave>(SendWave[i]))
-				{
-					const float Gain = WaveBase->Volume;
-					Gains.Emplace(Gain);
-				}
-			}
-
+			const float Gain = SendWave->Volume;
+			const float Duration = SendWave->Duration;
+			const FString SoundName = SendWave->GetName();
+			
 			TArray<FAudioParameter> Params = AudioParams;
 			Params.Emplace(FAudioParameter(SoundWaveParamName, SendWave));
-			Params.Emplace(FAudioParameter(TEXT("FinalGains"), Gains));
+			Params.Emplace(FAudioParameter(TEXT("FinalGains"), Gain));
+			Params.Emplace(FAudioParameter(TEXT("Duration"), Duration));
+			Params.Emplace(FAudioParameter(TEXT("WaveName"), SoundName));
 			AudioComponent->SetParameters(MoveTemp(Params));
+			AudioComponent->Play();
 		}
 	}
 }
