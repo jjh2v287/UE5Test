@@ -10,7 +10,7 @@ public class MediaPipeDemoTarget : TargetRules
 		Type = TargetType.Game;
 		// DefaultBuildSettings = BuildSettingsVersion.V2;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
-		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_4;
+		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_5;
 		
 		ExtraModuleNames.AddRange( new string[] { "MediaPipeDemo" } );
 	}
