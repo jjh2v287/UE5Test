@@ -93,7 +93,7 @@ void UUKAnimNotify_PlayMetasound::Notify(USkeletalMeshComponent* MeshComp, UAnim
 			Params.Emplace(FAudioParameter(TEXT("Duration"), Duration));
 			Params.Emplace(FAudioParameter(TEXT("WaveName"), SoundName));
 			AudioComponent->SetParameters(MoveTemp(Params));
-			AudioComponent->Play();
+			// AudioComponent->Play();
 		}
 	}
 }
