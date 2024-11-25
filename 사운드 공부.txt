@@ -159,4 +159,30 @@ Unreal Ctiy Sample 분석시 동시에 출력되는 사운드 객체의 수는 �
 동시에 출려되는 사운드의 객채의 수 또한 관리가 필요해 보입니다.
 }
 
-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
+
+
+
+
+
+
+
+ {
+  "title": "Gemini 1.5 Flash",
+  "model": "gemini-1.5-flash-latest",
+  "contextLength": 1000000,
+  "apiKey": "AIzaSyArl1FcFn9wyaUIZZaMij-QsnI4EGW0Aik",
+  "provider": "gemini"
+},
+{
+  "title": "Gemini 1.5 Pro",
+  "model": "gemini-1.5-pro-latest",
+  "contextLength": 2000000,
+  "apiKey": "AIzaSyArl1FcFn9wyaUIZZaMij-QsnI4EGW0Aik",
+  "provider": "gemini"
+},
+{
+  "apiKey": "06c1ab0d-c5ef-4ace-86b0-0f59ea3bde53",
+  "title": "Llama-3.2-90B-Vision-Instruct",
+  "model": "Llama-3.2-90B-Vision-Instruct",
+  "provider": "sambanova"
+}
