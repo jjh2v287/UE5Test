@@ -186,3 +186,13 @@ Unreal Ctiy Sample 분석시 동시에 출력되는 사운드 객체의 수는 �
   "model": "Llama-3.2-90B-Vision-Instruct",
   "provider": "sambanova"
 }
+
+
+
+,
+    {
+      "name": "google",
+      "params": {
+        "serperApiKey": "c82400830669f1f9693a164dfb4c97ee2bf125ea"
+      }
+    }
