@@ -1,0 +1,684 @@
+=== CODEBASE STRUCTURE ===
+
+📄 AudioCompressionSettings.cpp
+📄 AudioCompressionSettings.h
+📄 AudioPlatformConfiguration.Build.cs
+📄 AudioPlatformConfigurationModule.cpp
+📄 AudioPlatformConfigurationModule.h
+📄 AudioResampler.cpp
+📄 AudioResampler.h
+
+
+=== FILE CONTENTS ===
+
+
+=== AudioCompressionSettings.cpp ===
+====================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AudioCompressionSettings.h"
+#include "AudioCompressionSettingsUtils.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(AudioCompressionSettings)
+
+FPlatformRuntimeAudioCompressionOverrides::FPlatformRuntimeAudioCompressionOverrides()
+	: bOverrideCompressionTimes(false)
+	, DurationThreshold(5.0f)
+	, MaxNumRandomBranches(0)
+	, SoundCueQualityIndex(0)
+{
+	
+}
+
+FPlatformRuntimeAudioCompressionOverrides* FPlatformRuntimeAudioCompressionOverrides::DefaultCompressionOverrides = nullptr;
+
+// Increment this return value to force a recook on all Stream Caching assets.
+// For testing, it's useful to set this to either a negative number or
+// absurdly large number, to ensure you do not pollute the DDC.
+int32 FPlatformAudioCookOverrides::GetStreamCachingVersion()
+{
+	return 5028;
+}
+
+
+void FPlatformAudioCookOverrides::GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix)
+{
+	if (InOverrides == nullptr)
+	{
+		return;
+	}	
+	
+	using FPCU = FPlatformCompressionUtilities;
+	FString SoundWaveHash;
+
+	// Starting Delim is important, as FSoundWaveData::FindRuntimeFormat, uses it determine format from the inline chunk name.
+	OutSuffix += TEXT("_");
+
+	// Start with StreamCache version.
+	FPCU::AppendHash(OutSuffix, TEXT("SCVER"), GetStreamCachingVersion());
+	
+	// Each member in declaration order.
+	
+	// FPlatformAudioCookOverrides
+	FPCU::AppendHash(OutSuffix, TEXT("R4DV"), InOverrides->bResampleForDevice);
+
+	TArray<float> Rates;
+	InOverrides->PlatformSampleRates.GenerateValueArray(Rates);
+	for (int32 i = 0; i < Rates.Num(); ++i)
+	{
+		FPCU::AppendHash(OutSuffix, *FString::Printf(TEXT("SR%d"), i), Rates[i]);
+	}
+
+	FPCU::AppendHash(OutSuffix, TEXT("QMOD"), InOverrides->CompressionQualityModifier);
+	FPCU::AppendHash(OutSuffix, TEXT("CQLT"), InOverrides->SoundCueCookQualityIndex);
+	FPCU::AppendHash(OutSuffix, TEXT("ASTH"), InOverrides->AutoStreamingThreshold);
+	FPCU::AppendHash(OutSuffix, TEXT("INLC"), InOverrides->bInlineFirstAudioChunk);
+	FPCU::AppendHash(OutSuffix, TEXT("LCK1"), InOverrides->LengthOfFirstAudioChunkInSecs);
+	
+	// FAudioStreamCachingSettings
+	FPCU::AppendHash(OutSuffix, TEXT("CSZE"), InOverrides->StreamCachingSettings.CacheSizeKB);
+	FPCU::AppendHash(OutSuffix, TEXT("LCF"), InOverrides->StreamCachingSettings.bForceLegacyStreamChunking);
+	FPCU::AppendHash(OutSuffix, TEXT("ZCS"), InOverrides->StreamCachingSettings.ZerothChunkSizeForLegacyStreamChunkingKB);
+	FPCU::AppendHash(OutSuffix, TEXT("MCSO"), InOverrides->StreamCachingSettings.MaxChunkSizeOverrideKB);
+	
+	OutSuffix += TEXT("END");
+}
+
+====================================
+
+
+=== AudioCompressionSettings.h ===
+==================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+#include "Containers/Map.h"
+#include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Math/UnrealMathSSE.h"
+#include "Templates/Tuple.h"
+#include "UObject/ObjectMacros.h"
+
+#include "AudioCompressionSettings.generated.h"
+
+UENUM()
+enum class ESoundwaveSampleRateSettings : uint8
+{
+	Max,
+	High,
+	Medium,
+	Low,
+	Min
+};
+
+/************************************************************************/
+/* FAudioStreamCachingSettings                                           */
+/* Properties used to determine chunk sizes for the two caches used     */
+/* when the experimental Stream Caching feature is used.                */
+/************************************************************************/
+struct FAudioStreamCachingSettings
+{
+	static constexpr int32 DefaultCacheSize = 64 * 1024;
+
+	// Target memory usage, in kilobytes.
+	// In the future settings for the cache can be more complex, but for now
+	// we set the max chunk size to 256 kilobytes, then set the number of elements in our cache as
+	// CacheSizeKB / 256.
+	int32 CacheSizeKB;
+
+	// Bool flag for keeping sounds flagged for streaming chunked in the style of the legacy streaming manager.
+	bool bForceLegacyStreamChunking;
+
+	int32 ZerothChunkSizeForLegacyStreamChunkingKB;
+
+	// will be ignored if < 0
+	int32 MaxChunkSizeOverrideKB;
+
+	FAudioStreamCachingSettings()
+		: CacheSizeKB(DefaultCacheSize)
+		, bForceLegacyStreamChunking(false)
+		, ZerothChunkSizeForLegacyStreamChunkingKB(256)
+		, MaxChunkSizeOverrideKB(INDEX_NONE)
+	{
+	}
+};
+
+/************************************************************************/
+/* FPlatformAudioCookOverrides                                          */
+/* This struct is used for settings used during the cook to a target    */
+/* platform (platform-specific compression quality and resampling, etc.)*/
+/************************************************************************/
+struct FPlatformAudioCookOverrides
+{
+	// Increment this return value to force a recook on all Stream Caching assets.
+	// For testing, it's useful to set this to either a negative number or
+	// absurdly large number, to ensure you do not pollute the DDC.
+	static AUDIOPLATFORMCONFIGURATION_API int32 GetStreamCachingVersion();
+
+	bool bResampleForDevice;
+
+	// Mapping of which sample rates are used for each sample rate quality for a specific platform.
+	TMap<ESoundwaveSampleRateSettings, float> PlatformSampleRates;
+
+	// Scales all compression qualities when cooking to this platform. For example, 0.5 will halve all compression qualities, and 1.0 will leave them unchanged.
+	float CompressionQualityModifier;
+
+	// If set, the cooker will keep only this level of quality
+	int32 SoundCueCookQualityIndex = INDEX_NONE;
+
+	// When set to any platform > 0.0, this will automatically set any USoundWave beyond this value to be streamed from disk.
+	// If StreamCaching is set to true, this will be used 
+	float AutoStreamingThreshold;
+
+	// Wether to inline the first "Audio" chunk, which is typically chunk 1. (Only on assets marked retain-on-load with a size of audio in secs set) 
+	bool bInlineFirstAudioChunk = false;
+
+	// This will decide how much data to put in the first audio chunk. Anything <= 0 will be ignored.
+	// Must be combined with bInlineFirstAudioChunk, this will decide how much data to put in the first chunk.
+	// NOTE: This is platform default and can be overriden by each asset or soundclass.
+	float LengthOfFirstAudioChunkInSecs = 0.f;
+
+	// If Load On Demand is enabled, these settings are used to determine chunks and cache sizes.
+	FAudioStreamCachingSettings StreamCachingSettings;
+
+	FPlatformAudioCookOverrides()
+		: bResampleForDevice(false)
+		, CompressionQualityModifier(1.0f)
+		, AutoStreamingThreshold(0.0f)
+		, bInlineFirstAudioChunk(false)
+		, LengthOfFirstAudioChunkInSecs(0.f)
+	{
+		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, 48000);
+		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, 32000);
+		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Medium, 24000);
+		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Low, 12000);
+		PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Min, 8000);
+	}
+
+	// This is used to invalidate compressed audio for a specific platform.
+	static AUDIOPLATFORMCONFIGURATION_API void GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix);
+};
+
+USTRUCT()
+struct FPlatformRuntimeAudioCompressionOverrides
+{
+	GENERATED_USTRUCT_BODY()
+
+	// When true, overrides the Sound Group on each Sound Wave, and instead uses the Duration Threshold value to determine whether a sound should be fully decompressed during initial loading.
+	UPROPERTY(EditAnywhere, Category = "DecompressOnLoad")
+	bool bOverrideCompressionTimes;
+	
+	// When Override Compression Times is set to true, any sound under this threshold (in seconds) will be fully decompressed on load.
+	// Otherwise the first chunk of this sound is cached at load and the rest is decompressed in real time.
+	// If set to zero, will default to the Sound Group on the relevant Sound Wave
+	UPROPERTY(EditAnywhere, Category = "DecompressOnLoad")
+	float DurationThreshold;
+
+	// On this platform, any random nodes on Sound Cues will automatically only preload this number of branches and dispose of any others
+	// on load. This can drastically cut down on memory usage. If set to 0, no branches are culled.
+	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Maximum Branches on Random SoundCue nodes", ClampMin = "0"))
+	int32 MaxNumRandomBranches;
+
+	// On this platform, use the specified quality at this index to override the quality used for SoundCues on this platform
+	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Quality Index for Sound Cues", ClampMin = "0", ClampMax = "50"))
+	int32 SoundCueQualityIndex = 1;
+
+	AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides();
+
+	// Get singleton containing default settings for compression.
+	static FPlatformRuntimeAudioCompressionOverrides* GetDefaultCompressionOverrides()
+	{
+		if (DefaultCompressionOverrides == nullptr)
+		{
+			DefaultCompressionOverrides = new FPlatformRuntimeAudioCompressionOverrides();
+		}
+
+		return DefaultCompressionOverrides;
+	}
+
+private:
+	static AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides* DefaultCompressionOverrides;
+};
+
+==================================
+
+
+=== AudioPlatformConfiguration.Build.cs ===
+===========================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+namespace UnrealBuildTool.Rules
+{
+	public class AudioPlatformConfiguration : ModuleRules
+	{
+		public AudioPlatformConfiguration(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core",
+					"CoreUObject"
+				}
+			);
+
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"CoreUObject"
+				}
+			);
+
+			PrivateIncludePathModuleNames.Add("Engine");
+
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "UELibSampleRate");
+			PrivateDefinitions.Add("WITH_LIBSAMPLERATE=1");
+		}
+	}
+}
+
+===========================================
+
+
+=== AudioPlatformConfigurationModule.cpp ===
+============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AudioPlatformConfigurationModule.h"
+#include "Modules/ModuleManager.h"
+
+class FAudioPlatformConfigurationModule : public IModuleInterface
+{
+public:
+
+	virtual void StartupModule() override
+	{
+	}
+};
+
+IMPLEMENT_MODULE(FAudioPlatformConfigurationModule, AudioPlatformConfiguration);
+============================================
+
+
+=== AudioPlatformConfigurationModule.h ===
+==========================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+
+/* Public dependencies
+*****************************************************************************/
+
+#include "CoreMinimal.h"
+
+
+
+
+
+==========================================
+
+
+=== AudioResampler.cpp ===
+==========================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AudioResampler.h"
+
+// Convenience macro for the case in which LibSampleRate needs to be built for limited platforms.
+#ifndef WITH_LIBSAMPLERATE
+#define WITH_LIBSAMPLERATE (WITH_EDITOR && !PLATFORM_LINUX)
+#endif
+
+DEFINE_LOG_CATEGORY(LogAudioResampler);
+
+#if WITH_LIBSAMPLERATE
+#include "samplerate.h"
+#endif // WITH_LIBSAMPLERATE
+
+namespace Audio
+{
+	// Helper function to ensure that buffers are appropriately set up.
+	bool CheckBufferValidity(const FResamplingParameters& InParameters, FResamplerResults& OutData)
+	{
+		if (OutData.OutBuffer == nullptr)
+		{
+			UE_LOG(LogAudioResampler, Error, TEXT("Please specify an output buffer when using Resample()."));
+			return false;
+		}
+
+		if (InParameters.SourceSampleRate <= 0.0f || InParameters.DestinationSampleRate <= 0.0f)
+		{
+			UE_LOG(LogAudioResampler, Error, TEXT("Please use non-zero, positive sample rates when calling Resample()."));
+			return false;
+		}
+
+		if (OutData.OutBuffer->Num() < GetOutputBufferSize(InParameters))
+		{
+			UE_LOG(LogAudioResampler, Error, TEXT("Insufficient space in output buffer: Please allocate space for %d samples."), GetOutputBufferSize(InParameters));
+			return false;
+		}
+
+		return true;
+	}
+
+	int32 GetOutputBufferSize(const FResamplingParameters& InParameters)
+	{
+		const int32 NumChannels = FMath::Max(1, InParameters.NumChannels);
+		const int32 NumInputFrames = InParameters.InputBuffer.Num() / NumChannels;
+		const float Ratio = InParameters.DestinationSampleRate / InParameters.SourceSampleRate;
+		const int32 NumOutputFrames = FMath::CeilToInt(Ratio * NumInputFrames);
+
+		return NumChannels * NumOutputFrames;
+	}
+
+	bool Resample(const FResamplingParameters& InParameters, FResamplerResults& OutData)
+	{
+#if WITH_LIBSAMPLERATE
+		// Check validity of buffers.
+		if (!CheckBufferValidity(InParameters, OutData))
+		{
+			return false;
+		}
+
+		// Create new converter
+		int32 Error = 0;
+#ifdef LIBSAMPLERATE_WITHOUT_SINC
+		SRC_STATE* Converter = src_new(SRC_LINEAR, InParameters.NumChannels, &Error);
+#else
+		SRC_STATE* Converter = src_new(SRC_SINC_BEST_QUALITY, InParameters.NumChannels, &Error);
+#endif
+		if (Converter == nullptr || Error != 0)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Error creating sample converter: %hs"), src_strerror(Error));
+			return false;
+		}
+
+		SRC_DATA SrcData;
+		SrcData.data_in = InParameters.InputBuffer.GetData();
+		SrcData.data_out = OutData.OutBuffer->GetData();
+		SrcData.input_frames = InParameters.InputBuffer.Num() / InParameters.NumChannels;
+		SrcData.output_frames = OutData.OutBuffer->Num() / InParameters.NumChannels;
+		SrcData.src_ratio = InParameters.DestinationSampleRate / InParameters.SourceSampleRate;
+		SrcData.end_of_input = 1;
+
+		Error = src_process(Converter, &SrcData);
+
+		if (Error != 0)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Error on Resampling process: %hs"), src_strerror(Error));
+			return false;
+		}
+
+		OutData.InputFramesUsed = SrcData.input_frames_used;
+		OutData.OutputFramesGenerated = SrcData.output_frames_gen;
+
+		// Clean up:
+		src_delete(Converter);
+#endif //WITH_LIBSAMPLERATE
+		return true;
+	}
+
+	class FResamplerImpl
+	{
+	public:
+		FResamplerImpl();
+		~FResamplerImpl();
+
+		void Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels);
+		void SetSampleRateRatio(float InRatio);
+		int32 ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames);
+
+#if WITH_LIBSAMPLERATE
+		float CurrentSampleRateRatio;
+		SRC_STATE* LibSRCState;
+		SRC_DATA Data;
+#endif
+
+	};
+
+#if WITH_LIBSAMPLERATE
+	FResamplerImpl::FResamplerImpl() 
+		: CurrentSampleRateRatio(-1.0f)
+		, LibSRCState(nullptr)
+	{
+	}
+	
+	FResamplerImpl::~FResamplerImpl() 
+	{
+		if (LibSRCState)
+		{
+			LibSRCState = src_delete(LibSRCState);
+		}
+		check(!LibSRCState);
+	}
+	
+	void FResamplerImpl::Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels) 
+	{
+		int32 ErrorResult = 0;
+
+		// Reset the SRC state if we already have one with equal channels
+		if (LibSRCState)
+		{
+			if (InNumChannels == src_get_channels(LibSRCState))
+			{
+				ErrorResult = src_reset(LibSRCState);
+				if (ErrorResult != 0)
+				{
+					const char* ErrorString = src_strerror(ErrorResult);
+					UE_LOG(LogAudioResampler, Error, TEXT("Failed to reset sample converter state: %hs."), ErrorString);
+					return;
+				}
+			}
+			else
+			{
+				// If the channel counts do not match, then remove one.
+				LibSRCState = src_delete(LibSRCState);
+				check(nullptr == LibSRCState);
+			}
+		}
+
+		// Create a new one if one does not exist.
+		if (nullptr == LibSRCState)	
+		{
+			LibSRCState = src_new((int32)ResamplingMethod, InNumChannels, &ErrorResult);
+			if (!LibSRCState)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to create a sample rate convertor state object: %hs."), ErrorString);
+			}
+		}
+
+		if (LibSRCState)
+		{
+			ErrorResult = src_set_ratio(LibSRCState, StartingSampleRateRatio);
+			if (ErrorResult != 0)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to set sample rate ratio: %hs."), ErrorString);
+			}
+		}
+
+		CurrentSampleRateRatio = StartingSampleRateRatio;
+	}
+	
+	void FResamplerImpl::SetSampleRateRatio(float InRatio) 
+	{
+		CurrentSampleRateRatio = FMath::Max(InRatio, 0.00001f);
+	}
+	
+	int32 FResamplerImpl::ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames)
+	{
+		if (LibSRCState)
+		{
+			Data.data_in = InAudioBuffer;
+			Data.input_frames = InSamples;
+			Data.data_out = OutAudioBuffer;
+			Data.output_frames = MaxOutputFrames;
+			Data.src_ratio = (double)CurrentSampleRateRatio;
+			Data.end_of_input = bEndOfInput ? 1 : 0;
+
+			int32 ErrorResult = src_process(LibSRCState, &Data);
+			if (ErrorResult != 0)
+			{
+				const char* ErrorString = src_strerror(ErrorResult);
+				UE_LOG(LogAudioResampler, Error, TEXT("Failed to process audio: %hs."), ErrorString);
+				return ErrorResult;
+			}
+
+			OutNumFrames = Data.output_frames_gen;
+		}
+		return 0; 
+	}
+
+#else
+	// Null implementation
+	FResamplerImpl::FResamplerImpl() {}
+	FResamplerImpl::~FResamplerImpl() {}
+	void FResamplerImpl::Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels) {}
+	void FResamplerImpl::SetSampleRateRatio(float InRatio) {}	
+	int32 FResamplerImpl::ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames) { return 0; }
+#endif
+
+	FResampler::FResampler()
+	{
+		Impl = CreateImpl();
+	}
+	
+	FResampler::~FResampler()
+	{
+
+	}
+
+	void FResampler::Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels)
+	{
+		if (Impl.IsValid())
+		{
+			Impl->Init(ResamplingMethod, StartingSampleRateRatio, InNumChannels);
+		}
+	}
+
+	void FResampler::SetSampleRateRatio(float InRatio)
+	{
+		if (Impl.IsValid())
+		{
+			Impl->SetSampleRateRatio(InRatio);
+		}
+	}
+
+	int32 FResampler::ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames)
+	{
+		if (Impl.IsValid())
+		{
+			return Impl->ProcessAudio(InAudioBuffer, InSamples, bEndOfInput, OutAudioBuffer, MaxOutputFrames, OutNumFrames);
+		}
+		return 0;
+	}
+
+	TUniquePtr<FResamplerImpl> FResampler::CreateImpl()
+	{
+		return TUniquePtr<FResamplerImpl>(new FResamplerImpl());
+	}
+}
+
+
+==========================
+
+
+=== AudioResampler.h ===
+========================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
+#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Logging/LogMacros.h"
+#include "Templates/UniquePtr.h"
+
+// TODO: Move BufferVectorOperations AUDIO_BUFFER_ALIGNMENT
+// define to more central location and reference here.
+#define AUDIO_BUFFER_ALIGNMENT 16
+
+DECLARE_LOG_CATEGORY_EXTERN(LogAudioResampler, Warning, All);
+
+namespace Audio
+{
+	// TODO: Move BufferVectorOperations Aligned...Buffer
+	// defines to more central location and reference here.
+	namespace VectorOps
+	{
+		using FAlignedFloatBuffer = TArray<float, TAlignedHeapAllocator<AUDIO_BUFFER_ALIGNMENT>>;
+	} // namespace VectorOps
+
+	enum class EResamplingMethod : uint8
+	{
+		BestSinc = 0,
+		ModerateSinc = 1,
+		FastSinc = 2,
+		ZeroOrderHold = 3,
+		Linear = 4
+	};
+
+	struct FResamplingParameters
+	{
+		EResamplingMethod ResamplerMethod;
+		int32 NumChannels;
+		float SourceSampleRate;
+		float DestinationSampleRate;
+		VectorOps::FAlignedFloatBuffer& InputBuffer;
+	};
+
+	struct FResamplerResults
+	{
+		VectorOps::FAlignedFloatBuffer* OutBuffer;
+
+		float ResultingSampleRate;
+
+		int32 InputFramesUsed;
+
+		int32 OutputFramesGenerated;
+
+		FResamplerResults()
+			: OutBuffer(nullptr)
+			, ResultingSampleRate(0.0f)
+			, InputFramesUsed(0)
+			, OutputFramesGenerated(0)
+		{}
+	};
+
+	// Get how large the output buffer should be for a resampling operation.
+	AUDIOPLATFORMCONFIGURATION_API int32 GetOutputBufferSize(const FResamplingParameters& InParameters);
+
+	// Simple, inline resampler. Returns true on success, false otherwise.
+	AUDIOPLATFORMCONFIGURATION_API bool Resample(const FResamplingParameters& InParameters, FResamplerResults& OutData);
+
+
+	class FResamplerImpl;
+
+	class FResampler
+	{
+	public:
+		AUDIOPLATFORMCONFIGURATION_API FResampler();
+		AUDIOPLATFORMCONFIGURATION_API ~FResampler();
+
+		AUDIOPLATFORMCONFIGURATION_API void Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels);
+		AUDIOPLATFORMCONFIGURATION_API void SetSampleRateRatio(float InRatio);
+		AUDIOPLATFORMCONFIGURATION_API int32 ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames);
+
+	private:
+		TUniquePtr<FResamplerImpl> CreateImpl();
+		TUniquePtr<FResamplerImpl> Impl;
+	};
+	
+} // namespace Audio
+
+========================
+

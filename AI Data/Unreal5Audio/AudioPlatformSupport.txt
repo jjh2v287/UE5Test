@@ -1,0 +1,542 @@
+=== CODEBASE STRUCTURE ===
+
+📄 AudioPlatformSupportWasapi.Build.cs
+📄 AudioPlatformSupportWasapiLog.h
+📄 AudioPlatformSupportWasapiModule.cpp
+📄 WasapiAudioFormat.cpp
+📄 WasapiAudioFormat.h
+📄 WasapiAudioUtils.cpp
+📄 WasapiAudioUtils.h
+
+
+=== FILE CONTENTS ===
+
+
+=== AudioPlatformSupportWasapi.Build.cs ===
+===========================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+namespace UnrealBuildTool.Rules
+{
+	public class AudioPlatformSupportWasapi : ModuleRules
+	{
+		public AudioPlatformSupportWasapi(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core"
+				}
+			);
+		}
+	}
+}
+
+===========================================
+
+
+=== AudioPlatformSupportWasapiLog.h ===
+=======================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Logging/LogMacros.h"
+
+AUDIOPLATFORMSUPPORTWASAPI_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioPlatformSupportWasapi, Log, All);
+
+=======================================
+
+
+=== AudioPlatformSupportWasapiModule.cpp ===
+============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AudioPlatformSupportWasapiLog.h"
+
+#include "Modules/ModuleManager.h"
+
+DEFINE_LOG_CATEGORY(LogAudioPlatformSupportWasapi)
+
+
+class FAudioPlatformSupportWasapiModule : public IModuleInterface
+{
+public:
+	virtual void StartupModule() override
+	{
+
+	}
+
+	virtual void ShutdownModule() override
+	{
+
+	}
+};
+
+IMPLEMENT_MODULE(FAudioPlatformSupportWasapiModule, AudioPlatformSupportWasapi);
+
+============================================
+
+
+=== WasapiAudioFormat.cpp ===
+=============================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "WasapiAudioFormat.h"
+
+#include "AudioPlatformSupportWasapiLog.h"
+
+namespace Audio
+{
+	// For explanation on WAVEFORMATEX structure and cbSize requirements, see: 
+	// https://learn.microsoft.com/en-us/windows/win32/api/mmeapi/ns-mmeapi-waveformatex
+	static constexpr uint16 WaveFormatExtensibleCbsize = 22;
+	static constexpr uint16 DefaultChannelCount = 2;
+	static constexpr uint32 DefaultSampleRate = 44100;
+	static constexpr EWasapiAudioEncoding DefaultEncoding = EWasapiAudioEncoding::PCM_16;
+
+	FWasapiAudioFormat::FWasapiAudioFormat()
+	{
+		InitAudioFormat(DefaultChannelCount, DefaultSampleRate, DefaultEncoding);
+		InitAudioEncoding();
+	}
+
+	FWasapiAudioFormat::FWasapiAudioFormat(WAVEFORMATEX* InFormat)
+	{
+		if ((InFormat->wFormatTag == WAVE_FORMAT_EXTENSIBLE) && (InFormat->cbSize >= WaveFormatExtensibleCbsize))
+		{
+			FMemory::Memcpy(&WaveFormat, InFormat, sizeof(WAVEFORMATEXTENSIBLE)); //-V512
+		}
+		else
+		{
+			FMemory::Memcpy(&WaveFormat, InFormat, sizeof(WAVEFORMATEX));
+		}
+
+		InitAudioEncoding();
+	}
+
+	FWasapiAudioFormat::FWasapiAudioFormat(uint16 InChannels, uint32 InSampleRate, EWasapiAudioEncoding InEncoding)
+	{
+		InitAudioFormat(InChannels, InSampleRate, InEncoding);
+		InitAudioEncoding();
+	}
+
+	void FWasapiAudioFormat::InitAudioFormat(uint16 InChannels, uint32 InSampleRate, EWasapiAudioEncoding InEncoding)
+	{
+		static constexpr uint32 BitsPerByte = 8;
+		uint16 BitDepth = EncodingToBitDepth(InEncoding);
+		ensure(BitDepth != 0);
+
+		if (BitDepth != 0)
+		{
+			WaveFormat.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+			WaveFormat.Format.cbSize = WaveFormatExtensibleCbsize;
+			WaveFormat.Format.nChannels = InChannels;
+			WaveFormat.Format.nSamplesPerSec = InSampleRate;
+			WaveFormat.Format.wBitsPerSample = BitDepth;
+			WaveFormat.Format.nBlockAlign = InChannels * (BitDepth / BitsPerByte);
+			WaveFormat.Format.nAvgBytesPerSec = InSampleRate * WaveFormat.Format.nBlockAlign;
+			WaveFormat.Samples.wValidBitsPerSample = BitDepth;
+
+			if (InEncoding == EWasapiAudioEncoding::FLOATING_POINT_32 || InEncoding == EWasapiAudioEncoding::FLOATING_POINT_64)
+			{
+				WaveFormat.SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+			}
+			else
+			{
+				WaveFormat.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
+				if (InEncoding == EWasapiAudioEncoding::PCM_24_IN_32)
+				{
+					WaveFormat.Samples.wValidBitsPerSample = 24;
+				}
+			}
+		}
+	}
+
+	void FWasapiAudioFormat::InitAudioEncoding()
+	{
+		Encoding = DetermineAudioEncoding(WaveFormat);
+		if (Encoding == EWasapiAudioEncoding::UNKNOWN)
+		{
+			UE_LOG(LogAudioPlatformSupportWasapi, Error, TEXT("FWasapiAudioFormat unknown audio format"));
+		}
+	}
+
+	EWasapiAudioEncoding FWasapiAudioFormat::GetEncoding() const
+	{
+		return Encoding;
+	}
+
+	uint32 FWasapiAudioFormat::GetNumChannels() const
+	{
+		return WaveFormat.Format.nChannels;
+	}
+
+	uint32 FWasapiAudioFormat::GetSampleRate() const
+	{
+		return WaveFormat.Format.nSamplesPerSec;
+	}
+
+	uint32 FWasapiAudioFormat::GetBitsPerSample() const
+	{
+		return WaveFormat.Format.wBitsPerSample;
+	}
+
+	uint32 FWasapiAudioFormat::GetBytesPerSample() const
+	{
+		return WaveFormat.Format.wBitsPerSample / 8;
+	}
+
+	uint32 FWasapiAudioFormat::GetFrameSizeInBytes() const
+	{
+		return WaveFormat.Format.nBlockAlign;
+	}
+
+	const WAVEFORMATEX* FWasapiAudioFormat::GetWaveFormat() const
+	{
+		return &(WaveFormat.Format);
+	}
+
+	EWasapiAudioEncoding FWasapiAudioFormat::DetermineAudioEncoding(const WAVEFORMATEXTENSIBLE& InFormat)
+	{
+		if (InFormat.Format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+		{
+			if (InFormat.Format.wBitsPerSample == (sizeof(float) * 8))
+			{
+				return EWasapiAudioEncoding::FLOATING_POINT_32;
+			}
+			else if (InFormat.Format.wBitsPerSample == (sizeof(double) * 8))
+			{
+				return EWasapiAudioEncoding::FLOATING_POINT_64;
+			}
+			else
+			{
+				return EWasapiAudioEncoding::UNKNOWN;
+			}
+		}
+		else
+		{
+			if (InFormat.Format.wFormatTag == WAVE_FORMAT_PCM)
+			{
+				switch (InFormat.Format.wBitsPerSample)
+				{
+				case 8:
+					return EWasapiAudioEncoding::PCM_8;
+
+				case 16:
+					return EWasapiAudioEncoding::PCM_16;
+
+				case 24:
+					return EWasapiAudioEncoding::PCM_24;
+
+				case 32:
+					return EWasapiAudioEncoding::PCM_32;
+
+				default:
+					return EWasapiAudioEncoding::UNKNOWN;
+				}
+			}
+			else
+			{
+				if ((InFormat.Format.wFormatTag == WAVE_FORMAT_EXTENSIBLE) && (InFormat.Format.cbSize >= WaveFormatExtensibleCbsize))
+				{
+					if (InFormat.SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+					{
+						if (InFormat.Format.wBitsPerSample == (sizeof(float) * 8))
+						{
+							return EWasapiAudioEncoding::FLOATING_POINT_32;
+						}
+						else if (InFormat.Format.wBitsPerSample == (sizeof(double) * 8))
+						{
+							return EWasapiAudioEncoding::FLOATING_POINT_64;
+						}
+						else
+						{
+							return EWasapiAudioEncoding::UNKNOWN;
+						}
+					}
+					else
+					{
+						if (InFormat.SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
+						{
+							switch (InFormat.Samples.wValidBitsPerSample)
+							{
+							case 8:
+								return (InFormat.Format.wBitsPerSample == 8) ? EWasapiAudioEncoding::PCM_8 : EWasapiAudioEncoding::UNKNOWN;
+
+							case 16:
+								return (InFormat.Format.wBitsPerSample == 16) ? EWasapiAudioEncoding::PCM_16 : EWasapiAudioEncoding::UNKNOWN;
+
+							case 32:
+								return (InFormat.Format.wBitsPerSample == 32) ? EWasapiAudioEncoding::PCM_32 : EWasapiAudioEncoding::UNKNOWN;
+
+							case 24:
+								if (InFormat.Format.wBitsPerSample == 32)
+								{
+									return EWasapiAudioEncoding::PCM_24_IN_32;
+								}
+								else
+								{
+									if (InFormat.Format.wBitsPerSample == 24)
+									{
+										return EWasapiAudioEncoding::PCM_24;
+									}
+									else
+									{
+										return EWasapiAudioEncoding::UNKNOWN;
+									}
+								}
+							default:
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return EWasapiAudioEncoding::UNKNOWN;
+	}
+
+	uint16 FWasapiAudioFormat::EncodingToBitDepth(EWasapiAudioEncoding InEncoding)
+	{
+		switch (InEncoding)
+		{
+		case EWasapiAudioEncoding::PCM_8:
+			return 8;
+
+		case EWasapiAudioEncoding::PCM_16:
+			return 16;
+
+		case EWasapiAudioEncoding::PCM_24:
+			return 24;
+
+		case EWasapiAudioEncoding::PCM_24_IN_32:
+		case EWasapiAudioEncoding::PCM_32:
+		case EWasapiAudioEncoding::FLOATING_POINT_32:
+			return 32;
+
+		case EWasapiAudioEncoding::FLOATING_POINT_64:
+			return 64;
+
+		default:
+			return 0;
+		}
+	}
+
+	FString FWasapiAudioFormat::GetEncodingString() const
+	{
+		switch (GetEncoding())
+		{
+		case EWasapiAudioEncoding::PCM_8:
+			return TEXT("8-Bit PCM");
+
+		case EWasapiAudioEncoding::PCM_16:
+			return TEXT("16-Bit PCM");
+
+		case EWasapiAudioEncoding::PCM_24:
+			return TEXT("24-Bit PCM");
+
+		case EWasapiAudioEncoding::PCM_24_IN_32:
+			return TEXT("24-Bit PCM (32-bit Container)");
+
+		case EWasapiAudioEncoding::PCM_32:
+			return TEXT("PCM_32 PCM");
+
+		case EWasapiAudioEncoding::FLOATING_POINT_32:
+			return TEXT("32-Bit Floating Point");
+
+		case EWasapiAudioEncoding::FLOATING_POINT_64:
+			return TEXT("64-Bit Floating Point");
+
+		default:
+			return TEXT("UNKNOWN");
+		}
+	}
+
+}
+
+=============================
+
+
+=== WasapiAudioFormat.h ===
+===========================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/AllowWindowsPlatformAtomics.h"
+
+THIRD_PARTY_INCLUDES_START
+#include <AudioClient.h>
+THIRD_PARTY_INCLUDES_END
+
+#include "Windows/HideWindowsPlatformAtomics.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+
+
+namespace Audio
+{
+	/**
+	 * EWasapiAudioEncoding - Audio bit depths supported by WASAPI implementation
+	 */
+	enum class EWasapiAudioEncoding : uint8
+	{
+		UNKNOWN,
+		PCM_8,
+		PCM_16,
+		PCM_24,
+		PCM_24_IN_32,
+		PCM_32,
+		FLOATING_POINT_32,
+		FLOATING_POINT_64
+	};
+
+	/**
+	 * FWasapiAudioFormat - Wrapper class for Windows WAVEFORMATEX and WAVEFORMATEXTENSIBLE structs.
+	 */
+	class AUDIOPLATFORMSUPPORTWASAPI_API FWasapiAudioFormat
+	{
+	public:
+		/** FWasapiAudioFormat - Constructs underlying WAVEFORMATEX with default values. */
+		FWasapiAudioFormat();
+
+		/**
+		 * FWasapiAudioFormat - Constructs underlying data structure with given WAVEFORMATEX parameter.
+		 * 
+		 * @param InFormat - Pointer to a WAVEFORMATEX struct from which to construct this object. 
+		 * Correctly handles the extended form, WAVEFORMATEXTENSIBLE. 
+		 */
+		explicit FWasapiAudioFormat(WAVEFORMATEX* InFormat);
+
+		/**
+		 * FWasapiAudioFormat - Constructs underlying data structure using given parameters.
+		 * 
+		 * @param InChannels - Number of audio channels.
+		 * @param InSampleRate - Samples per second (Hz).
+		 * @param InEncoding - For PCM data, this is the bit depth of data (e.g. 16-bit integer, 32-bit float, etc.)
+		 */
+		FWasapiAudioFormat(uint16 InChannels, uint32 InSampleRate, EWasapiAudioEncoding InEncoding);
+
+		/** GetEncoding - Returns the encoding for this audio format. */
+		EWasapiAudioEncoding GetEncoding() const;
+
+		/** GetNumChannels - Returns the number of audio channels present in this format. */
+		uint32 GetNumChannels() const;
+
+		/** GetSampleRate - Returns the audio sample rate for this format. */
+		uint32 GetSampleRate() const;
+
+		/** GetBitsPerSample - Returns the bit depth for the audio data as an integer value. */
+		uint32 GetBitsPerSample() const;
+
+		/** GetBytesPerSample - Returns the number of bytes needed to store a single sample of audio data. */
+		uint32 GetBytesPerSample() const;
+
+		/** GetFrameSizeInBytes - Returns the number of bytes needed to store a singe frame of audio data. */
+		uint32 GetFrameSizeInBytes() const;
+		
+		/** GetEncodingString - Returns string form of encoding. Suitable for logging. */
+		FString GetEncodingString() const;
+
+		/**
+		 * GetWaveFormat - Returns pointer to raw WAVEFORMATEX struct. Use this for specific OS API calls
+		 * which require it. Otherwise use the accessors above.
+		 */
+		const WAVEFORMATEX* GetWaveFormat() const;
+
+	private:
+
+		/** InitAudioFormat - Init method used by constructors to initialize data. */
+		void InitAudioFormat(uint16 InChannels, uint32 InSampleRate, EWasapiAudioEncoding InEncoding);
+		/** InitAudioEncoding - Parses underlying WAVEFORMATEXTENSIBLE structure and determines corresponding encoding. */
+		void InitAudioEncoding();
+		/** DetermineAudioEncoding - Helper function for determining audio encoding from WAVEFORMATEXTENSIBLE struct. */
+		static EWasapiAudioEncoding DetermineAudioEncoding(const WAVEFORMATEXTENSIBLE& InFormat);
+		/** EncodingToBitDepth - Helper function for getting bit depth from InEncoding parameter. */
+		static uint16 EncodingToBitDepth(EWasapiAudioEncoding InEncoding);
+
+		/** WaveFormat - Windows wave format struct which this object wraps. */
+		WAVEFORMATEXTENSIBLE WaveFormat = {};
+		/** Encoding - Audio encoding for this object. */
+		EWasapiAudioEncoding Encoding = EWasapiAudioEncoding::UNKNOWN;
+	};
+}
+
+===========================
+
+
+=== WasapiAudioUtils.cpp ===
+============================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "WasapiAudioUtils.h"
+
+#include "AudioPlatformSupportWasapiLog.h"
+
+namespace Audio
+{
+	// REFERENCE_TIME base which is in units of 100 nanoseconds
+	static constexpr REFERENCE_TIME ReferenceTimeBase = 1e7;
+
+	REFERENCE_TIME FWasapiAudioUtils::FramesToRefTime(const uint32 InNumFrames, const uint32 InSampleRate)
+	{
+		REFERENCE_TIME RefTimeDuration = FMath::RoundToInt(static_cast<double>(InNumFrames * ReferenceTimeBase) / InSampleRate);
+
+		return RefTimeDuration;
+	}
+
+	uint64 FWasapiAudioUtils::RefTimeToFrames(const REFERENCE_TIME InRefTime, const uint32 InSampleRate)
+	{
+		uint64 NumFrames = FMath::RoundToInt(static_cast<double>(InRefTime * InSampleRate) / ReferenceTimeBase);
+
+		return NumFrames;
+	}
+}
+
+============================
+
+
+=== WasapiAudioUtils.h ===
+==========================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/AllowWindowsPlatformAtomics.h"
+
+THIRD_PARTY_INCLUDES_START
+#include <AudioClient.h>
+THIRD_PARTY_INCLUDES_END
+
+#include "Windows/HideWindowsPlatformAtomics.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+
+
+namespace Audio
+{
+	/**
+	 * FWasapiAudioUtils - WASAPI utility class
+	 */
+	class AUDIOPLATFORMSUPPORTWASAPI_API FWasapiAudioUtils
+	{
+	public:
+		/** FramesToRefTime - Converts a given number of frames at the given sample rate to REFERENCE_TIME. */
+		static REFERENCE_TIME FramesToRefTime(const uint32 InNumFrames, const uint32 InSampleRate);
+
+		/** RefTimeToFrames - Converts the given REFERENCE_TIME to a number of frames at the given sample rate. */
+		static uint64 RefTimeToFrames(const REFERENCE_TIME InRefTime, const uint32 InSampleRate);
+	};
+}
+
+==========================
+

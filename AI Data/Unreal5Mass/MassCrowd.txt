@@ -1,0 +1,4670 @@
+=== CODEBASE STRUCTURE ===
+
+📁 MassCrowd/
+    └── 📁 Private/
+        └── 📁 Tasks/
+            └── 📄 MassCrowdClaimWaitSlotTask.cpp
+            └── 📄 MassZoneGraphFindWanderTarget.cpp
+        └── 📄 MassCrowdBubble.cpp
+        └── 📄 MassCrowdLaneClosingTest.cpp
+        └── 📄 MassCrowdLaneDataRenderingComponent.cpp
+        └── 📄 MassCrowdMemberTrait.cpp
+        └── 📄 MassCrowdModule.cpp
+        └── 📄 MassCrowdNavigationProcessor.cpp
+        └── 📄 MassCrowdReplicator.cpp
+        └── 📄 MassCrowdRepresentationActorManagement.cpp
+        └── 📄 MassCrowdRepresentationSubsystem.cpp
+        └── 📄 MassCrowdServerRepresentationLODProcessor.cpp
+        └── 📄 MassCrowdServerRepresentationProcessor.cpp
+        └── 📄 MassCrowdServerRepresentationTrait.cpp
+        └── 📄 MassCrowdSettings.cpp
+        └── 📄 MassCrowdSubsystem.cpp
+        └── 📄 MassCrowdVisualizationLODProcessor.cpp
+        └── 📄 MassCrowdVisualizationProcessor.cpp
+        └── 📄 MassCrowdVisualizationTrait.cpp
+        └── 📄 ZoneGraphCrowdLaneAnnotations.cpp
+    └── 📁 Public/
+        └── 📁 Tasks/
+            └── 📄 MassCrowdClaimWaitSlotTask.h
+            └── 📄 MassZoneGraphFindWanderTarget.h
+        └── 📄 IMassCrowdModule.h
+        └── 📄 MassCrowdBubble.h
+        └── 📄 MassCrowdFragments.h
+        └── 📄 MassCrowdLaneClosingTest.h
+        └── 📄 MassCrowdLaneDataRenderingComponent.h
+        └── 📄 MassCrowdMemberTrait.h
+        └── 📄 MassCrowdNavigationProcessor.h
+        └── 📄 MassCrowdReplicatedAgent.h
+        └── 📄 MassCrowdReplicator.h
+        └── 📄 MassCrowdRepresentationActorManagement.h
+        └── 📄 MassCrowdRepresentationSubsystem.h
+        └── 📄 MassCrowdServerRepresentationLODProcessor.h
+        └── 📄 MassCrowdServerRepresentationProcessor.h
+        └── 📄 MassCrowdServerRepresentationTrait.h
+        └── 📄 MassCrowdSettings.h
+        └── 📄 MassCrowdSpawnerSubsystem.h
+        └── 📄 MassCrowdSubsystem.h
+        └── 📄 MassCrowdTypes.h
+        └── 📄 MassCrowdVisualizationLODProcessor.h
+        └── 📄 MassCrowdVisualizationProcessor.h
+        └── 📄 MassCrowdVisualizationTrait.h
+        └── 📄 ZoneGraphCrowdLaneAnnotations.h
+    └── 📄 MassCrowd.Build.cs
+
+
+=== FILE CONTENTS ===
+
+
+=== MassCrowd/Private/Tasks/MassCrowdClaimWaitSlotTask.cpp ===
+==============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Tasks/MassCrowdClaimWaitSlotTask.h"
+#include "MassCrowdSubsystem.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "MassNavigationFragments.h"
+#include "MassStateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
+
+FMassCrowdClaimWaitSlotTask::FMassCrowdClaimWaitSlotTask()
+{
+	// This task should not react to Enter/ExitState when the state is reselected.
+	bShouldStateChangeOnReselect = false;
+}
+
+bool FMassCrowdClaimWaitSlotTask::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalData(LocationHandle);
+	Linker.LinkExternalData(MoveTargetHandle);
+	Linker.LinkExternalData(CrowdSubsystemHandle);
+
+	return true;
+}
+
+EStateTreeRunStatus FMassCrowdClaimWaitSlotTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+{
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
+	const FMassEntityHandle Entity = MassContext.GetEntity();
+	
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
+	const FMassMoveTargetFragment& MoveTarget = Context.GetExternalData(MoveTargetHandle);
+	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalData(CrowdSubsystemHandle);
+
+	FVector SlotPosition = FVector::ZeroVector;
+	FVector SlotDirection = FVector::ForwardVector;
+	InstanceData.WaitingSlotIndex = CrowdSubsystem.AcquireWaitingSlot(Entity, MoveTarget.Center, LaneLocation.LaneHandle, SlotPosition, SlotDirection);
+	if (InstanceData.WaitingSlotIndex == INDEX_NONE)
+	{
+		// Failed to acquire slot
+		return EStateTreeRunStatus::Failed;
+	}
+	
+	InstanceData.AcquiredLane = LaneLocation.LaneHandle;
+
+	InstanceData.WaitSlotLocation.LaneHandle = LaneLocation.LaneHandle;
+	InstanceData.WaitSlotLocation.NextExitLinkType = EZoneLaneLinkType::None;
+	InstanceData.WaitSlotLocation.NextLaneHandle.Reset();
+	InstanceData.WaitSlotLocation.bMoveReverse = false;
+	InstanceData.WaitSlotLocation.EndOfPathIntent = EMassMovementAction::Stand;
+	InstanceData.WaitSlotLocation.EndOfPathPosition = SlotPosition;
+	InstanceData.WaitSlotLocation.EndOfPathDirection = SlotDirection;
+	InstanceData.WaitSlotLocation.TargetDistance = LaneLocation.LaneLength; // Go to end of lane
+	// Let's start moving toward the interaction a bit before the entry point.
+	InstanceData.WaitSlotLocation.AnticipationDistance.Set(100.f);
+	
+	return EStateTreeRunStatus::Running;
+}
+
+void FMassCrowdClaimWaitSlotTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+{
+	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
+	const FMassEntityHandle Entity = MassContext.GetEntity();
+
+	UMassCrowdSubsystem& CrowdSubsystem = Context.GetExternalData(CrowdSubsystemHandle);
+
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	
+	if (InstanceData.WaitingSlotIndex != INDEX_NONE)
+	{
+		CrowdSubsystem.ReleaseWaitingSlot(Entity, InstanceData.AcquiredLane, InstanceData.WaitingSlotIndex);
+	}
+	
+	InstanceData.WaitingSlotIndex = INDEX_NONE;
+	InstanceData.AcquiredLane.Reset();
+	InstanceData.WaitSlotLocation.Reset();
+}
+
+==============================================================
+
+
+=== MassCrowd/Private/Tasks/MassZoneGraphFindWanderTarget.cpp ===
+=================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Tasks/MassZoneGraphFindWanderTarget.h"
+#include "ZoneGraphAnnotationSubsystem.h"
+#include "ZoneGraphSubsystem.h"
+#include "ZoneGraphQuery.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "MassAIBehaviorTypes.h"
+#include "MassCrowdSettings.h"
+#include "MassCrowdSubsystem.h"
+#include "MassStateTreeExecutionContext.h"
+#include "StateTreeLinker.h"
+#include "MassDebugger.h"
+
+
+FMassZoneGraphFindWanderTarget::FMassZoneGraphFindWanderTarget()
+{
+}
+
+bool FMassZoneGraphFindWanderTarget::Link(FStateTreeLinker& Linker)
+{
+	Linker.LinkExternalData(LocationHandle);
+	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
+	Linker.LinkExternalData(ZoneGraphAnnotationSubsystemHandle);
+	Linker.LinkExternalData(MassCrowdSubsystemHandle);
+
+	return true;
+}
+
+EStateTreeRunStatus FMassZoneGraphFindWanderTarget::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+{
+	const FMassStateTreeExecutionContext& MassContext = static_cast<FMassStateTreeExecutionContext&>(Context);
+
+	const FMassZoneGraphLaneLocationFragment& LaneLocation = Context.GetExternalData(LocationHandle);
+	const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetExternalData(ZoneGraphSubsystemHandle);
+	UZoneGraphAnnotationSubsystem& ZoneGraphAnnotationSubsystem = Context.GetExternalData(ZoneGraphAnnotationSubsystemHandle);
+	const UMassCrowdSubsystem& MassCrowdSubsystem = Context.GetExternalData(MassCrowdSubsystemHandle);
+
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+
+	bool bDisplayDebug = false;
+#if WITH_MASSGAMEPLAY_DEBUG
+	bDisplayDebug = UE::Mass::Debug::IsDebuggingEntity(MassContext.GetEntity());
+#endif // WITH_MASSGAMEPLAY_DEBUG
+
+	if (!LaneLocation.LaneHandle.IsValid())
+	{
+		MASSBEHAVIOR_LOG(Error, TEXT("Invalid lane location."));
+		return EStateTreeRunStatus::Failed;
+	}
+			
+	const FZoneGraphStorage* ZoneGraphStorage = ZoneGraphSubsystem.GetZoneGraphStorage(LaneLocation.LaneHandle.DataHandle);
+	if (!ZoneGraphStorage)
+	{
+		MASSBEHAVIOR_LOG(Error, TEXT("Missing ZoneGraph Storage for current lane %s."), *LaneLocation.LaneHandle.ToString());
+		return EStateTreeRunStatus::Failed;
+	}
+
+	const float MoveDistance = GetDefault<UMassCrowdSettings>()->GetMoveDistance();
+
+	InstanceData.WanderTargetLocation.LaneHandle = LaneLocation.LaneHandle;
+	InstanceData.WanderTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane + MoveDistance;
+	InstanceData.WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::None;
+	InstanceData.WanderTargetLocation.NextLaneHandle.Reset();
+	InstanceData.WanderTargetLocation.bMoveReverse = false;
+	InstanceData.WanderTargetLocation.EndOfPathIntent = EMassMovementAction::Move;
+
+	if (bDisplayDebug)
+	{
+		MASSBEHAVIOR_LOG(Log, TEXT("Find wander target."));
+	}
+
+	EStateTreeRunStatus Status = EStateTreeRunStatus::Running;
+	
+	// When close to end of a lane, choose next lane.
+	if (InstanceData.WanderTargetLocation.TargetDistance > LaneLocation.LaneLength)
+	{
+		InstanceData.WanderTargetLocation.TargetDistance = FMath::Min(InstanceData.WanderTargetLocation.TargetDistance, LaneLocation.LaneLength);
+
+		typedef TTuple<const FZoneGraphLinkedLane, const float> FBranchingCandidate;
+		TArray<FBranchingCandidate, TInlineAllocator<8>> Candidates;
+		float CombinedWeight = 0.f;
+
+		auto FindCandidates = [this, &ZoneGraphAnnotationSubsystem, &MassCrowdSubsystem, ZoneGraphStorage, LaneLocation, &Candidates, &CombinedWeight](const EZoneLaneLinkType Type)-> bool
+		{
+			TArray<FZoneGraphLinkedLane> LinkedLanes;
+			UE::ZoneGraph::Query::GetLinkedLanes(*ZoneGraphStorage, LaneLocation.LaneHandle, Type, EZoneLaneLinkFlags::All, EZoneLaneLinkFlags::None, LinkedLanes);
+
+			for (const FZoneGraphLinkedLane& LinkedLane : LinkedLanes)
+			{
+				// Apply tag filter
+				const FZoneGraphTagMask BehaviorTags = ZoneGraphAnnotationSubsystem.GetAnnotationTags(LinkedLane.DestLane);
+				if (!AllowedAnnotationTags.Pass(BehaviorTags))
+				{
+					continue;
+				}
+
+				// Add new candidate with its selection weight based on density
+				const FZoneGraphTagMask& LaneTagMask = ZoneGraphStorage->Lanes[LinkedLane.DestLane.Index].Tags;
+				const float Weight = MassCrowdSubsystem.GetDensityWeight(LinkedLane.DestLane, LaneTagMask);
+				CombinedWeight += Weight;
+				Candidates.Add(MakeTuple(LinkedLane, CombinedWeight));
+			}
+
+			return !Candidates.IsEmpty();
+		};
+
+		if (FindCandidates(EZoneLaneLinkType::Outgoing))
+		{
+			InstanceData.WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::Outgoing;
+		}
+		else
+		{
+			// Could not continue, try to switch to an adjacent lane.
+			// @todo: we could try to do something smarter here so that agents do not clump up. May need to have some heuristic,
+			//		  i.e. at intersections it looks better to switch lane immediately, with flee, it looks better to vary the location randomly.
+			InstanceData.WanderTargetLocation.TargetDistance = LaneLocation.DistanceAlongLane;
+
+			// Try adjacent lanes
+			if (FindCandidates(EZoneLaneLinkType::Adjacent))
+			{
+				// Found adjacent lane, choose it once followed the short path. Keeping the random offset from above,
+				// so that all agents dont follow until the end of the path to turn.
+				InstanceData.WanderTargetLocation.NextExitLinkType = EZoneLaneLinkType::Adjacent;
+			}
+		}
+
+		if (Candidates.IsEmpty())
+		{
+			// Could not find next lane, fail.
+			InstanceData.WanderTargetLocation.Reset();
+			Status = EStateTreeRunStatus::Failed;
+		}
+		else
+		{
+			// Select new lane based on the weight of each candidates
+			const float Rand = FMath::RandRange(0.f, CombinedWeight);
+			for (const FBranchingCandidate& Candidate : Candidates)
+			{
+				const float CandidateCombinedWeight = Candidate.Get<1>();
+				if (Rand < CandidateCombinedWeight)
+				{
+					const FZoneGraphLinkedLane& LinkedLane = Candidate.Get<0>();
+					InstanceData.WanderTargetLocation.NextLaneHandle = LinkedLane.DestLane;
+					break;
+				}
+			}
+		}
+	}
+
+	return Status;
+}
+
+=================================================================
+
+
+=== MassCrowd/Private/MassCrowdBubble.cpp ===
+=============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdBubble.h"
+#include "MassEntityManager.h"
+#include "Net/UnrealNetwork.h"
+#include "MassExecutionContext.h"
+
+namespace UE::Mass::Crowd
+{
+	bool bDebugReplicationPositions = false;
+	FAutoConsoleVariableRef CVarbDebugReplication(TEXT("mass.debug.CrowdReplicationPositions"), bDebugReplicationPositions, TEXT("Crowd debug replication positions on server and client"), ECVF_Cheat);
+
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+	// @todo provide a better way of selecting agents to debug
+	constexpr int32 MaxAgentsDraw = 300;
+
+	void DebugDrawReplicatedAgent(FMassEntityHandle Entity, const FMassEntityManager& EntityManager)
+	{
+		static const FVector DebugCylinderHeight = FVector(0.f, 0.f, 200.f);
+		static constexpr float DebugCylinderRadius = 50.f;
+
+		const FMassEntityView EntityView(EntityManager, Entity);
+
+		const FTransformFragment& TransformFragment = EntityView.GetFragmentData<FTransformFragment>();
+		const FMassNetworkIDFragment& NetworkIDFragment = EntityView.GetFragmentData<FMassNetworkIDFragment>();
+
+		const FVector& Pos = TransformFragment.GetTransform().GetLocation();
+		const uint32 NetworkID = NetworkIDFragment.NetID.GetValue();
+
+		// Multiply by a largeish number that is not a multiple of 256 to separate out the color shades a bit
+		const uint32 InitialColor = NetworkID * 20001;
+
+		const uint8 NetworkIdMod3 = NetworkID % 3;
+		FColor DebugCylinderColor;
+
+		// Make a deterministic color from the Mod by 3 to vary how we create it
+		if (NetworkIdMod3 == 0)
+		{
+			DebugCylinderColor = FColor(InitialColor % 256, InitialColor / 256 % 256, InitialColor / 256 / 256 % 256);
+		}
+		else if (NetworkIdMod3 == 1)
+		{
+			DebugCylinderColor = FColor(InitialColor / 256 / 256 % 256, InitialColor % 256, InitialColor / 256 % 256);
+		}
+		else
+		{
+			DebugCylinderColor = FColor(InitialColor / 256 % 256, InitialColor / 256 / 256 % 256, InitialColor % 256);
+		}
+
+		const UWorld* World = EntityManager.GetWorld();
+		if (World != nullptr && World->GetNetMode() == NM_Client)
+		{
+			DrawDebugCylinder(World, Pos, Pos + 0.5f * DebugCylinderHeight, DebugCylinderRadius, /*segments = */24, DebugCylinderColor);
+		}
+		else
+		{
+			DrawDebugCylinder(World, Pos + 0.5f * DebugCylinderHeight, Pos + DebugCylinderHeight, DebugCylinderRadius, /*segments = */24, DebugCylinderColor);
+		}
+	}
+#endif // WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+}
+
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnServer()
+{
+	Super::DebugValidateBubbleOnServer();
+
+#if UE_REPLICATION_COMPILE_SERVER_CODE
+	if (UE::Mass::Crowd::bDebugReplicationPositions)
+	{
+		const FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
+
+		// @todo cap at MaxAgentsDraw for now
+		const int32 MaxAgentsDraw = FMath::Min(UE::Mass::Crowd::MaxAgentsDraw, (*Agents).Num());
+
+		for (int32 Idx = 0; Idx < MaxAgentsDraw; ++Idx)
+		{
+			const FCrowdFastArrayItem& CrowdItem = (*Agents)[Idx];
+
+			const FMassAgentLookupData& LookupData = AgentLookupArray[CrowdItem.GetHandle().GetIndex()];
+
+			check(LookupData.Entity.IsSet());
+
+			UE::Mass::Crowd::DebugDrawReplicatedAgent(LookupData.Entity, EntityManager);
+		}
+	}
+#endif // UE_REPLICATION_COMPILE_SERVER_CODE
+}
+#endif // WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+void FMassCrowdClientBubbleHandler::DebugValidateBubbleOnClient()
+{
+	Super::DebugValidateBubbleOnClient();
+
+	if (UE::Mass::Crowd::bDebugReplicationPositions)
+	{
+		const FMassEntityManager& EntityManager = Serializer->GetEntityManagerChecked();
+
+		UMassReplicationSubsystem* ReplicationSubsystem = Serializer->GetReplicationSubsystem();
+		check(ReplicationSubsystem);
+
+		// @todo cap at MaxAgentsDraw for now
+		const int32 MaxAgentsDraw = FMath::Min(UE::Mass::Crowd::MaxAgentsDraw, (*Agents).Num());
+
+		for (int32 Idx = 0; Idx < MaxAgentsDraw; ++Idx)
+		{
+			const FCrowdFastArrayItem& CrowdItem = (*Agents)[Idx];
+
+			const FMassReplicationEntityInfo* EntityInfo = ReplicationSubsystem->FindMassEntityInfo(CrowdItem.Agent.GetNetID());
+
+			check(EntityInfo->Entity.IsSet());
+
+			UE::Mass::Crowd::DebugDrawReplicatedAgent(EntityInfo->Entity, EntityManager);
+		}
+	}
+}
+#endif // WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+
+#if UE_REPLICATION_COMPILE_CLIENT_CODE
+void FMassCrowdClientBubbleHandler::PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize)
+{
+	auto AddRequirementsForSpawnQuery = [this](FMassEntityQuery& InQuery)
+	{
+		PathHandler.AddRequirementsForSpawnQuery(InQuery);
+		TransformHandler.AddRequirementsForSpawnQuery(InQuery);
+	};
+
+	auto CacheFragmentViewsForSpawnQuery = [this](FMassExecutionContext& InExecContext)
+	{
+		PathHandler.CacheFragmentViewsForSpawnQuery(InExecContext);
+		TransformHandler.CacheFragmentViewsForSpawnQuery(InExecContext);
+	};
+
+	auto SetSpawnedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& ReplicatedEntity, const int32 EntityIdx)
+	{
+		PathHandler.SetSpawnedEntityData(EntityView, ReplicatedEntity.GetReplicatedPathData(), EntityIdx);
+		TransformHandler.SetSpawnedEntityData(EntityIdx, ReplicatedEntity.GetReplicatedPositionYawData());
+	};
+
+	auto SetModifiedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item)
+	{
+		PostReplicatedChangeEntity(EntityView, Item);
+	};
+
+	PostReplicatedAddHelper(AddedIndices, AddRequirementsForSpawnQuery, CacheFragmentViewsForSpawnQuery, SetSpawnedEntityData, SetModifiedEntityData);
+
+	PathHandler.ClearFragmentViewsForSpawnQuery();
+	TransformHandler.ClearFragmentViewsForSpawnQuery();
+}
+#endif //UE_REPLICATION_COMPILE_SERVER_CODE
+
+#if UE_REPLICATION_COMPILE_CLIENT_CODE
+void FMassCrowdClientBubbleHandler::FMassCrowdClientBubbleHandler::PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize)
+{
+	auto SetModifiedEntityData = [this](const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item)
+	{
+		PostReplicatedChangeEntity(EntityView, Item);
+	};
+
+	PostReplicatedChangeHelper(ChangedIndices, SetModifiedEntityData);
+}
+#endif //UE_REPLICATION_COMPILE_SERVER_CODE
+
+#if UE_REPLICATION_COMPILE_CLIENT_CODE
+void FMassCrowdClientBubbleHandler::PostReplicatedChangeEntity(const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item) const
+{
+	PathHandler.SetModifiedEntityData(EntityView, Item.GetReplicatedPathData());
+
+	// No need to call TransformHandler as that only gets replicated when an agent is added to the bubble
+}
+#endif // UE_REPLICATION_COMPILE_CLIENT_CODE
+
+AMassCrowdClientBubbleInfo::AMassCrowdClientBubbleInfo(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	Serializers.Add(&CrowdSerializer);
+}
+
+void AMassCrowdClientBubbleInfo::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams SharedParams;
+	SharedParams.bIsPushBased = true;
+
+	// Technically, this doesn't need to be PushModel based because it's a FastArray and they ignore it.
+	DOREPLIFETIME_WITH_PARAMS_FAST(AMassCrowdClientBubbleInfo, CrowdSerializer, SharedParams);
+}
+
+=============================================
+
+
+=== MassCrowd/Private/MassCrowdLaneClosingTest.cpp ===
+======================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdLaneClosingTest.h"
+#include "Engine/World.h"
+#include "MassCrowdSubsystem.h"
+#include "ZoneGraphRenderingUtilities.h"
+
+void UZoneGraphCloseCrowdLaneTest::OnLaneLocationUpdated(const FZoneGraphLaneLocation& PrevLaneLocation, const FZoneGraphLaneLocation& NextLaneLocation)
+{
+	if (CrowdSubsystem == nullptr)
+	{
+		return;
+	}
+
+	// Extra checks here, because GetCrowdLaneData() will ensure() on bad handle. We can end up here when Crowd subsystem has already been torn down.
+	if (PrevLaneLocation.IsValid() && CrowdSubsystem->HasCrowdDataForZoneGraph(PrevLaneLocation.LaneHandle.DataHandle))
+	{
+		CrowdSubsystem->SetLaneState(PrevLaneLocation.LaneHandle, PrevLaneState);
+	}
+
+	if (NextLaneLocation.IsValid() && CrowdSubsystem->HasCrowdDataForZoneGraph(NextLaneLocation.LaneHandle.DataHandle))
+	{
+		PrevLaneState = CrowdSubsystem->GetLaneState(NextLaneLocation.LaneHandle);
+		CrowdSubsystem->SetLaneState(NextLaneLocation.LaneHandle, LaneState);
+	}
+
+	LaneLocation = NextLaneLocation;
+}
+
+void UZoneGraphCloseCrowdLaneTest::Draw(FPrimitiveDrawInterface* PDI) const
+{
+	if (!LaneLocation.IsValid())
+	{
+		return;
+	}
+	
+	const FZoneGraphStorage* Storage = OwnerComponent->GetZoneGraphStorage(LaneLocation.LaneHandle);
+	if (Storage != nullptr)
+	{
+		TArray<FZoneGraphLaneHandle> Lanes;
+		Lanes.Push(LaneLocation.LaneHandle);
+
+		FColor Color = FColor::White;
+		switch (LaneState)
+		{
+		case ECrowdLaneState::Opened:		Color = FColor::Emerald;	break;
+		case ECrowdLaneState::Closed:		Color = FColor::Red;		break;
+		default:
+			ensureMsgf(false, TEXT("Unhandled lane state %d"), (int32)LaneState);
+			break;
+		}
+
+		static constexpr float LaneLineThickness = 25.0f;
+		UE::ZoneGraph::RenderingUtilities::DrawLanes(*Storage, PDI, Lanes, Color, LaneLineThickness);
+	}	
+}
+
+void UZoneGraphCloseCrowdLaneTest::OnOwnerSet()
+{
+	if (OwnerComponent == nullptr)
+	{
+		CrowdSubsystem = nullptr;
+		return;
+	}
+
+	CrowdSubsystem = UWorld::GetSubsystem<UMassCrowdSubsystem>(OwnerComponent->GetWorld());
+}
+
+======================================================
+
+
+=== MassCrowd/Private/MassCrowdLaneDataRenderingComponent.cpp ===
+=================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdLaneDataRenderingComponent.h"
+
+#include "Engine/Engine.h"
+#include "MassCrowdSettings.h"
+#include "MassCrowdSubsystem.h"
+#include "PrimitiveViewRelevance.h"
+#include "ZoneGraphQuery.h"
+#include "ZoneGraphRenderingComponent.h"
+#include "ZoneGraphSubsystem.h"
+#include "Debug/DebugDrawService.h"
+#include "Engine/Canvas.h"
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+void UMassCrowdLaneDataRenderingComponent::OnRegister()
+{
+	Super::OnRegister();
+
+	if (GetWorld()->IsGameWorld())
+	{
+		DebugTextDrawingDelegateHandle = UDebugDrawService::Register(TEXT("Navigation"), FDebugDrawDelegate::CreateUObject(this, &UMassCrowdLaneDataRenderingComponent::DebugDrawOnCanvas));
+
+		// Track lane state changes
+		if (UMassCrowdSubsystem* MassCrowdSubsystem = UWorld::GetSubsystem<UMassCrowdSubsystem>(GetWorld()))
+		{
+			OnLaneStateChangedDelegateHandle = MassCrowdSubsystem->DebugOnMassCrowdLaneStateChanged.AddLambda([this]()
+			{
+				MarkRenderStateDirty();
+			});
+		}
+	}
+
+#if WITH_EDITOR
+	// Track render settings changes
+	OnLaneRenderSettingsChangedDelegateHandle = GetDefault<UMassCrowdSettings>()->OnMassCrowdLaneRenderSettingsChanged.AddLambda([this]()
+	{
+		MarkRenderStateDirty();
+	});
+#endif
+}
+
+void UMassCrowdLaneDataRenderingComponent::OnUnregister()
+{
+	UDebugDrawService::Unregister(DebugTextDrawingDelegateHandle);
+
+	if (UMassCrowdSubsystem* MassCrowdSubsystem = UWorld::GetSubsystem<UMassCrowdSubsystem>(GetWorld()))
+	{
+		MassCrowdSubsystem->DebugOnMassCrowdLaneStateChanged.Remove(OnLaneStateChangedDelegateHandle);
+	}
+
+#if WITH_EDITOR
+	GetDefault<UMassCrowdSettings>()->OnMassCrowdLaneDataSettingsChanged.Remove(OnLaneRenderSettingsChangedDelegateHandle);
+#endif
+
+	Super::OnUnregister();
+}
+
+FPrimitiveSceneProxy* UMassCrowdLaneDataRenderingComponent::CreateSceneProxy()
+{
+	class FMassCrowdLaneDataSceneProxy final : public FZoneGraphSceneProxy
+	{
+	public:
+		friend class UCrowdLaneDataRenderComponent;
+
+		virtual SIZE_T GetTypeHash() const override
+		{
+			static size_t UniquePointer;
+			return reinterpret_cast<size_t>(&UniquePointer);
+		}
+
+		FMassCrowdLaneDataSceneProxy(const UMassCrowdLaneDataRenderingComponent& InComponent, const AZoneGraphData& ZoneGraph)
+			: FZoneGraphSceneProxy(InComponent, ZoneGraph)
+			, Component(&InComponent)
+		{
+			const UZoneGraphSubsystem* ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(Component->GetWorld());
+			const UMassCrowdSubsystem* MassCrowdSubsystem = UWorld::GetSubsystem<UMassCrowdSubsystem>(Component->GetWorld());
+			const UMassCrowdSettings* Settings = GetDefault<UMassCrowdSettings>();
+			checkf(Settings, TEXT("Settings default object is always expected to be valid"));
+
+			// The subsystems could be removed during world tear down
+			if (ZoneGraphSubsystem == nullptr || MassCrowdSubsystem == nullptr)
+			{
+				return;
+			}
+
+			const FZoneGraphStorage& Storage = ZoneGraph.GetStorage();
+			// Make sure we still have lane data since we can end up here when Crowd subsystem has already been torn down.
+			if (!MassCrowdSubsystem->HasCrowdDataForZoneGraph(Storage.DataHandle))
+			{
+				return;
+			}
+
+			// Nothing to render if none of these options are enabled
+			if (!(Settings->bDisplayStates || Settings->bDisplayDensities))
+			{
+				return;
+			}
+
+			const FZoneGraphTag CrowdTag = Settings->CrowdTag;
+			const float LaneThickness = Settings->LaneBaseLineThickness;
+			const float IntersectionLaneThickness = Settings->IntersectionLaneScaleFactor * LaneThickness;
+			const FVector Offset(0.f, 0.f, Settings->LaneRenderZOffset);
+
+			const float LaneDensityThickness = Settings->LaneDensityScaleFactor * LaneThickness;
+			const float IntersectionLaneDensityThickness = Settings->LaneDensityScaleFactor * IntersectionLaneThickness;
+			const FVector LaneDensityOffset = 0.9f * Offset;
+
+			auto AddLinesForLane = [this](const FZoneGraphStorage& Storage, const FZoneLaneData& Lane, const FColor Color, const float LineThickness, const FVector& Offset)
+			{
+				const FVector OffsetZ(0.f, 0.f, 0.1f);
+				FVector PrevPoint = Storage.LanePoints[Lane.PointsBegin] + Offset;
+				for (int32 PointIdx = Lane.PointsBegin + 1; PointIdx < Lane.PointsEnd; PointIdx++)
+				{
+					const FVector Point = Storage.LanePoints[PointIdx] + Offset;
+					Lines.Add(FDebugRenderSceneProxy::FDebugLine(PrevPoint + OffsetZ, Point + OffsetZ, Color, LineThickness));
+					PrevPoint = Point;
+				}
+			};
+
+			for (int i = 0; i < Storage.Zones.Num(); i++)
+			{
+				const FZoneData& Zone = Storage.Zones[i];
+
+				for (int32 LaneIndex = Zone.LanesBegin; LaneIndex < Zone.LanesEnd; ++LaneIndex)
+				{
+					const FZoneLaneData& Lane = Storage.Lanes[LaneIndex];
+					// Render only lanes used by the crowd
+					if (!Lane.Tags.Contains(CrowdTag))
+					{
+						continue;
+					}
+
+					const FZoneGraphLaneHandle LaneHandle(LaneIndex, Storage.DataHandle);
+					const FCrowdBranchingLaneData* BranchingLaneData = MassCrowdSubsystem->GetCrowdBranchingLaneData(LaneHandle);
+					const bool bIsBranchingLane = BranchingLaneData != nullptr;
+
+					// states
+					if (Settings->bDisplayStates)
+					{
+						TOptional<FZoneGraphCrowdLaneData> LaneData = MassCrowdSubsystem->GetCrowdLaneData(LaneHandle);
+						const bool bIsOpened = LaneData.IsSet() ? LaneData.GetValue().GetState() == ECrowdLaneState::Opened : true;
+
+						AddLinesForLane(Storage, Lane,
+										bIsOpened ? Settings->OpenedLaneColor : Settings->ClosedLaneColor,
+										bIsBranchingLane ? IntersectionLaneThickness : LaneThickness, Offset);
+					}
+
+					// densities
+					if (Settings->bDisplayDensities)
+					{
+						const FZoneGraphTagMask& LaneTagMask = Storage.Lanes[LaneHandle.Index].Tags;
+						const uint32 LaneMask = LaneTagMask.GetValue();
+						const FZoneGraphTagMask LaneDensityMask(bIsBranchingLane ? BranchingLaneData->DensityMask : (LaneMask & MassCrowdSubsystem->GetDensityMask().GetValue()));
+
+						if (LaneDensityMask.GetValue())
+						{
+							const FMassCrowdLaneDensityDesc* Descriptor = Settings->GetLaneDensities().FindByPredicate(
+								[LaneDensityMask](const FMassCrowdLaneDensityDesc& Desc){ return LaneDensityMask.Contains(Desc.Tag);});
+
+							if (Descriptor != nullptr)
+							{
+								AddLinesForLane(Storage, Lane,
+												Descriptor->RenderColor,
+												bIsBranchingLane ? IntersectionLaneDensityThickness : LaneDensityThickness, LaneDensityOffset);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
+		{
+			// Disable dependency on Navigation show flag
+			FGuardValue_Bitfield(const_cast<FSceneViewFamily*>(View->Family)->EngineShowFlags.Navigation, true);
+			return FZoneGraphSceneProxy::GetViewRelevance(View);
+		}
+
+	private:
+		const UMassCrowdLaneDataRenderingComponent* Component;
+	};
+
+	AZoneGraphData* ZoneGraph = Cast<AZoneGraphData>(GetOwner());
+	return ZoneGraph ? new FMassCrowdLaneDataSceneProxy(*this, *ZoneGraph) : nullptr;
+}
+
+FBoxSphereBounds UMassCrowdLaneDataRenderingComponent::CalcBounds(const FTransform& LocalToWorld) const
+{
+	const AZoneGraphData* ZoneGraphData = Cast<AZoneGraphData>(GetOwner());
+	return FBoxSphereBounds(ZoneGraphData != nullptr ? ZoneGraphData->GetBounds() : FBox(ForceInit));
+}
+
+void UMassCrowdLaneDataRenderingComponent::DebugDrawOnCanvas(UCanvas* Canvas, APlayerController*) const
+{
+	const UMassCrowdSubsystem* MassCrowdSubsystem = UWorld::GetSubsystem<UMassCrowdSubsystem>(GetWorld());
+	// The subsystems could be removed during world tear down
+	if (MassCrowdSubsystem == nullptr)
+	{
+		return;
+	}
+
+	const UMassCrowdSettings* Settings = GetDefault<UMassCrowdSettings>();
+	checkf(Settings, TEXT("Settings default object is always expected to be valid"));
+	if (!Settings->bDisplayTrackingData)
+	{
+		return;
+	}
+
+	const AZoneGraphData* ZoneGraphData = Cast<AZoneGraphData>(GetOwner());
+	const FZoneGraphStorage& ZoneStorage = ZoneGraphData->GetStorage();
+
+	// Make sure we still have lane data since we can end up here when Crowd subsystem has already been torn down.
+	if (!MassCrowdSubsystem->HasCrowdDataForZoneGraph(ZoneStorage.DataHandle))
+	{
+		return;
+	}
+
+	const FSceneView* View = Canvas->SceneView;
+	TGuardValue<FColor> ColorGuard(Canvas->DrawColor, FColor::White);
+	const UFont* Font = GEngine->GetSmallFont();
+	const FZoneGraphTag CrowdTag = Settings->CrowdTag;
+
+	// * A CachedMaxDrawDistance of 0 indicates that the primitive should not be culled by distance.
+	const float MaxDrawDistance = CachedMaxDrawDistance > 0 ? CachedMaxDrawDistance : FLT_MAX;
+	const FZoneGraphSceneProxy::FDrawDistances Distances = FZoneGraphSceneProxy::GetDrawDistances(MinDrawDistance, MaxDrawDistance);
+	const FVector Origin = View->ViewMatrices.GetViewOrigin();
+
+	for (const FZoneData& Zone : ZoneStorage.Zones)
+	{
+		const FZoneGraphSceneProxy::FZoneVisibility DrawInfo = FZoneGraphSceneProxy::CalculateZoneVisibility(Distances, Origin, Zone.Bounds.GetCenter());
+		if (!DrawInfo.bVisible || !DrawInfo.bDetailsVisible)
+		{
+			continue;
+		}
+
+		for (int32 LaneIdx = Zone.LanesBegin; LaneIdx < Zone.LanesEnd; LaneIdx++)
+		{
+			const FZoneLaneData& Lane = ZoneStorage.Lanes[LaneIdx];
+			// Render only lanes used by the crowd
+			if (!Lane.Tags.Contains(CrowdTag))
+			{
+				continue;
+			}
+
+			const FZoneGraphLaneHandle LaneHandle(LaneIdx, ZoneStorage.DataHandle);
+			const FCrowdWaitAreaData* WaitAreaData = MassCrowdSubsystem->GetCrowdWaitingAreaData(LaneHandle);
+			const FCrowdTrackingLaneData* TrackingLaneData = MassCrowdSubsystem->GetCrowdTrackingLaneData(LaneHandle);
+			if (WaitAreaData == nullptr && TrackingLaneData == nullptr)
+			{
+				continue;
+			}
+			checkf(TrackingLaneData != nullptr, TEXT("Tracking can exist without wait area data but not the opposite"));
+
+			FZoneGraphLaneLocation CenterLoc;
+			UE::ZoneGraph::Query::CalculateLocationAlongLaneFromRatio(ZoneStorage, LaneIdx, 0.5f, CenterLoc);
+			const FVector Location = FVector(GetComponentTransform().TransformPosition(CenterLoc.Position));
+			const FVector ScreenLoc = Canvas->Project(Location);
+
+			if (WaitAreaData != nullptr)
+			{
+				Canvas->DrawText(Font, FString::Printf(TEXT("        %d/%d"), TrackingLaneData->NumEntitiesOnLane, WaitAreaData->GetNumSlots())
+					, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+					, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision));
+			}
+			else
+			{
+				Canvas->DrawText(Font, FString::Printf(TEXT(" %d"), TrackingLaneData->NumEntitiesOnLane)
+					, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+					, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision));
+			}
+		}
+	}
+}
+
+#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+
+=================================================================
+
+
+=== MassCrowd/Private/MassCrowdMemberTrait.cpp ===
+==================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdMemberTrait.h"
+#include "MassCrowdFragments.h"
+#include "MassEntityTemplateRegistry.h"
+
+void UMassCrowdMemberTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
+{
+	BuildContext.AddTag<FMassCrowdTag>();
+	BuildContext.AddFragment<FMassCrowdLaneTrackingFragment>();	
+}
+
+==================================================
+
+
+=== MassCrowd/Private/MassCrowdModule.cpp ===
+=============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "IMassCrowdModule.h"
+
+class FMassCrowdModule : public IMassCrowdModule
+{
+	/** IModuleInterface implementation */
+	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
+};
+
+IMPLEMENT_MODULE(IMassCrowdModule, MassCrowd)
+
+void FMassCrowdModule::StartupModule()
+{
+	// This code will execute after your module is loaded into memory (but after global variables are initialized, of course.)
+}
+
+void FMassCrowdModule::ShutdownModule()
+{
+	// This function may be called during shutdown to clean up your module.  For modules that support dynamic reloading,
+	// we call this function before unloading the module.
+}
+
+
+=============================================
+
+
+=== MassCrowd/Private/MassCrowdNavigationProcessor.cpp ===
+==========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdNavigationProcessor.h"
+#include "MassCommonFragments.h"
+#include "MassExecutionContext.h"
+#include "MassAIBehaviorTypes.h"
+#include "MassCrowdSubsystem.h"
+#include "MassCrowdFragments.h"
+#include "MassEntityManager.h"
+#include "MassMovementFragments.h"
+#include "MassCrowdSettings.h"
+#include "ZoneGraphAnnotationSubsystem.h"
+#include "MassZoneGraphNavigationFragments.h"
+#include "Annotations/ZoneGraphDisturbanceAnnotation.h"
+#include "MassSimulationLOD.h"
+#include "MassSignalSubsystem.h"
+
+//----------------------------------------------------------------------//
+// UMassCrowdLaneTrackingSignalProcessor
+//----------------------------------------------------------------------//
+UMassCrowdLaneTrackingSignalProcessor::UMassCrowdLaneTrackingSignalProcessor()
+{
+	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::Behavior);
+}
+
+void UMassCrowdLaneTrackingSignalProcessor::ConfigureQueries()
+{
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery.AddRequirement<FMassCrowdLaneTrackingFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassZoneGraphLaneLocationFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddSubsystemRequirement<UMassCrowdSubsystem>(EMassFragmentAccess::ReadWrite);
+}
+
+void UMassCrowdLaneTrackingSignalProcessor::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+	
+	UMassSignalSubsystem* SignalSubsystem = UWorld::GetSubsystem<UMassSignalSubsystem>(Owner.GetWorld());
+	SubscribeToSignal(*SignalSubsystem, UE::Mass::Signals::CurrentLaneChanged);
+}
+
+void UMassCrowdLaneTrackingSignalProcessor::SignalEntities(FMassEntityManager& EntityManager, FMassExecutionContext& Context, FMassSignalNameLookup&)
+{
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
+	{
+		UMassCrowdSubsystem& MassCrowdSubsystem = Context.GetMutableSubsystemChecked<UMassCrowdSubsystem>();
+		const int32 NumEntities = Context.GetNumEntities();
+		const TConstArrayView<FMassZoneGraphLaneLocationFragment> LaneLocationList = Context.GetFragmentView<FMassZoneGraphLaneLocationFragment>();
+		const TArrayView<FMassCrowdLaneTrackingFragment> LaneTrackingList = Context.GetMutableFragmentView<FMassCrowdLaneTrackingFragment>();
+
+		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
+		{
+			const FMassZoneGraphLaneLocationFragment& LaneLocation = LaneLocationList[EntityIndex];
+			FMassCrowdLaneTrackingFragment& LaneTracking = LaneTrackingList[EntityIndex];
+			if (LaneTracking.TrackedLaneHandle != LaneLocation.LaneHandle)
+			{
+				MassCrowdSubsystem.OnEntityLaneChanged(Context.GetEntity(EntityIndex), LaneTracking.TrackedLaneHandle, LaneLocation.LaneHandle);
+				LaneTracking.TrackedLaneHandle = LaneLocation.LaneHandle;
+			}
+		}
+	});
+}
+
+//----------------------------------------------------------------------//
+// UMassCrowdLaneTrackingDestructor
+//----------------------------------------------------------------------//
+UMassCrowdLaneTrackingDestructor::UMassCrowdLaneTrackingDestructor()
+	: EntityQuery(*this)
+{
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
+	ObservedType = FMassCrowdLaneTrackingFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
+}
+
+void UMassCrowdLaneTrackingDestructor::ConfigureQueries()
+{
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery.AddRequirement<FMassCrowdLaneTrackingFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddSubsystemRequirement<UMassCrowdSubsystem>(EMassFragmentAccess::ReadWrite);
+}
+
+void UMassCrowdLaneTrackingDestructor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
+	{
+		UMassCrowdSubsystem& MassCrowdSubsystem = Context.GetMutableSubsystemChecked<UMassCrowdSubsystem>();
+		const int32 NumEntities = Context.GetNumEntities();
+		const TConstArrayView<FMassCrowdLaneTrackingFragment> LaneTrackingList = Context.GetFragmentView<FMassCrowdLaneTrackingFragment>();
+
+		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
+		{
+			const FMassCrowdLaneTrackingFragment& LaneTracking = LaneTrackingList[EntityIndex];
+			if (LaneTracking.TrackedLaneHandle.IsValid())
+			{
+				MassCrowdSubsystem.OnEntityLaneChanged(Context.GetEntity(EntityIndex), LaneTracking.TrackedLaneHandle, FZoneGraphLaneHandle());
+			}
+		}
+	});
+}
+
+//----------------------------------------------------------------------//
+// UMassCrowdDynamicObstacleProcessor
+//----------------------------------------------------------------------//
+
+UMassCrowdDynamicObstacleProcessor::UMassCrowdDynamicObstacleProcessor()
+	: EntityQuery_Conditional(*this)
+{
+	bAutoRegisterWithProcessingPhases = true;
+
+	ExecutionOrder.ExecuteBefore.Add(UE::Mass::ProcessorGroupNames::UpdateAnnotationTags);
+}
+
+void UMassCrowdDynamicObstacleProcessor::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+
+	ZoneGraphAnnotationSubsystem = UWorld::GetSubsystem<UZoneGraphAnnotationSubsystem>(Owner.GetWorld());
+	checkf(ZoneGraphAnnotationSubsystem != nullptr, TEXT("UZoneGraphAnnotationSubsystem is mandatory when using this processor."));
+}
+
+void UMassCrowdDynamicObstacleProcessor::ConfigureQueries()
+{
+	EntityQuery_Conditional.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassVelocityFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	EntityQuery_Conditional.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddRequirement<FMassCrowdObstacleFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery_Conditional.AddRequirement<FMassSimulationVariableTickFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	EntityQuery_Conditional.AddChunkRequirement<FMassSimulationVariableTickChunkFragment>(EMassFragmentAccess::ReadOnly, EMassFragmentPresence::Optional);
+	EntityQuery_Conditional.SetChunkFilter(&FMassSimulationVariableTickChunkFragment::ShouldTickChunkThisFrame);
+}
+
+void UMassCrowdDynamicObstacleProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	UWorld* World = EntityManager.GetWorld();
+	const UMassCrowdSettings* CrowdSettings = GetDefault<UMassCrowdSettings>();
+	checkf(CrowdSettings, TEXT("Settings default object is always expected to be valid"));
+
+	EntityQuery_Conditional.ForEachEntityChunk(EntityManager, Context, [this, World, CrowdSettings](FMassExecutionContext& Context)
+	{
+		const int32 NumEntities = Context.GetNumEntities();
+
+		const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+		const TConstArrayView<FMassVelocityFragment> VelocityList = Context.GetFragmentView<FMassVelocityFragment>();
+		const TConstArrayView<FAgentRadiusFragment> RadiusList = Context.GetFragmentView<FAgentRadiusFragment>();
+		const TArrayView<FMassCrowdObstacleFragment> ObstacleDataList = Context.GetMutableFragmentView<FMassCrowdObstacleFragment>();
+		const TConstArrayView<FMassSimulationVariableTickFragment> SimVariableTickList = Context.GetFragmentView<FMassSimulationVariableTickFragment>();
+
+		const bool bHasVelocity = VelocityList.Num() > 0;
+		const bool bHasVariableTick = (SimVariableTickList.Num() > 0);
+		const float WorldDeltaTime = Context.GetDeltaTimeSeconds();
+
+		const float ObstacleMovingDistanceTolerance = CrowdSettings->ObstacleMovingDistanceTolerance;
+		const float ObstacleStoppingSpeedTolerance = CrowdSettings->ObstacleStoppingSpeedTolerance;
+		const float ObstacleTimeToStop = CrowdSettings->ObstacleTimeToStop;
+		const float ObstacleEffectRadius = CrowdSettings->ObstacleEffectRadius;
+		
+		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
+		{
+			// @todo: limit update frequency, this does not need to occur every frame
+			const FVector Position = LocationList[EntityIndex].GetTransform().GetLocation();
+			const float Radius = RadiusList[EntityIndex].Radius;
+			FMassCrowdObstacleFragment& Obstacle = ObstacleDataList[EntityIndex];
+			const float DeltaTime = FMath::Max(KINDA_SMALL_NUMBER, bHasVariableTick ? SimVariableTickList[EntityIndex].DeltaTime : WorldDeltaTime);
+
+			UE_VLOG_LOCATION(this, LogMassNavigationObstacle, Display, Position, Radius, Obstacle.bIsMoving ? FColor::Green : FColor::Red, TEXT(""));
+
+			if (Obstacle.bIsMoving)
+			{
+				// Calculate current speed based on velocity or last known position.
+				const FVector::FReal CurrentSpeed = bHasVelocity ? VelocityList[EntityIndex].Value.Length() : (FVector::Dist(Position, Obstacle.LastPosition) / DeltaTime);
+
+				// Update position while moving, the stop logic will use the last position while check if the obstacles moves again.
+				Obstacle.LastPosition = Position;
+
+				// Keep track how long the obstacle has been almost stationary.
+				if (CurrentSpeed < ObstacleStoppingSpeedTolerance)
+				{
+					Obstacle.TimeSinceStopped += DeltaTime;
+				}
+				else
+				{
+					Obstacle.TimeSinceStopped = 0.0f;
+				}
+				
+				// If the obstacle has been almost stationary for a while, mark it as obstacle.
+				if (Obstacle.TimeSinceStopped > ObstacleTimeToStop)
+				{
+					ensureMsgf(Obstacle.LaneObstacleID.IsValid() == false, TEXT("Obstacle should not have been set."));
+						
+					Obstacle.bIsMoving = false;
+					Obstacle.LaneObstacleID = FMassLaneObstacleID::GetNextUniqueID();
+
+					// Add an obstacle disturbance.
+					FZoneGraphObstacleDisturbanceArea Disturbance;
+					Disturbance.Position = Obstacle.LastPosition;
+					Disturbance.Radius = ObstacleEffectRadius;
+					Disturbance.ObstacleRadius = Radius;
+					Disturbance.ObstacleID = Obstacle.LaneObstacleID;
+					Disturbance.Action = EZoneGraphObstacleDisturbanceAreaAction::Add;
+					ZoneGraphAnnotationSubsystem->SendEvent(Disturbance);
+				}
+			}
+			else
+			{
+				Obstacle.TimeSinceStopped += DeltaTime;
+
+				// If the obstacle moves outside movement tolerance, mark it as moving, and remove it as obstacle.
+				if (FVector::Dist(Position, Obstacle.LastPosition) > ObstacleMovingDistanceTolerance)				
+				{
+					ensureMsgf(Obstacle.LaneObstacleID.IsValid(), TEXT("Obstacle should have been set."));
+
+					FZoneGraphObstacleDisturbanceArea Disturbance;
+					Disturbance.ObstacleID = Obstacle.LaneObstacleID;
+					Disturbance.Action = EZoneGraphObstacleDisturbanceAreaAction::Remove;
+					ZoneGraphAnnotationSubsystem->SendEvent(Disturbance);
+
+					Obstacle.bIsMoving = true;
+					Obstacle.TimeSinceStopped = 0.0f;
+					Obstacle.LaneObstacleID = FMassLaneObstacleID();
+				}
+			}
+		}
+	});
+}
+
+//----------------------------------------------------------------------//
+// UMassCrowdDynamicObstacleInitializer
+//----------------------------------------------------------------------//
+UMassCrowdDynamicObstacleInitializer::UMassCrowdDynamicObstacleInitializer()
+	: EntityQuery(*this)
+{
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
+	ObservedType = FMassCrowdObstacleFragment::StaticStruct();
+	Operation = EMassObservedOperation::Add;
+}
+
+void UMassCrowdDynamicObstacleInitializer::ConfigureQueries()
+{
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassCrowdObstacleFragment>(EMassFragmentAccess::ReadWrite);
+}
+
+void UMassCrowdDynamicObstacleInitializer::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	UWorld* World = EntityManager.GetWorld();
+	
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [World](FMassExecutionContext& Context)
+	{
+		const int32 NumEntities = Context.GetNumEntities();
+		const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+		const TArrayView<FMassCrowdObstacleFragment> ObstacleDataList = Context.GetMutableFragmentView<FMassCrowdObstacleFragment>();
+
+		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
+		{
+			const FVector Position = LocationList[EntityIndex].GetTransform().GetLocation();
+			FMassCrowdObstacleFragment& Obstacle = ObstacleDataList[EntityIndex];
+
+			Obstacle.LastPosition = Position;
+			Obstacle.TimeSinceStopped = 0.0f;
+			Obstacle.bIsMoving = true;
+		}
+	});
+}
+
+
+//----------------------------------------------------------------------//
+// UMassCrowdDynamicObstacleDeinitializer
+//----------------------------------------------------------------------//
+UMassCrowdDynamicObstacleDeinitializer::UMassCrowdDynamicObstacleDeinitializer()
+	: EntityQuery(*this)
+{
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Standalone | EProcessorExecutionFlags::Server);
+	ObservedType = FMassCrowdObstacleFragment::StaticStruct();
+	Operation = EMassObservedOperation::Remove;
+}
+
+void UMassCrowdDynamicObstacleDeinitializer::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+
+	UWorld* World = Owner.GetWorld();
+	ZoneGraphAnnotationSubsystem = UWorld::GetSubsystem<UZoneGraphAnnotationSubsystem>(World);
+	checkf(ZoneGraphAnnotationSubsystem != nullptr || (World && World->WorldType == EWorldType::Inactive)
+		, TEXT("UZoneGraphAnnotationSubsystem is mandatory when using this processor."));
+}
+
+void UMassCrowdDynamicObstacleDeinitializer::ConfigureQueries()
+{
+	EntityQuery.AddRequirement<FMassCrowdObstacleFragment>(EMassFragmentAccess::ReadWrite);
+}
+
+void UMassCrowdDynamicObstacleDeinitializer::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
+	{
+		const int32 NumEntities = Context.GetNumEntities();
+		const TArrayView<FMassCrowdObstacleFragment> ObstacleDataList = Context.GetMutableFragmentView<FMassCrowdObstacleFragment>();
+
+		for (int32 EntityIndex = 0; EntityIndex < NumEntities; ++EntityIndex)
+		{
+			FMassCrowdObstacleFragment& Obstacle = ObstacleDataList[EntityIndex];
+
+			if (Obstacle.LaneObstacleID.IsValid())
+			{
+				FZoneGraphObstacleDisturbanceArea Disturbance;
+				Disturbance.ObstacleID = Obstacle.LaneObstacleID;
+				Disturbance.Action = EZoneGraphObstacleDisturbanceAreaAction::Remove;
+				ZoneGraphAnnotationSubsystem->SendEvent(Disturbance);
+
+				// Reset obstacle
+				Obstacle = FMassCrowdObstacleFragment();
+			}
+		}
+	});
+}
+
+==========================================================
+
+
+=== MassCrowd/Private/MassCrowdReplicator.cpp ===
+=================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdReplicator.h"
+#include "MassCrowdBubble.h"
+#include "MassExecutionContext.h"
+
+//----------------------------------------------------------------------//
+//  UMassCrowdReplicator
+//----------------------------------------------------------------------//
+void UMassCrowdReplicator::AddRequirements(FMassEntityQuery& EntityQuery)
+{
+	FMassReplicationProcessorPositionYawHandler::AddRequirements(EntityQuery);
+	FMassReplicationProcessorPathHandler::AddRequirements(EntityQuery);
+}
+
+void UMassCrowdReplicator::ProcessClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext)
+{
+#if UE_REPLICATION_COMPILE_SERVER_CODE
+
+	FMassReplicationProcessorPathHandler PathHandler;
+	FMassReplicationProcessorPositionYawHandler PositionYawHandler;
+	FMassReplicationSharedFragment* RepSharedFrag = nullptr;
+
+	auto CacheViewsCallback = [&RepSharedFrag, &PathHandler, &PositionYawHandler](FMassExecutionContext& Context)
+	{
+		PathHandler.CacheFragmentViews(Context);
+		PositionYawHandler.CacheFragmentViews(Context);
+		RepSharedFrag = &Context.GetMutableSharedFragment<FMassReplicationSharedFragment>();
+		check(RepSharedFrag);
+	};
+
+	auto AddEntityCallback = [&RepSharedFrag, &PathHandler, &PositionYawHandler](FMassExecutionContext& Context, const int32 EntityIdx, FReplicatedCrowdAgent& InReplicatedAgent, const FMassClientHandle ClientHandle)->FMassReplicatedAgentHandle
+	{
+		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = RepSharedFrag->GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
+
+		PathHandler.AddEntity(EntityIdx, InReplicatedAgent.GetReplicatedPathDataMutable());
+		PositionYawHandler.AddEntity(EntityIdx, InReplicatedAgent.GetReplicatedPositionYawDataMutable());
+
+		return CrowdBubbleInfo.GetCrowdSerializer().Bubble.AddAgent(Context.GetEntity(EntityIdx), InReplicatedAgent);
+	};
+
+	auto ModifyEntityCallback = [&RepSharedFrag, &PathHandler](FMassExecutionContext& Context, const int32 EntityIdx, const EMassLOD::Type LOD, const double Time, const FMassReplicatedAgentHandle Handle, const FMassClientHandle ClientHandle)
+	{
+		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = RepSharedFrag->GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
+
+		FMassCrowdClientBubbleHandler& Bubble = CrowdBubbleInfo.GetCrowdSerializer().Bubble;
+
+		const bool bLastClient = RepSharedFrag->CachedClientHandles.Last() == ClientHandle;
+		PathHandler.ModifyEntity<FCrowdFastArrayItem>(Handle, EntityIdx, Bubble.GetPathHandlerMutable(), bLastClient);
+
+		// Don't call the PositionYawHandler here as we currently only replicate the position and yaw when we add an entity to Mass
+	};
+
+	auto RemoveEntityCallback = [&RepSharedFrag](FMassExecutionContext& Context, const FMassReplicatedAgentHandle Handle, const FMassClientHandle ClientHandle)
+	{
+		AMassCrowdClientBubbleInfo& CrowdBubbleInfo = RepSharedFrag->GetTypedClientBubbleInfoChecked<AMassCrowdClientBubbleInfo>(ClientHandle);
+
+		CrowdBubbleInfo.GetCrowdSerializer().Bubble.RemoveAgentChecked(Handle);
+	};
+
+	CalculateClientReplication<FCrowdFastArrayItem>(Context, ReplicationContext, CacheViewsCallback, AddEntityCallback, ModifyEntityCallback, RemoveEntityCallback);
+#endif // UE_REPLICATION_COMPILE_SERVER_CODE
+}
+
+=================================================
+
+
+=== MassCrowd/Private/MassCrowdRepresentationActorManagement.cpp ===
+====================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdRepresentationActorManagement.h"
+ #include "Components/SkeletalMeshComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Character.h"
+#include "MassAgentComponent.h"
+#include "MassRepresentationSubsystem.h"
+
+void UMassCrowdRepresentationActorManagement::SetActorEnabled(const EMassActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const
+{
+	Super::SetActorEnabled(EnabledType, Actor, EntityIdx, CommandBuffer);
+
+	const bool bEnabled = EnabledType != EMassActorEnabledType::Disabled;
+
+	USkeletalMeshComponent* SkeletalMeshComponent = Actor.FindComponentByClass<USkeletalMeshComponent>();
+	if (SkeletalMeshComponent)
+	{
+		// Enable/disable the ticking and visibility of SkeletalMesh and its children
+		SkeletalMeshComponent->SetVisibility(bEnabled);
+		SkeletalMeshComponent->SetComponentTickEnabled(bEnabled);
+		const TArray<USceneComponent*>& AttachedChildren = SkeletalMeshComponent->GetAttachChildren();
+		if (AttachedChildren.Num() > 0)
+		{
+			TInlineComponentArray<USceneComponent*, NumInlinedActorComponents> ComponentStack;
+
+			ComponentStack.Append(AttachedChildren);
+			while (ComponentStack.Num() > 0)
+			{
+				USceneComponent* const CurrentComp = ComponentStack.Pop(EAllowShrinking::No);
+				if (CurrentComp)
+				{
+					ComponentStack.Append(CurrentComp->GetAttachChildren());
+					CurrentComp->SetVisibility(bEnabled);
+					if (bEnabled)
+					{
+						// Re-enable only if it was enabled at startup
+						CurrentComp->SetComponentTickEnabled(CurrentComp->PrimaryComponentTick.bStartWithTickEnabled);
+					}
+					else
+					{
+						CurrentComp->SetComponentTickEnabled(false);
+					}
+				}
+			}
+		}
+	}
+
+	// Enable/disable the ticking of CharacterMovementComponent as well
+	ACharacter* Character = Cast<ACharacter>(&Actor);
+	UCharacterMovementComponent* MovementComp = Character != nullptr ? Character->GetCharacterMovement() : nullptr;
+	if (MovementComp != nullptr)
+	{
+		MovementComp->SetComponentTickEnabled(bEnabled);
+	}
+
+	// when we "suspend" the puppet actor we need to let the agent subsystem know by unregistering the agent component
+	// associated with the actor. This will result in removing all the puppet-actor-specific fragments which in turn
+	// will exclude the owner entity from being processed by puppet-specific processors (usually translators).
+	if (UMassAgentComponent* AgentComp = Actor.FindComponentByClass<UMassAgentComponent>())
+	{
+		AgentComp->PausePuppet(!bEnabled);
+	}
+}
+
+AActor* UMassCrowdRepresentationActorManagement::GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem
+	, FMassEntityManager& EntityManager, const FMassEntityHandle MassAgent, const FTransform& Transform
+	, const int16 TemplateActorIndex, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const
+{
+	FTransform RootTransform = Transform;
+	
+	if (const AActor* DefaultActor = RepresentationSubsystem.GetTemplateActorClass(TemplateActorIndex).GetDefaultObject())
+	{
+		if (const UCapsuleComponent* CapsuleComp = DefaultActor->FindComponentByClass<UCapsuleComponent>())
+		{
+			RootTransform.AddToTranslation(FVector(0.0f, 0.0f, CapsuleComp->GetScaledCapsuleHalfHeight()));
+		}
+	}
+
+	return Super::GetOrSpawnActor(RepresentationSubsystem, EntityManager, MassAgent, RootTransform, TemplateActorIndex, SpawnRequestHandle, Priority);
+}
+
+void UMassCrowdRepresentationActorManagement::TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer) const
+{
+	FTransform RootTransform = Transform;
+
+	if (const UCapsuleComponent* CapsuleComp = Actor.FindComponentByClass<UCapsuleComponent>())
+	{
+		const FVector HalfHeight(0.0f, 0.0f, CapsuleComp->GetScaledCapsuleHalfHeight());
+		RootTransform.AddToTranslation(HalfHeight);
+		const FVector RootLocation = RootTransform.GetLocation();
+		const FVector SweepOffset(0.0f, 0.0f, 20.0f);
+		const FVector Start = RootLocation + SweepOffset;
+		const FVector End = RootLocation - SweepOffset;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(&Actor);
+		FHitResult OutHit;
+		if (Actor.GetWorld()->SweepSingleByChannel(OutHit, Start, End, Transform.GetRotation(), CapsuleComp->GetCollisionObjectType(), CapsuleComp->GetCollisionShape(), Params))
+		{
+			RootTransform.SetLocation(OutHit.Location);
+		}
+	}
+	Super::TeleportActor(RootTransform, Actor, CommandBuffer);
+}
+
+====================================================================
+
+
+=== MassCrowd/Private/MassCrowdRepresentationSubsystem.cpp ===
+==============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdRepresentationSubsystem.h"
+#include "MassCrowdSpawnerSubsystem.h"
+#include "Engine/World.h"
+
+void UMassCrowdRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Collection.InitializeDependency(UMassCrowdSpawnerSubsystem::StaticClass());
+
+	Super::Initialize(Collection);
+
+	ActorSpawnerSubsystem = UWorld::GetSubsystem<UMassCrowdSpawnerSubsystem>(GetWorld());
+}
+
+==============================================================
+
+
+=== MassCrowd/Private/MassCrowdServerRepresentationLODProcessor.cpp ===
+=======================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdServerRepresentationLODProcessor.h"
+#include "MassCommonTypes.h"
+#include "MassCommonFragments.h"
+#include "MassCrowdFragments.h"
+#include "MassExecutionContext.h"
+#include "MassRepresentationFragments.h"
+#include "MassEntityManager.h"
+
+namespace UE::MassCrowd
+{
+	int32 bDebugCrowdServerRepresentationLOD = 0;
+	FAutoConsoleVariableRef CVarDebugServerRepresentationLODTest(TEXT("mass.debug.CrowdServerRepresentationLOD"), bDebugCrowdServerRepresentationLOD, TEXT("Debug Crowd ServerRepresentation LOD"), ECVF_Cheat);
+} // UE::MassCrowd
+
+UMassCrowdServerRepresentationLODProcessor::UMassCrowdServerRepresentationLODProcessor()
+	: EntityQuery(*this)
+{
+	ExecutionFlags = (int32)EProcessorExecutionFlags::Server;
+
+	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LODCollector);
+
+	LODDistance[EMassLOD::High] = 0.0f;
+	LODDistance[EMassLOD::Medium] = 5000.0f;
+	LODDistance[EMassLOD::Low] = 5000.0f;
+	LODDistance[EMassLOD::Off] = 5000.0f;
+	
+	LODMaxCount[EMassLOD::High] = 50;
+	LODMaxCount[EMassLOD::Medium] = 0;
+	LODMaxCount[EMassLOD::Low] = 0;
+	LODMaxCount[EMassLOD::Off] = INT_MAX;
+}
+
+void UMassCrowdServerRepresentationLODProcessor::ConfigureQueries()
+{
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassViewerInfoFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassRepresentationLODFragment>(EMassFragmentAccess::ReadWrite);
+
+	ProcessorRequirements.AddSubsystemRequirement<UMassLODSubsystem>(EMassFragmentAccess::ReadOnly);
+}
+
+void UMassCrowdServerRepresentationLODProcessor::Initialize(UObject& InOwner)
+{
+	LODCalculator.Initialize(LODDistance, BufferHysteresisOnDistancePercentage / 100.0f, LODMaxCount);
+
+	Super::Initialize(InOwner);
+}
+
+void UMassCrowdServerRepresentationLODProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(CrowdServerRepresentationLOD)
+
+	const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>();
+	const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
+	LODCalculator.PrepareExecution(Viewers);
+	
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CalculateLOD)
+		
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FMassViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassViewerInfoFragment>();
+			const TArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
+			LODCalculator.CalculateLOD(Context, ViewersInfoList, RepresentationLODFragments);
+		});
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AdjustDistancesAndLODFromCount)
+		
+		if (LODCalculator.AdjustDistancesFromCount())
+		{
+			EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](FMassExecutionContext& Context)
+			{
+				const TConstArrayView<FMassViewerInfoFragment> ViewersInfoList = Context.GetFragmentView<FMassViewerInfoFragment>();
+				const TArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetMutableFragmentView<FMassRepresentationLODFragment>();
+				LODCalculator.AdjustLODFromCount(Context, ViewersInfoList, RepresentationLODFragments);
+			});
+		}
+	}
+
+#if WITH_MASSGAMEPLAY_DEBUG
+	// Optional debug display
+	if (UE::MassCrowd::bDebugCrowdServerRepresentationLOD)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DebugDisplayLOD)
+		UWorld* World = EntityManager.GetWorld();
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [this, World](FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+			const TConstArrayView<FMassRepresentationLODFragment> RepresentationLODFragments = Context.GetFragmentView<FMassRepresentationLODFragment>();
+			LODCalculator.DebugDisplayLOD(Context, RepresentationLODFragments, LocationList, World);
+		});
+	}
+#endif // WITH_MASSGAMEPLAY_DEBUG
+}
+
+=======================================================================
+
+
+=== MassCrowd/Private/MassCrowdServerRepresentationProcessor.cpp ===
+====================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdServerRepresentationProcessor.h"
+#include "MassCrowdFragments.h"
+#include "MassLODTypes.h"
+
+UMassCrowdServerRepresentationProcessor::UMassCrowdServerRepresentationProcessor()
+{
+	ExecutionFlags = (int32)EProcessorExecutionFlags::Server;
+
+	bAutoRegisterWithProcessingPhases = true;
+	bRequiresGameThreadExecution = true;
+
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
+}
+
+void UMassCrowdServerRepresentationProcessor::ConfigureQueries()
+{
+	Super::ConfigureQueries();
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+}
+
+====================================================================
+
+
+=== MassCrowd/Private/MassCrowdServerRepresentationTrait.cpp ===
+================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdServerRepresentationTrait.h"
+#include "MassEntityManager.h"
+#include "MassEntityTemplateRegistry.h"
+#include "MassCrowdRepresentationSubsystem.h"
+#include "MassCrowdRepresentationActorManagement.h"
+#include "MassActorSubsystem.h"
+#include "MassEntityUtils.h"
+
+
+UMassCrowdServerRepresentationTrait::UMassCrowdServerRepresentationTrait()
+{
+	Params.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
+	Params.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Params.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::None;
+	Params.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::None;
+	Params.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
+	Params.bKeepLowResActors = false;
+	Params.bKeepActorExtraFrame = false;
+	Params.bSpreadFirstVisualizationUpdate = false;
+	Params.WorldPartitionGridNameContainingCollision = NAME_None;
+	Params.NotVisibleUpdateRate = 0.5f;
+}
+
+void UMassCrowdServerRepresentationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const
+{
+	// This should only be ran on NM_DedicatedServer network mode
+	if (!World.IsNetMode(NM_DedicatedServer) && !BuildContext.IsInspectingData())
+	{
+		return;
+	}
+	
+	BuildContext.RequireFragment<FMassViewerInfoFragment>();
+	BuildContext.RequireFragment<FTransformFragment>();
+	BuildContext.RequireFragment<FMassActorFragment>();
+
+	FMassEntityManager& EntityManager = UE::Mass::Utils::GetEntityManagerChecked(World);
+
+	UMassCrowdRepresentationSubsystem* RepresentationSubsystem = World.GetSubsystem<UMassCrowdRepresentationSubsystem>();
+	check(RepresentationSubsystem || BuildContext.IsInspectingData());
+
+	FMassRepresentationSubsystemSharedFragment SubsystemSharedFragment;
+	SubsystemSharedFragment.RepresentationSubsystem = RepresentationSubsystem;
+	FSharedStruct SubsystemFragment = EntityManager.GetOrCreateSharedFragment<FMassRepresentationSubsystemSharedFragment>(SubsystemSharedFragment);
+	BuildContext.AddSharedFragment(SubsystemFragment);
+
+	FConstSharedStruct ParamsFragment = EntityManager.GetOrCreateConstSharedFragment(Params);
+	ParamsFragment.Get<const FMassRepresentationParameters>().ComputeCachedValues();
+	BuildContext.AddConstSharedFragment(ParamsFragment);
+
+	FMassRepresentationFragment& RepresentationFragment = BuildContext.AddFragment_GetRef<FMassRepresentationFragment>();
+	RepresentationFragment.StaticMeshDescHandle = FStaticMeshInstanceVisualizationDescHandle();
+	if (!BuildContext.IsInspectingData())
+	{
+		RepresentationFragment.HighResTemplateActorIndex = TemplateActor.Get() ? RepresentationSubsystem->FindOrAddTemplateActor(TemplateActor.Get()) : INDEX_NONE;
+	}
+	RepresentationFragment.LowResTemplateActorIndex = INDEX_NONE;
+
+	BuildContext.AddFragment<FMassRepresentationLODFragment>();
+
+	// @todo figure out if this chunk fragment is really needed?
+	BuildContext.AddChunkFragment<FMassVisualizationChunkFragment>();
+}
+
+================================================================
+
+
+=== MassCrowd/Private/MassCrowdSettings.cpp ===
+===============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdSettings.h"
+
+#if WITH_EDITOR
+void UMassCrowdSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	FProperty* Property = PropertyChangedEvent.Property;
+	FProperty* MemberProperty = nullptr;
+	if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode())
+	{
+		MemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
+	}
+
+	if (MemberProperty != nullptr && Property != nullptr)
+	{
+		const FName MemberPropertyName = MemberProperty->GetFName();
+		const FName PropertyName = Property->GetFName();
+		if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, LaneDensities) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, CrowdTag) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, CrossingTag) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, SlotSize) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, SlotOffset))
+		{
+			OnMassCrowdLaneDataSettingsChanged.Broadcast();
+		}
+
+		if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, LaneBaseLineThickness) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, LaneRenderZOffset) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, IntersectionLaneScaleFactor) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, LaneDensityScaleFactor) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, OpenedLaneColor) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, ClosedLaneColor) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, bDisplayTrackingData) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, bDisplayStates) ||
+			MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, bDisplayDensities) ||
+			(MemberPropertyName == GET_MEMBER_NAME_CHECKED(UMassCrowdSettings, LaneDensities) && PropertyName == GET_MEMBER_NAME_CHECKED(FMassCrowdLaneDensityDesc, RenderColor)))
+		{
+			OnMassCrowdLaneRenderSettingsChanged.Broadcast();
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+===============================================
+
+
+=== MassCrowd/Private/MassCrowdSubsystem.cpp ===
+================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdSubsystem.h"
+#include "MassSimulationSubsystem.h"
+#include "MassCrowdBubble.h"
+#include "MassCrowdSettings.h"
+#include "Subsystems/Subsystem.h"
+#include "ZoneGraphAnnotationSubsystem.h"
+#include "ZoneGraphCrowdLaneAnnotations.h"
+#include "ZoneGraphDelegates.h"
+#include "ZoneGraphQuery.h"
+#include "ZoneGraphSubsystem.h"
+#include "VisualLogger/VisualLogger.h"
+
+#if WITH_MASSGAMEPLAY_DEBUG
+namespace UE::MassCrowdDebug
+{
+bool bForceFillIntersectionLanes = false;
+FAutoConsoleVariableRef CVars[] =
+{
+	FAutoConsoleVariableRef(TEXT("ai.mass.CrowdForceFillIntersections"),
+							UE::MassCrowdDebug::bForceFillIntersectionLanes,
+							TEXT("Modify lane selection to always choose a non full closed lane (if any)."), ECVF_Cheat)
+};
+
+#if WITH_EDITOR
+static FAutoConsoleCommandWithWorld RebuildCmd(
+	TEXT("ai.mass.CrowdRebuildLaneData"),
+	TEXT("Clears and rebuilds lane and intersection data for registered zone graphs using MassCrowd settings."),
+	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld* World)
+	{
+		if (UMassCrowdSubsystem* MassCrowdSubsystem = World != nullptr ? World->GetSubsystem<UMassCrowdSubsystem>() : nullptr)
+		{
+			MassCrowdSubsystem->RebuildLaneData();
+		}
+	}));
+#endif // WITH_EDITOR
+}// namespace UE::MassCrowdDebug
+#endif // WITH_MASSGAMEPLAY_DEBUG
+
+//----------------------------------------------------------------------//
+// UMassCrowdSubsystem
+//----------------------------------------------------------------------//
+void UMassCrowdSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	Collection.InitializeDependency<UMassSimulationSubsystem>();
+	ZoneGraphSubsystem = Collection.InitializeDependency<UZoneGraphSubsystem>();
+	ZoneGraphAnnotationSubsystem = Collection.InitializeDependency<UZoneGraphAnnotationSubsystem>();
+
+	// Cache settings
+	MassCrowdSettings = GetDefault<UMassCrowdSettings>();
+
+	// Compute the combined mask regrouping all possible densities
+	// This must be updated before registering zone graphs
+	UpdateDensityMask();
+
+	// Register existing data.
+	for (const FRegisteredZoneGraphData& Registered : ZoneGraphSubsystem->GetRegisteredZoneGraphData())
+	{
+		if (Registered.bInUse && Registered.ZoneGraphData != nullptr)
+		{
+			PostZoneGraphDataAdded(Registered.ZoneGraphData);
+		}
+	}
+
+	OnPostZoneGraphDataAddedHandle = UE::ZoneGraphDelegates::OnPostZoneGraphDataAdded.AddUObject(this, &UMassCrowdSubsystem::PostZoneGraphDataAdded);
+	OnPreZoneGraphDataRemovedHandle = UE::ZoneGraphDelegates::OnPreZoneGraphDataRemoved.AddUObject(this, &UMassCrowdSubsystem::PreZoneGraphDataRemoved);
+
+#if WITH_EDITOR
+	// Track density settings changes
+	OnMassCrowdSettingsChangedHandle = MassCrowdSettings->OnMassCrowdLaneDataSettingsChanged.AddLambda([this]()
+	{
+		UpdateDensityMask();
+		RebuildLaneData();
+	});
+
+	OnZoneGraphDataBuildDoneHandle = UE::ZoneGraphDelegates::OnZoneGraphDataBuildDone.AddLambda([this](const FZoneGraphBuildData& /*BuildData*/)
+	{
+		UpdateDensityMask();
+		RebuildLaneData();
+	});
+#endif
+
+	HandleLateCreation();
+}
+
+void UMassCrowdSubsystem::Deinitialize()
+{
+#if WITH_EDITOR
+	checkf(MassCrowdSettings, TEXT("UMassCrowdSettings CDO should have been cached in Initialize"));
+	MassCrowdSettings->OnMassCrowdLaneDataSettingsChanged.Remove(OnMassCrowdSettingsChangedHandle);
+
+	UE::ZoneGraphDelegates::OnZoneGraphDataBuildDone.Remove(OnZoneGraphDataBuildDoneHandle);
+#endif
+
+	UE::ZoneGraphDelegates::OnPostZoneGraphDataAdded.Remove(OnPostZoneGraphDataAddedHandle);
+	UE::ZoneGraphDelegates::OnPreZoneGraphDataRemoved.Remove(OnPreZoneGraphDataRemovedHandle);
+
+	Super::Deinitialize();
+}
+
+void UMassCrowdSubsystem::PostInitialize()
+{
+	Super::PostInitialize();
+
+	UMassReplicationSubsystem* ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(GetWorld());
+
+	check(ReplicationSubsystem);
+	ReplicationSubsystem->RegisterBubbleInfoClass(AMassCrowdClientBubbleInfo::StaticClass());
+}
+
+void UMassCrowdSubsystem::PostZoneGraphDataAdded(const AZoneGraphData* ZoneGraphData)
+{
+	const UWorld* World = GetWorld();
+
+	// Only consider valid graph from our world
+	if (ZoneGraphData == nullptr || ZoneGraphData->GetWorld() != World)
+	{
+		return;
+	}
+
+	const FString WorldName = World->GetName();
+
+	const FZoneGraphStorage& Storage = ZoneGraphData->GetStorage();
+	const int32 Index = Storage.DataHandle.Index;
+
+	UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("%s adding data %d/%d"), *WorldName, Storage.DataHandle.Index, Storage.DataHandle.Generation);
+
+	if (Index >= RegisteredLaneData.Num())
+	{
+		RegisteredLaneData.SetNum(Index + 1);
+	}
+
+	FRegisteredCrowdLaneData& LaneData = RegisteredLaneData[Index];
+	if (LaneData.DataHandle != Storage.DataHandle)
+	{
+		// Initialize lane data if here the first time.
+		BuildLaneData(LaneData, Storage);
+	}
+}
+
+void UMassCrowdSubsystem::PreZoneGraphDataRemoved(const AZoneGraphData* ZoneGraphData)
+{
+	// Only consider valid graph from our world
+	if (ZoneGraphData == nullptr || ZoneGraphData->GetWorld() != GetWorld())
+	{
+		return;
+	}
+
+	const FZoneGraphStorage& Storage = ZoneGraphData->GetStorage();
+	const int32 Index = Storage.DataHandle.Index;
+
+	if (!RegisteredLaneData.IsValidIndex(Index))
+	{
+		return;
+	}
+
+	FRegisteredCrowdLaneData& LaneData = RegisteredLaneData[Index];
+	LaneData.Reset();
+}
+
+void UMassCrowdSubsystem::BuildLaneData(FRegisteredCrowdLaneData& LaneData, const FZoneGraphStorage& Storage)
+{
+	LaneData.DataHandle = Storage.DataHandle;
+	LaneData.CrowdLaneDataArray.Reset(Storage.Lanes.Num());
+	LaneData.CrowdLaneDataArray.SetNum(Storage.Lanes.Num());
+
+	// Graph may contain lanes that won't be used by the crowd so let's filter them at least for the intersection data.
+	// regular lane data is always created to preserve fast index based access.
+	const FZoneGraphTag CrowdTag = MassCrowdSettings->CrowdTag;
+	const FZoneGraphTag CrossingTag = MassCrowdSettings->CrossingTag;
+
+	checkf(ZoneGraphAnnotationSubsystem != nullptr, TEXT("ZoneGraphAnnotationSubsystem should be initialized from the subsystem collection dependencies."));
+
+	TArray<FZoneGraphLinkedLane> Links;
+	for (int32 LaneIndex = 0; LaneIndex < Storage.Lanes.Num(); ++LaneIndex)
+	{
+		const FZoneLaneData& ZoneLaneData = Storage.Lanes[LaneIndex];
+		if (!ZoneLaneData.Tags.Contains(CrowdTag))
+		{
+			continue;
+		}
+
+		UE::ZoneGraph::Query::GetLinkedLanes(Storage, LaneIndex, EZoneLaneLinkType::Incoming, EZoneLaneLinkFlags::All, EZoneLaneLinkFlags::None, Links);
+
+		// We only need tracking data for crossing lanes ond their incoming lanes
+		if (ZoneLaneData.Tags.Contains(CrossingTag))
+		{
+			CreateTrackingData(LaneIndex, Storage);
+
+			// Close all crossings by default.
+			ZoneGraphAnnotationSubsystem->SendEvent(FZoneGraphCrowdLaneStateChangeEvent({LaneIndex, Storage.DataHandle}, ECrowdLaneState::Closed));
+
+			const int32 WaitAreaIndex = LaneData.WaitAreas.AddDefaulted();
+			FCrowdWaitAreaData& WaitingArea = LaneData.WaitAreas[WaitAreaIndex];
+			CreateWaitSlots(LaneIndex, WaitingArea, Storage);
+			for (const FZoneGraphLinkedLane& Link : Links)
+			{
+				FCrowdTrackingLaneData& TrackingData = CreateTrackingData(Link.DestLane.Index, Storage);
+				TrackingData.WaitAreaIndex = WaitAreaIndex;
+
+				WaitingArea.ConnectedLanes.Add(Link.DestLane);
+			}
+		}
+
+		// We only need branching data for merging/splitting lanes since they require per lane density
+		const bool bRequiresBranchingData = (Links.Num() > 1);
+		if (bRequiresBranchingData)
+		{
+			for (const FZoneGraphLinkedLane& Link : Links)
+			{
+				CreateBranchingData(Link.DestLane.Index, Storage);
+			}
+		}
+ 	}
+}
+
+TOptional<FZoneGraphCrowdLaneData> UMassCrowdSubsystem::GetCrowdLaneData(const FZoneGraphLaneHandle LaneHandle) const
+{
+	TOptional<FZoneGraphCrowdLaneData> LaneData;
+	if (const FZoneGraphCrowdLaneData* MutableLaneData = const_cast<UMassCrowdSubsystem*>(this)->GetMutableCrowdLaneData(LaneHandle))
+	{
+		LaneData = *MutableLaneData;
+	}
+	return LaneData;
+}
+
+FZoneGraphCrowdLaneData* UMassCrowdSubsystem::GetMutableCrowdLaneData(const FZoneGraphLaneHandle LaneHandle)
+{
+	if (!ensureMsgf(LaneHandle.IsValid(), TEXT("Invalid lane handle: returning an invalid entry.")))
+	{
+		return nullptr;
+	}
+
+	const int32 Index = LaneHandle.DataHandle.Index;
+	if (!ensureMsgf(RegisteredLaneData.IsValidIndex(Index), TEXT("Invalid lane handle index: returning an invalid entry.")))
+	{
+		return nullptr;
+	}
+
+	FRegisteredCrowdLaneData& LaneData = RegisteredLaneData[Index];
+	if (!ensureMsgf(LaneData.DataHandle == LaneHandle.DataHandle, TEXT("Mismatching data handle: returning an invalid entry.")))
+	{
+		return nullptr;
+	}
+
+	return &(LaneData.CrowdLaneDataArray[LaneHandle.Index]);
+}
+
+const FCrowdTrackingLaneData* UMassCrowdSubsystem::GetCrowdTrackingLaneData(const FZoneGraphLaneHandle LaneHandle) const
+{
+	if (!ensureMsgf(LaneHandle.IsValid(), TEXT("Invalid lane handle: returning a null entry.")))
+	{
+		return nullptr;
+	}
+
+	checkf(RegisteredLaneData.IsValidIndex(LaneHandle.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	const FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[LaneHandle.DataHandle.Index];
+	return CrowdLaneData.LaneToTrackingDataLookup.Find(LaneHandle.Index);
+}
+
+const FCrowdBranchingLaneData* UMassCrowdSubsystem::GetCrowdBranchingLaneData(const FZoneGraphLaneHandle LaneHandle) const
+{
+	if (!ensureMsgf(LaneHandle.IsValid(), TEXT("Invalid lane handle: returning a null entry.")))
+	{
+		return nullptr;
+	}
+
+	checkf(RegisteredLaneData.IsValidIndex(LaneHandle.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	const FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[LaneHandle.DataHandle.Index];
+	return CrowdLaneData.LaneToBranchingDataLookup.Find(LaneHandle.Index);
+}
+
+const FCrowdWaitAreaData* UMassCrowdSubsystem::GetCrowdWaitingAreaData(const FZoneGraphLaneHandle LaneHandle) const
+{
+	if (!ensureMsgf(LaneHandle.IsValid(), TEXT("Invalid lane handle: returning a null entry.")))
+	{
+		return nullptr;
+	}
+
+	checkf(RegisteredLaneData.IsValidIndex(LaneHandle.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	const FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[LaneHandle.DataHandle.Index];
+	const FCrowdTrackingLaneData* TrackingData = CrowdLaneData.LaneToTrackingDataLookup.Find(LaneHandle.Index);
+	
+	return (TrackingData && TrackingData->WaitAreaIndex != INDEX_NONE) ? &CrowdLaneData.WaitAreas[TrackingData->WaitAreaIndex] : nullptr;
+}
+
+#if WITH_EDITOR
+void UMassCrowdSubsystem::RebuildLaneData()
+{
+	if (ZoneGraphSubsystem == nullptr)
+	{
+		UE_VLOG_UELOG(this, LogMassNavigation, Warning, TEXT("%s called before ZoneGraphSubsystem is set. Nothing to do."), ANSI_TO_TCHAR(__FUNCTION__));
+		return;
+	};
+
+	UWorld* World = GetWorld();
+	if (World != nullptr && World->IsGameWorld())
+	{
+		UE_VLOG_UELOG(this, LogMassNavigation, Warning, TEXT("%s is not supported on game world since data is in use."), ANSI_TO_TCHAR(__FUNCTION__));
+		return;
+	}
+
+	for (FRegisteredCrowdLaneData& LaneData : RegisteredLaneData)
+	{
+		LaneData.LaneToTrackingDataLookup.Reset();
+		LaneData.LaneToBranchingDataLookup.Reset();
+		LaneData.WaitAreas.Reset();
+		const FZoneGraphStorage* Storage = ZoneGraphSubsystem->GetZoneGraphStorage(LaneData.DataHandle);
+		if (Storage)
+		{
+			BuildLaneData(LaneData, *Storage);
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+bool UMassCrowdSubsystem::HasCrowdDataForZoneGraph(const FZoneGraphDataHandle DataHandle) const
+{
+	if (!DataHandle.IsValid())
+	{
+		return false;
+	}
+
+	const int32 Index = DataHandle.Index;
+	if (!RegisteredLaneData.IsValidIndex(Index))
+	{
+		return false;
+	}
+
+	const FRegisteredCrowdLaneData& LaneData = RegisteredLaneData[Index];
+	if (LaneData.DataHandle != DataHandle)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+const FRegisteredCrowdLaneData* UMassCrowdSubsystem::GetCrowdData(const FZoneGraphDataHandle DataHandle) const
+{
+	if (!ensureMsgf(DataHandle.IsValid(), TEXT("Requesting crowd data using an invalid handle.")))
+	{
+		return nullptr;
+	}
+
+	const int32 Index = DataHandle.Index;
+	if (!ensureMsgf(RegisteredLaneData.IsValidIndex(Index),
+		TEXT("Requesting crowd data from a valid handle but associated data was not generated (e.g. Graph registration was not processed).")))
+	{
+		return nullptr;
+	}
+
+	const FRegisteredCrowdLaneData& LanesData = RegisteredLaneData[Index];
+	if (!ensureMsgf(LanesData.DataHandle == DataHandle,
+		TEXT("Mismatch between the graph handle stored in the associated crowd data and the provided handle (e.g. inconsistent registration/unregistration).")))
+	{
+		return nullptr;
+	}
+
+	return &LanesData;
+}
+
+void UMassCrowdSubsystem::OnEntityLaneChanged(const FMassEntityHandle Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle)
+{
+	const bool bPreviousLocationValid = PreviousLaneHandle.IsValid();
+	const bool bCurrentLocationValid = CurrentLaneHandle.IsValid();
+
+	if (!bPreviousLocationValid && !bCurrentLocationValid)
+	{
+		return;
+	}
+
+	const int32 DataIndex = bPreviousLocationValid ? PreviousLaneHandle.DataHandle.Index : CurrentLaneHandle.DataHandle.Index;
+	checkf(RegisteredLaneData.IsValidIndex(DataIndex), TEXT("Storage must have been allocated before creating lane data"));
+	FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[DataIndex];
+
+	if (bPreviousLocationValid)
+	{
+		const int32 PrevLaneIndex = PreviousLaneHandle.Index;
+
+		if (FCrowdTrackingLaneData* PreviousTrackingLaneData = CrowdLaneData.LaneToTrackingDataLookup.Find(PrevLaneIndex))
+		{
+			OnExitTrackedLane(Entity, PrevLaneIndex, *PreviousTrackingLaneData);
+		}
+		
+		UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("Entity [%s] exits lane %d"), *Entity.DebugGetDescription(), PrevLaneIndex);
+	}
+
+	if (bCurrentLocationValid)
+	{
+		const int32 CurLaneIndex = CurrentLaneHandle.Index;
+
+		if (FCrowdTrackingLaneData* CurrentTrackingLaneData = CrowdLaneData.LaneToTrackingDataLookup.Find(CurLaneIndex))
+		{
+			OnEnterTrackedLane(Entity, CurLaneIndex, *CurrentTrackingLaneData);
+		}
+
+		UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("Entity [%s] enters lane %d"), *Entity.DebugGetDescription(), CurLaneIndex);
+	}
+}
+
+float UMassCrowdSubsystem::GetDensityWeight(const FZoneGraphLaneHandle LaneHandle, const FZoneGraphTagMask LaneTagMask) const
+{
+	const FCrowdBranchingLaneData* BranchingLaneData = GetCrowdBranchingLaneData(LaneHandle);
+	const uint32 LaneMask = LaneTagMask.GetValue();
+	const FZoneGraphTagMask LaneDensityMask((BranchingLaneData != nullptr) ? BranchingLaneData->DensityMask : (LaneMask & DensityMask.GetValue()));
+
+	float Weight = FMassCrowdLaneDensityDesc::DefaultWeight;
+	if (LaneDensityMask.GetValue())
+	{
+		for (const FMassCrowdLaneDensityDesc& DensityDescriptor : MassCrowdSettings->GetLaneDensities())
+		{
+			if (LaneDensityMask.Contains(DensityDescriptor.Tag))
+			{
+				Weight = DensityDescriptor.Weight;
+				break;
+			}
+		}
+	}
+
+	return Weight;
+}
+
+ECrowdLaneState UMassCrowdSubsystem::GetLaneState(const FZoneGraphLaneHandle LaneHandle) const
+{
+	const TOptional<FZoneGraphCrowdLaneData> LaneData = GetCrowdLaneData(LaneHandle);
+	return LaneData.IsSet() ? LaneData.GetValue().GetState() : ECrowdLaneState::Opened;
+}
+
+bool UMassCrowdSubsystem::SetLaneState(const FZoneGraphLaneHandle LaneHandle, ECrowdLaneState NewState)
+{
+	if (!LaneHandle.IsValid())
+	{
+		UE_VLOG_UELOG(this, LogMassNavigation, Warning, TEXT("Trying to set lane state %s on an invalid lane %s\n"), *UEnum::GetValueAsString(NewState), *LaneHandle.ToString());
+		return false;
+	}
+	
+	FZoneGraphCrowdLaneData* CrowdLaneData = GetMutableCrowdLaneData(LaneHandle);
+	const bool bSuccess = CrowdLaneData != nullptr;
+	if (bSuccess)
+	{
+		CrowdLaneData->SetState(NewState);
+
+		checkf(ZoneGraphAnnotationSubsystem != nullptr, TEXT("ZoneGraphAnnotationSubsystem should be initialized from the subsystem collection dependencies."));
+		ZoneGraphAnnotationSubsystem->SendEvent(FZoneGraphCrowdLaneStateChangeEvent(LaneHandle, NewState));
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+		DebugOnMassCrowdLaneStateChanged.Broadcast();
+#endif
+	}
+	return bSuccess;
+}
+
+FCrowdTrackingLaneData& UMassCrowdSubsystem::CreateTrackingData(const int32 LaneIndex, const FZoneGraphStorage& ZoneGraphStorage)
+{
+	checkf(RegisteredLaneData.IsValidIndex(ZoneGraphStorage.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[ZoneGraphStorage.DataHandle.Index];
+	return CrowdLaneData.LaneToTrackingDataLookup.Add(LaneIndex);
+}
+
+FCrowdBranchingLaneData& UMassCrowdSubsystem::CreateBranchingData(const int32 LaneIndex, const FZoneGraphStorage& ZoneGraphStorage)
+{
+	checkf(RegisteredLaneData.IsValidIndex(ZoneGraphStorage.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[ZoneGraphStorage.DataHandle.Index];
+	FCrowdBranchingLaneData& NewWaitingData = CrowdLaneData.LaneToBranchingDataLookup.Add(LaneIndex);
+
+	// Fetch density tag from upcoming lane
+	// Keep default if unable to propagate a single density (no linked lanes or more than one outgoing lane)
+	TArray<FZoneGraphLinkedLane> Links;
+	UE::ZoneGraph::Query::GetLinkedLanes(ZoneGraphStorage, LaneIndex, EZoneLaneLinkType::Outgoing, EZoneLaneLinkFlags::All, EZoneLaneLinkFlags::None, Links);
+	if (Links.Num() == 1)
+	{
+		const uint32 LinkLaneMask = ZoneGraphStorage.Lanes[Links[0].DestLane.Index].Tags.GetValue();
+		NewWaitingData.DensityMask = LinkLaneMask & DensityMask.GetValue();
+	}
+
+	return NewWaitingData;
+}
+
+void UMassCrowdSubsystem::CreateWaitSlots(const int32 CrossingLaneIndex, FCrowdWaitAreaData& WaitArea, const FZoneGraphStorage& ZoneGraphStorage)
+{
+	checkf(RegisteredLaneData.IsValidIndex(ZoneGraphStorage.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+
+	// Figure out total width of the crossing lane, including adjacent lanes.
+	TArray<FZoneGraphLinkedLane> Links;
+	UE::ZoneGraph::Query::GetLinkedLanes(ZoneGraphStorage, CrossingLaneIndex, EZoneLaneLinkType::Adjacent, EZoneLaneLinkFlags::Left | EZoneLaneLinkFlags::Right, EZoneLaneLinkFlags::None, Links);
+
+	const FZoneLaneData& CrossingLane = ZoneGraphStorage.Lanes[CrossingLaneIndex];
+
+	float SpaceLeft = CrossingLane.Width * 0.5f;
+	float SpaceRight = CrossingLane.Width * 0.5f;
+	
+	for (const FZoneGraphLinkedLane& Link : Links)
+	{
+		const FZoneLaneData& AdjacentLane = ZoneGraphStorage.Lanes[Link.DestLane.Index];
+		if (Link.HasFlags(EZoneLaneLinkFlags::Left))
+		{
+			SpaceLeft += AdjacentLane.Width;
+		}
+		else // Right
+		{
+			SpaceRight += AdjacentLane.Width;
+		}
+	}	
+
+	const float TotalSpace = SpaceLeft + SpaceRight;
+
+	// Distribute slots along the total width.
+	checkf(MassCrowdSettings, TEXT("UMassCrowdSettings CDO should have been cached in Initialize"));
+	const float SlotSize = (float)MassCrowdSettings->SlotSize;
+	const int32 NumSlots = FMath::Max((SlotSize > 0 ? FMath::RoundToInt(TotalSpace / SlotSize) : 1), 1);
+
+	const FVector Forward = ZoneGraphStorage.LaneTangentVectors[CrossingLane.PointsBegin];
+	const FVector Up = ZoneGraphStorage.LaneUpVectors[CrossingLane.PointsBegin];
+	const FVector Left = FVector::CrossProduct(Forward, Up);
+	const FVector Base = ZoneGraphStorage.LanePoints[CrossingLane.PointsBegin] - Forward * MassCrowdSettings->SlotOffset;
+
+	WaitArea.Slots.Reserve(NumSlots);
+	for (int32 SlotIndex = 0; SlotIndex < NumSlots; SlotIndex++)
+	{
+		const float U = (SlotIndex + 0.5f) / (float)NumSlots;
+		FCrowdWaitSlot& Slot = WaitArea.Slots.AddDefaulted_GetRef();
+		Slot.Forward = Forward;
+		// @todo This calculate is a bit kludge. The idea is to narrow the used space by zigzag pattern, so that there's enough space for incoming pedestrians to pass through. 
+		Slot.Position = Base - Left * (SpaceRight + SlotSize/2 - TotalSpace * U * 0.75f) - Forward * ((SlotIndex & 1) * SlotSize*0.5f);
+		Slot.Radius = SlotSize * 0.5f;
+	}
+	
+	WaitArea.NumFreeSlots = NumSlots;
+}
+
+void UMassCrowdSubsystem::UpdateDensityMask()
+{
+	check(MassCrowdSettings);
+	DensityMask = FZoneGraphTagMask::None;
+	const TArray<FMassCrowdLaneDensityDesc>& Densities = MassCrowdSettings->GetLaneDensities();
+	for (const FMassCrowdLaneDensityDesc& DensityDesc : Densities)
+	{
+		DensityMask.Add(DensityDesc.Tag);
+	}
+}
+
+void UMassCrowdSubsystem::OnEnterTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
+{
+	++TrackingData.NumEntitiesOnLane;
+
+	UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("[%s] enters lane %d. Num entities on lane: %d"), *Entity.DebugGetDescription(), LaneIndex, TrackingData.NumEntitiesOnLane);
+}
+
+void UMassCrowdSubsystem::OnExitTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData)
+{
+	ensureMsgf(TrackingData.NumEntitiesOnLane >= 1, TEXT("OnExitTrackedLane should not be called more often than OnEnterTrackedLane"));
+	--TrackingData.NumEntitiesOnLane;
+
+	UE_VLOG_UELOG(this, LogMassNavigation, Verbose, TEXT("[%s] exits lane %d. Num entities on lane: %d"), *Entity.DebugGetDescription(), LaneIndex, TrackingData.NumEntitiesOnLane);
+}
+
+int32 UMassCrowdSubsystem::AcquireWaitingSlot(const FMassEntityHandle Entity, const FVector& EntityPosition, const FZoneGraphLaneHandle LaneHandle,
+											  FVector& OutSlotPosition, FVector& OutSlotDirection)
+{
+	if (!LaneHandle.IsValid())
+	{
+		return INDEX_NONE;
+	}
+	
+	checkf(RegisteredLaneData.IsValidIndex(LaneHandle.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[LaneHandle.DataHandle.Index];
+
+	int32 BestSlotIndex = INDEX_NONE;
+	FVector BestSlotPosition = FVector::ZeroVector;
+	FVector BestSlotForward = FVector::ForwardVector;
+
+	const FCrowdTrackingLaneData* TrackingData = CrowdLaneData.LaneToTrackingDataLookup.Find(LaneHandle.Index);
+	if (TrackingData && TrackingData->WaitAreaIndex != INDEX_NONE)
+	{
+		FCrowdWaitAreaData& WaitArea = CrowdLaneData.WaitAreas[TrackingData->WaitAreaIndex];
+		
+		if (!WaitArea.IsFull())
+		{
+			check(WaitArea.NumFreeSlots > 0);
+			
+			// Find best vacant slot
+			// The most distant slot is used so that later arrivals are less likely to need passing between already standing agents. 
+			FVector::FReal BestDistanceSq = 0.;
+			for (int32 SlotIndex = 0; SlotIndex < WaitArea.Slots.Num(); SlotIndex++)
+			{
+				const FCrowdWaitSlot& Slot = WaitArea.Slots[SlotIndex];
+				if (!Slot.bOccupied)
+				{
+					const FVector::FReal DistanceToSlotSq = FVector::DistSquared(EntityPosition, Slot.Position);
+					if (DistanceToSlotSq > BestDistanceSq)
+					{
+						BestDistanceSq = DistanceToSlotSq;
+						BestSlotPosition = Slot.Position;
+						BestSlotForward = Slot.Forward;
+						BestSlotIndex = SlotIndex;
+					}
+				}
+			}
+
+			if (BestSlotIndex != INDEX_NONE)
+			{
+				WaitArea.Slots[BestSlotIndex].bOccupied = true;
+				WaitArea.NumFreeSlots--;
+			}
+			
+			// Signal if the lane became full.
+			if (WaitArea.IsFull())
+			{
+				for (const FZoneGraphLaneHandle ConnectedLaneHandle : WaitArea.ConnectedLanes)
+				{
+					if (const FZoneGraphCrowdLaneData* LaneData = GetMutableCrowdLaneData(ConnectedLaneHandle))
+					{
+						checkf(ZoneGraphAnnotationSubsystem != nullptr, TEXT("ZoneGraphAnnotationSubsystem should be initialized from the subsystem collection dependencies."));
+						// Resend the current state, to signal the ZoneGraphCrowdLaneAnnotations to update the tags.
+						// The annotations is responsible for dealing with Waiting/Closed.
+						// @todo: improve the logic when we dont have two systems using state differently.
+						ZoneGraphAnnotationSubsystem->SendEvent(FZoneGraphCrowdLaneStateChangeEvent(ConnectedLaneHandle, LaneData->GetState()));
+					}
+				}
+			}
+		}
+	}
+
+	if (BestSlotIndex != INDEX_NONE)
+	{
+		OutSlotPosition = BestSlotPosition;
+		OutSlotDirection = BestSlotForward;
+	}
+	
+	return BestSlotIndex;
+}
+
+void UMassCrowdSubsystem::ReleaseWaitingSlot(const FMassEntityHandle Entity, const FZoneGraphLaneHandle LaneHandle, const int32 SlotIndex)
+{
+	if (!LaneHandle.IsValid())
+	{
+		return;
+	}
+
+	checkf(RegisteredLaneData.IsValidIndex(LaneHandle.DataHandle.Index), TEXT("Storage must have been allocated before creating lane data"));
+	FRegisteredCrowdLaneData& CrowdLaneData = RegisteredLaneData[LaneHandle.DataHandle.Index];
+
+	const FCrowdTrackingLaneData* TrackingData = CrowdLaneData.LaneToTrackingDataLookup.Find(LaneHandle.Index);
+
+	if (TrackingData && TrackingData->WaitAreaIndex != INDEX_NONE)
+	{
+		FCrowdWaitAreaData& WaitArea = CrowdLaneData.WaitAreas[TrackingData->WaitAreaIndex];
+
+		if (!WaitArea.Slots.IsValidIndex(SlotIndex))
+		{
+			UE_VLOG_UELOG(this, LogMassNavigation, Error, TEXT("%s Trying to release invalid slot index %d (max %d) on lane %d"),
+				*Entity.DebugGetDescription(), SlotIndex, WaitArea.Slots.Num(), LaneHandle.Index);
+			return;
+		}
+
+		const bool bWasFull = WaitArea.IsFull();
+
+		if (WaitArea.Slots[SlotIndex].bOccupied == false)
+		{
+			UE_VLOG_UELOG(this, LogMassNavigation, Error, TEXT("%s Trying to release already released waiting slot %d on lane %d"),
+				*Entity.DebugGetDescription(), SlotIndex, LaneHandle.Index);
+		}
+		else
+		{
+			WaitArea.Slots[SlotIndex].bOccupied = false;
+			WaitArea.NumFreeSlots++;
+			
+			check(WaitArea.NumFreeSlots <= WaitArea.Slots.Num())
+		}
+		
+		// Signal if the lane became vacant.
+		if (bWasFull)
+		{
+			for (const FZoneGraphLaneHandle ConnectedLaneHandle : WaitArea.ConnectedLanes)
+			{
+				if (const FZoneGraphCrowdLaneData* LaneData = GetMutableCrowdLaneData(ConnectedLaneHandle))
+				{
+					checkf(ZoneGraphAnnotationSubsystem != nullptr, TEXT("ZoneGraphAnnotationSubsystem should be initialized from the subsystem collection dependencies."));
+					// Resend the current state, to signal the ZoneGraphCrowdLaneAnnotations to update the tags.
+					// The annotations is responsible for dealing with Waiting/Closed.
+					// @todo: improve the logic when we dont have two systems using the state differently.
+					ZoneGraphAnnotationSubsystem->SendEvent(FZoneGraphCrowdLaneStateChangeEvent(ConnectedLaneHandle, LaneData->GetState()));
+				}
+			}
+		}
+	}
+}
+
+
+================================================
+
+
+=== MassCrowd/Private/MassCrowdVisualizationLODProcessor.cpp ===
+================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdVisualizationLODProcessor.h"
+#include "MassCommonFragments.h"
+#include "MassCommonTypes.h"
+#include "MassExecutionContext.h"
+#include "MassCrowdFragments.h"
+#include "MassEntityManager.h"
+#include "MassRepresentationFragments.h"
+
+namespace UE::MassCrowd
+{
+
+	MASSCROWD_API int32 GCrowdTurnOffVisualization = 0;
+	FAutoConsoleVariableRef CVarCrowdTurnOffVisualization(TEXT("Mass.CrowdTurnOffVisualization"), GCrowdTurnOffVisualization, TEXT("Turn off crowd visualization"));
+
+	int32 bDebugCrowdVisualizationLOD = 0;
+	int32 bDebugShowISMUnderSpecifiedRange = 0;
+
+	FAutoConsoleVariableRef ConsoleVariables[] =
+	{
+		FAutoConsoleVariableRef(TEXT("mass.debug.crowd.VisualizationLOD"), bDebugCrowdVisualizationLOD, TEXT("Debug crowd visualization LOD"), ECVF_Cheat),
+		FAutoConsoleVariableRef(TEXT("mass.debug.crowd.ShowISMUnderSpecifiedRange"), bDebugShowISMUnderSpecifiedRange, TEXT("Show ISM under a specified range (meters)"), ECVF_Cheat)
+	};
+
+} // UE::MassCrowd
+
+//----------------------------------------------------------------------//
+// UMassCrowdVisualizationLODProcessor
+//----------------------------------------------------------------------//
+UMassCrowdVisualizationLODProcessor::UMassCrowdVisualizationLODProcessor()
+{
+	bAutoRegisterWithProcessingPhases = true;
+
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
+
+	ExecutionOrder.ExecuteInGroup = UE::Mass::ProcessorGroupNames::LOD;
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LODCollector);
+}
+
+void UMassCrowdVisualizationLODProcessor::ConfigureQueries()
+{
+	Super::ConfigureQueries();
+
+	CloseEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	CloseEntityAdjustDistanceQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	FarEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	DebugEntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+
+	FilterTag = FMassCrowdTag::StaticStruct();
+}
+
+void UMassCrowdVisualizationLODProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	UWorld* World = EntityManager.GetWorld();
+
+	ForceOffLOD((bool)UE::MassCrowd::GCrowdTurnOffVisualization);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(CrowdVisualizationLOD)
+
+	Super::Execute(EntityManager, Context);
+
+#if WITH_MASSGAMEPLAY_DEBUG
+	if (UE::MassCrowd::bDebugCrowdVisualizationLOD)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DebugDisplayLOD)
+
+		DebugEntityQuery.ForEachEntityChunk(EntityManager, Context, [World](FMassExecutionContext& Context)
+		{
+			FMassVisualizationLODSharedFragment& LODSharedFragment = Context.GetMutableSharedFragment<FMassVisualizationLODSharedFragment>();
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+			const TConstArrayView<FMassRepresentationLODFragment> VisualizationLODList = Context.GetFragmentView<FMassRepresentationLODFragment>();
+			LODSharedFragment.LODCalculator.DebugDisplayLOD(Context, VisualizationLODList, LocationList, World);
+		});
+	}
+#endif // WITH_MASSGAMEPLAY_DEBUG
+
+	if (UE::MassCrowd::bDebugShowISMUnderSpecifiedRange > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ShowISMUnderSpecifiedRange)
+
+		DebugEntityQuery.ForEachEntityChunk(EntityManager, Context, [World](const FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FTransformFragment> LocationList = Context.GetFragmentView<FTransformFragment>();
+			const TConstArrayView<FMassRepresentationFragment> RepresentationFragmentList = Context.GetFragmentView<FMassRepresentationFragment>();
+			const TConstArrayView<FMassViewerInfoFragment> LODInfoFragmentList = Context.GetFragmentView<FMassViewerInfoFragment>();
+			const int32 NumEntities = Context.GetNumEntities();
+			const float SpecifiedRangeSquaredCentimeters = static_cast<float>(FMath::Square(UE::MassCrowd::bDebugShowISMUnderSpecifiedRange * 100));
+			for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
+			{
+				const FMassRepresentationFragment& RepresentationFragment = RepresentationFragmentList[EntityIdx];
+				const FMassViewerInfoFragment& LODInfoFragment = LODInfoFragmentList[EntityIdx];
+				if (RepresentationFragment.CurrentRepresentation == EMassRepresentationType::StaticMeshInstance && SpecifiedRangeSquaredCentimeters > LODInfoFragment.ClosestViewerDistanceSq)
+				{
+					const FTransformFragment& EntityLocation = LocationList[EntityIdx];
+					DrawDebugSolidBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 150.0f), FVector(50.0f), FColor::Red);
+				}
+			}
+		});
+	}
+}
+
+//----------------------------------------------------------------------//
+// UMassCrowdLODCollectorProcessor
+//----------------------------------------------------------------------//
+UMassCrowdLODCollectorProcessor::UMassCrowdLODCollectorProcessor()
+{
+	bAutoRegisterWithProcessingPhases = true;
+}
+
+void UMassCrowdLODCollectorProcessor::ConfigureQueries()
+{
+	Super::ConfigureQueries();
+
+	EntityQuery_VisibleRangeAndOnLOD.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery_VisibleRangeOnly.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery_OnLODOnly.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+	EntityQuery_NotVisibleRangeAndOffLOD.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+}
+
+================================================================
+
+
+=== MassCrowd/Private/MassCrowdVisualizationProcessor.cpp ===
+=============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdVisualizationProcessor.h"
+#include "MassCrowdFragments.h"
+#include "MassExecutionContext.h"
+#include "MassActorSubsystem.h"
+#include "MassRepresentationFragments.h"
+
+namespace UE::MassCrowd
+{
+	int32 bDebugCrowdVisualType = 0;
+	FAutoConsoleVariableRef CVarDebugVisualType(TEXT("mass.debug.CrowdVisualType"), bDebugCrowdVisualType, TEXT("Debug Crowd Visual Type"), ECVF_Cheat);
+
+	FColor CrowdRepresentationTypesColors[] =
+	{
+		FColor::Red,
+		FColor::Yellow,
+		FColor::Emerald,
+		FColor::White,
+	};
+} // UE::MassCrowd
+
+//----------------------------------------------------------------------//
+// UMassCrowdVisualizationProcessor
+//----------------------------------------------------------------------//
+UMassCrowdVisualizationProcessor::UMassCrowdVisualizationProcessor()
+{
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
+
+	bAutoRegisterWithProcessingPhases = true;
+
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
+
+	bRequiresGameThreadExecution = true;
+}
+
+void UMassCrowdVisualizationProcessor::ConfigureQueries()
+{
+	Super::ConfigureQueries();
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+}
+
+//----------------------------------------------------------------------//
+// UMassDebugCrowdVisualizationProcessor
+//----------------------------------------------------------------------//
+UMassDebugCrowdVisualizationProcessor::UMassDebugCrowdVisualizationProcessor()
+	: EntityQuery(*this)
+{
+	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
+
+	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::LOD);
+	ExecutionOrder.ExecuteAfter.Add(UMassCrowdVisualizationProcessor::StaticClass()->GetFName());
+
+	bRequiresGameThreadExecution = true;
+}
+
+void UMassDebugCrowdVisualizationProcessor::ConfigureQueries()
+{
+	EntityQuery.AddTagRequirement<FMassCrowdTag>(EMassFragmentPresence::All);
+
+	EntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+	EntityQuery.AddRequirement<FMassRepresentationFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddRequirement<FMassActorFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.RequireMutatingWorldAccess(); // due to UWorld mutable access
+}
+
+void UMassDebugCrowdVisualizationProcessor::Initialize(UObject& Owner)
+{
+	Super::Initialize(Owner);
+
+	World = Owner.GetWorld();
+	check(World);
+}
+
+void UMassDebugCrowdVisualizationProcessor::Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context)
+{
+	if (UE::MassCrowd::bDebugCrowdVisualType)
+	{
+		check(World);
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(DebugDisplayVisualType)
+
+		EntityQuery.ForEachEntityChunk(EntityManager, Context, [this](const FMassExecutionContext& Context)
+		{
+			const TConstArrayView<FMassRepresentationFragment> VisualizationList = Context.GetFragmentView<FMassRepresentationFragment>();
+			const TConstArrayView<FMassActorFragment> ActorList = Context.GetFragmentView<FMassActorFragment>();
+			const TConstArrayView<FTransformFragment> EntityLocationList = Context.GetFragmentView<FTransformFragment>();
+
+			const int32 NumEntities = Context.GetNumEntities();
+			for (int EntityIdx = 0; EntityIdx < NumEntities; EntityIdx++)
+			{
+				const FTransformFragment& EntityLocation = EntityLocationList[EntityIdx];
+				const FMassRepresentationFragment& Visualization = VisualizationList[EntityIdx];
+				const FMassActorFragment& ActorInfo = ActorList[EntityIdx];
+				const int32 RepresentationTypeIdx = (int32)Visualization.CurrentRepresentation;
+				// Show replicated actors
+				if (ActorInfo.IsValid() && !ActorInfo.IsOwnedByMass())
+				{
+					DrawDebugBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 120.0f), FVector(25.0f), UE::MassCrowd::CrowdRepresentationTypesColors[RepresentationTypeIdx]);
+				}
+				else
+				{ 
+					DrawDebugSolidBox(World, EntityLocation.GetTransform().GetLocation() + FVector(0.0f, 0.0f, 120.0f), FVector(25.0f), UE::MassCrowd::CrowdRepresentationTypesColors[RepresentationTypeIdx]);
+				}
+			}
+		});
+	}
+}
+
+=============================================================
+
+
+=== MassCrowd/Private/MassCrowdVisualizationTrait.cpp ===
+=========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "MassCrowdVisualizationTrait.h"
+#include "MassCrowdRepresentationSubsystem.h"
+#include "MassCrowdRepresentationActorManagement.h"
+#include "MassCrowdFragments.h"
+#include "MassEntityTemplateRegistry.h"
+
+UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
+{
+	// Override the subsystem to support parallelization of the crowd
+	RepresentationSubsystemClass = UMassCrowdRepresentationSubsystem::StaticClass();
+	Params.RepresentationActorManagementClass = UMassCrowdRepresentationActorManagement::StaticClass();
+	Params.LODRepresentation[EMassLOD::High] = EMassRepresentationType::HighResSpawnedActor;
+	Params.LODRepresentation[EMassLOD::Medium] = EMassRepresentationType::LowResSpawnedActor;
+	Params.LODRepresentation[EMassLOD::Low] = EMassRepresentationType::StaticMeshInstance;
+	Params.LODRepresentation[EMassLOD::Off] = EMassRepresentationType::None;
+	// Set bKeepLowResActor to true as a spawning optimization, this will keep the low-res actor if available while showing the static mesh instance
+	Params.bKeepLowResActors = true;
+	Params.bKeepActorExtraFrame = true;
+	Params.bSpreadFirstVisualizationUpdate = false;
+	Params.WorldPartitionGridNameContainingCollision = NAME_None;
+	Params.NotVisibleUpdateRate = 0.5f;
+
+	LODParams.BaseLODDistance[EMassLOD::High] = 0.f;
+	LODParams.BaseLODDistance[EMassLOD::Medium] = 500.f;
+	LODParams.BaseLODDistance[EMassLOD::Low] = 1000.f;
+	LODParams.BaseLODDistance[EMassLOD::Off] = 5000.f;
+
+	LODParams.VisibleLODDistance[EMassLOD::High] = 0.f;
+	LODParams.VisibleLODDistance[EMassLOD::Medium] = 1000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Low] = 5000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Off] = 10000.f;
+
+	LODParams.LODMaxCount[EMassLOD::High] = 10;
+	LODParams.LODMaxCount[EMassLOD::Medium] = 20;
+	LODParams.LODMaxCount[EMassLOD::Low] = 500;
+	LODParams.LODMaxCount[EMassLOD::Off] = TNumericLimits<int32>::Max();
+
+	LODParams.BufferHysteresisOnDistancePercentage = 20.0f;
+	LODParams.DistanceToFrustum = 0.0f;
+	LODParams.DistanceToFrustumHysteresis = 0.0f;
+
+	LODParams.FilterTag = FMassCrowdTag::StaticStruct();
+}
+
+void UMassCrowdVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext,
+	const UWorld& World) const
+{
+	Super::BuildTemplate(BuildContext, World);
+
+	BuildContext.RequireTag<FMassCrowdTag>();
+}
+
+=========================================================
+
+
+=== MassCrowd/Private/ZoneGraphCrowdLaneAnnotations.cpp ===
+===========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "ZoneGraphCrowdLaneAnnotations.h"
+#include "Engine/Engine.h"
+#include "MassCrowdSubsystem.h"
+#include "ZoneGraphAnnotationSubsystem.h"
+#include "ZoneGraphRenderingUtilities.h"
+#include "ZoneGraphSubsystem.h"
+#include "ZoneGraphQuery.h"
+#include "ZoneGraphSettings.h"
+#include "MassNavigationTypes.h"
+#include "VisualLogger/VisualLogger.h"
+
+#if UE_ENABLE_DEBUG_DRAWING
+#include "Engine/Canvas.h"
+#endif // UE_ENABLE_DEBUG_DRAWING
+
+void UZoneGraphCrowdLaneAnnotations::PostSubsystemsInitialized()
+{
+	Super::PostSubsystemsInitialized();
+
+	CrowdSubsystem = UWorld::GetSubsystem<UMassCrowdSubsystem>(GetWorld());
+	checkf(CrowdSubsystem, TEXT("Expecting MassCrowdSubsystem to be present."));
+}
+
+FZoneGraphTagMask UZoneGraphCrowdLaneAnnotations::GetAnnotationTags() const
+{
+	FZoneGraphTagMask AllTags;
+	AllTags.Add(CloseLaneTag);
+	AllTags.Add(WaitingLaneTag);
+
+	return AllTags;
+}
+
+void UZoneGraphCrowdLaneAnnotations::HandleEvents(const FInstancedStructContainer& Events)
+{
+	for (FConstStructView Event : Events)
+	{
+		if (const FZoneGraphCrowdLaneStateChangeEvent* const StateChangeEvent = Event.GetPtr<const FZoneGraphCrowdLaneStateChangeEvent>())
+		{
+			StateChangeEvents.Add(*StateChangeEvent);
+		}
+	}
+}
+
+void UZoneGraphCrowdLaneAnnotations::TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer)
+{
+	if (!CloseLaneTag.IsValid())
+	{
+		return;
+	}
+
+	FZoneGraphTagMask AllTags;
+	AllTags.Add(CloseLaneTag);
+	AllTags.Add(WaitingLaneTag);
+
+	// Process events
+	for (const FZoneGraphCrowdLaneStateChangeEvent& Event : StateChangeEvents)
+	{
+		if (Event.Lane.IsValid())
+		{
+			TArrayView<FZoneGraphTagMask> LaneTags = AnnotationTagContainer.GetMutableAnnotationTagsForData(Event.Lane.DataHandle);
+			FZoneGraphTagMask& LaneTagMask = LaneTags[Event.Lane.Index];
+
+			LaneTagMask.Remove(AllTags);
+
+			if (Event.State == ECrowdLaneState::Closed)
+			{
+				const FCrowdWaitAreaData* WaitArea = CrowdSubsystem->GetCrowdWaitingAreaData(Event.Lane);
+
+				if (WaitArea && !WaitArea->IsFull())
+				{
+					LaneTagMask.Add(WaitingLaneTag);
+				}
+				else
+				{
+					LaneTagMask.Add(CloseLaneTag);
+				}
+			}
+		}
+		else
+		{
+			UE_VLOG_UELOG(this, LogMassNavigation, Warning, TEXT("Trying to set lane state %s on an invalid lane %s\n"), *UEnum::GetValueAsString(Event.State), *Event.Lane.ToString());
+		}
+	}
+	StateChangeEvents.Reset();
+
+#if UE_ENABLE_DEBUG_DRAWING
+	if (bEnableDebugDrawing)
+	{
+		MarkRenderStateDirty();
+	}
+#endif // UE_ENABLE_DEBUG_DRAWING
+}
+
+#if UE_ENABLE_DEBUG_DRAWING
+void UZoneGraphCrowdLaneAnnotations::DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy)
+{
+	UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
+	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem = UWorld::GetSubsystem<UZoneGraphAnnotationSubsystem>(GetWorld());
+	if (!ZoneGraph || !ZoneGraphAnnotationSubsystem)
+	{
+		return;
+	}
+
+	const UZoneGraphSettings* ZoneGraphSettings = GetDefault<UZoneGraphSettings>();
+	check(ZoneGraphSettings);
+
+	static const FVector ZOffset(0, 0, 35.0f);
+	static const FLinearColor WaitingColor(FColor(255, 196, 0));
+	static const FLinearColor ClosedColor(FColor(255, 61, 0));
+
+	FZoneGraphTagMask AllTags;
+	AllTags.Add(CloseLaneTag);
+	AllTags.Add(WaitingLaneTag);
+
+	FVector ViewLocation = FVector::ZeroVector;
+	FRotator ViewRotation = FRotator::ZeroRotator;
+	GetFirstViewPoint(ViewLocation, ViewRotation);
+
+	const float DrawDistance = GetMaxDebugDrawDistance();
+	const float DrawDistanceSq = FMath::Square(DrawDistance);
+
+	for (const FRegisteredCrowdLaneData& RegisteredLaneData : CrowdSubsystem->RegisteredLaneData)
+	{
+		const FZoneGraphStorage* ZoneStorage = ZoneGraph->GetZoneGraphStorage(RegisteredLaneData.DataHandle);
+		if (ZoneStorage == nullptr)
+		{
+			continue;
+		}
+
+		for (const FZoneData& Zone : ZoneStorage->Zones)
+		{
+			const FVector::FReal DistanceSq = FVector::DistSquared(ViewLocation, Zone.Bounds.GetCenter());
+			if (DistanceSq > DrawDistanceSq)
+			{
+				continue;
+			}
+
+			for (int32 LaneIdx = Zone.LanesBegin; LaneIdx < Zone.LanesEnd; LaneIdx++)
+			{
+				const FZoneGraphCrowdLaneData& LaneData = RegisteredLaneData.CrowdLaneDataArray[LaneIdx];
+				if (LaneData.GetState() == ECrowdLaneState::Closed)
+				{
+					const FZoneGraphLaneHandle LaneHandle(LaneIdx, RegisteredLaneData.DataHandle);
+
+					FLinearColor Color = ClosedColor;
+
+					const FCrowdWaitAreaData* WaitArea = CrowdSubsystem->GetCrowdWaitingAreaData(LaneHandle);
+					if (WaitArea && !WaitArea->IsFull())
+					{
+						Color = WaitingColor;
+					}
+
+					UE::ZoneGraph::RenderingUtilities::AppendLane(DebugProxy, *ZoneStorage, LaneHandle, Color.ToFColor(/*sRGB*/true), 4.0f, ZOffset);
+				}
+			}
+		}
+		
+		auto AppendCircleXY = [DebugProxy](const FVector& Center, const float Radius, const FColor Color, const float LineThickness)
+		{
+			static int32 NumDivs = 16;
+
+			FVector PrevPoint;
+			for (int32 Index = 0; Index <= NumDivs; Index++)
+			{
+				const float Angle = (float)Index / (float)NumDivs * PI * 2.0f;
+				float DirX, DirY;
+				FMath::SinCos(&DirX, &DirY, Angle);
+				const FVector Dir(DirX, DirY, 0.0f);
+				const FVector Point = Center + Dir * Radius;
+				if (Index > 0)
+				{
+					DebugProxy->Lines.Emplace(PrevPoint, Point, Color, LineThickness);
+				}
+				PrevPoint = Point;
+			}
+		};
+
+		const FColor SlotColor = FColor::Orange;
+		for (const FCrowdWaitAreaData& WaitArea : RegisteredLaneData.WaitAreas)
+		{
+			if (WaitArea.Slots.Num() > 0)
+			{
+				const FVector::FReal DistanceSq = FVector::DistSquared(ViewLocation, WaitArea.Slots[0].Position);
+				if (DistanceSq < DrawDistanceSq)
+				{
+					for (const FCrowdWaitSlot& Slot : WaitArea.Slots)
+					{
+						AppendCircleXY(Slot.Position + ZOffset, Slot.Radius, SlotColor, 1.0f);
+						DebugProxy->Lines.Emplace(Slot.Position + ZOffset, Slot.Position + Slot.Forward * Slot.Radius + ZOffset, SlotColor, 4.0f);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerController*)
+{
+	if (!bEnableDebugDrawing)
+	{
+		return;
+	}
+
+	const FColor OldDrawColor = Canvas->DrawColor;
+	const UFont* RenderFont = GEngine->GetSmallFont();
+
+	const FFontRenderInfo FontInfo = Canvas->CreateFontRenderInfo(/*bClipText*/true, /*bEnableShadow*/true);
+
+	Canvas->SetDrawColor(FColor::White);
+	static const FVector ZOffset(0, 0, 35.0f);
+
+	UZoneGraphSubsystem* ZoneGraph = UWorld::GetSubsystem<UZoneGraphSubsystem>(GetWorld());
+	UZoneGraphAnnotationSubsystem* ZoneGraphAnnotationSubsystem = UWorld::GetSubsystem<UZoneGraphAnnotationSubsystem>(GetWorld());
+	if (!ZoneGraph)
+	{
+		return;
+	}
+
+	if (Canvas->SceneView == nullptr)
+	{
+		return;
+	}
+	
+	const FVector ViewLocation = Canvas->SceneView->ViewLocation;
+	const float DrawDistance = GetMaxDebugDrawDistance() * 0.25f;
+	const FVector::FReal DrawDistanceSq = FMath::Square(DrawDistance);
+
+	auto InFrustum = [Canvas](const FVector& Location)
+	{
+		return Canvas->SceneView->ViewFrustum.IntersectBox(Location, FVector::ZeroVector);
+	};
+
+	for (const FRegisteredCrowdLaneData& RegisteredLaneData : CrowdSubsystem->RegisteredLaneData)
+	{
+		const FZoneGraphStorage* ZoneStorage = RegisteredLaneData.DataHandle.IsValid() ? ZoneGraph->GetZoneGraphStorage(RegisteredLaneData.DataHandle) : nullptr;
+		if (ZoneStorage == nullptr)
+		{
+			continue;
+		}
+
+		for (const FZoneData& Zone : ZoneStorage->Zones)
+		{
+			const FVector::FReal DistanceSq = FVector::DistSquared(ViewLocation, Zone.Bounds.GetCenter());
+			if (DistanceSq > DrawDistanceSq)
+			{
+				continue;
+			}
+
+			for (int32 LaneIdx = Zone.LanesBegin; LaneIdx < Zone.LanesEnd; LaneIdx++)
+			{
+				const FZoneGraphLaneHandle LaneHandle(LaneIdx, RegisteredLaneData.DataHandle);
+				
+				FZoneGraphLaneLocation CenterLoc;
+				UE::ZoneGraph::Query::CalculateLocationAlongLaneFromRatio(*ZoneStorage, LaneIdx, 0.5f, CenterLoc);
+
+				if (!InFrustum(CenterLoc.Position))
+				{
+					continue;
+				}
+				
+				const FVector ScreenLoc = Canvas->Project(CenterLoc.Position, /*bClampToNearPlane*/false);
+				
+				// Flags
+				if (bDisplayTags)
+				{
+					const FZoneGraphTagMask Mask = ZoneGraphAnnotationSubsystem->GetAnnotationTags(LaneHandle);
+					Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s\n0x%08X"), *UE::ZoneGraph::Helpers::GetTagMaskString(Mask, TEXT(", ")), Mask.GetValue())
+						, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+						, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision)
+						, /*XScale*/1.0f, /*YScale*/1.0f, FontInfo);
+				}
+
+				// Tracking
+				if (const FCrowdTrackingLaneData* TrackingData = RegisteredLaneData.LaneToTrackingDataLookup.Find(LaneIdx))
+				{
+					if (TrackingData->NumEntitiesOnLane > 0)
+					{
+						Canvas->DrawText(RenderFont, FString::Printf(TEXT("Num Entities: %d"), TrackingData->NumEntitiesOnLane)
+						, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+						, FloatCastChecked<float>(ScreenLoc.Y + 20, UE::LWC::DefaultFloatPrecision)
+						, /*XScale*/1.0f, /*YScale*/1.0f, FontInfo);
+					}
+				}
+			}
+		}
+
+		// Waiting areas
+		for (const FCrowdWaitAreaData& WaitArea : RegisteredLaneData.WaitAreas)
+		{
+			if (WaitArea.Slots.Num() > 0)
+			{
+				const FVector::FReal DistanceSq = FVector::DistSquared(ViewLocation, WaitArea.Slots[0].Position);
+				if (DistanceSq < DrawDistanceSq)
+				{
+					for (const FCrowdWaitSlot& Slot : WaitArea.Slots)
+					{
+						if (Slot.bOccupied)
+						{
+							if (!InFrustum(Slot.Position + ZOffset))
+							{
+								continue;
+							}
+
+							const FVector ScreenLoc = Canvas->Project(Slot.Position + ZOffset);
+							Canvas->DrawText(RenderFont, TEXT("OCCUPIED")
+								, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+								, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision)
+								, /*XScale*/1.0f, /*YScale*/1.0f, FontInfo);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	Canvas->SetDrawColor(OldDrawColor);
+}
+
+#endif // UE_ENABLE_DEBUG_DRAWING
+
+===========================================================
+
+
+=== MassCrowd/Public/Tasks/MassCrowdClaimWaitSlotTask.h ===
+===========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassStateTreeTypes.h"
+#include "ZoneGraphTypes.h"
+#include "Tasks/MassZoneGraphPathFollowTask.h"
+#include "MassCrowdClaimWaitSlotTask.generated.h"
+
+struct FStateTreeExecutionContext;
+class UMassCrowdSubsystem;
+
+/**
+* Claim wait slot and expose slot position for path follow.
+*/
+USTRUCT()
+struct MASSCROWD_API FMassCrowdClaimWaitSlotTaskInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FMassZoneGraphTargetLocation WaitSlotLocation;
+
+	UPROPERTY()
+	int32 WaitingSlotIndex = INDEX_NONE;
+	
+	UPROPERTY()
+	FZoneGraphLaneHandle AcquiredLane;
+};
+
+USTRUCT(meta = (DisplayName = "Crowd Claim Wait Slot"))
+struct MASSCROWD_API FMassCrowdClaimWaitSlotTask : public FMassStateTreeTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FMassCrowdClaimWaitSlotTaskInstanceData;
+	
+	FMassCrowdClaimWaitSlotTask();
+
+protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<FMassMoveTargetFragment> MoveTargetHandle;
+	TStateTreeExternalDataHandle<UMassCrowdSubsystem> CrowdSubsystemHandle;
+};
+
+===========================================================
+
+
+=== MassCrowd/Public/Tasks/MassZoneGraphFindWanderTarget.h ===
+==============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassStateTreeTypes.h"
+#include "Tasks/MassZoneGraphPathFollowTask.h"
+#include "MassZoneGraphFindWanderTarget.generated.h"
+
+struct FStateTreeExecutionContext;
+struct FMassZoneGraphLaneLocationFragment;
+class UZoneGraphSubsystem;
+class UZoneGraphAnnotationSubsystem;
+class UMassCrowdSubsystem;
+
+/**
+ * Updates TargetLocation to a wander target based on the agents current location on ZoneGraph.
+ */
+USTRUCT()
+struct MASSCROWD_API FMassZoneGraphFindWanderTargetInstanceData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	FMassZoneGraphTargetLocation WanderTargetLocation;
+};
+
+USTRUCT(meta = (DisplayName = "ZG Find Wander Target"))
+struct MASSCROWD_API FMassZoneGraphFindWanderTarget : public FMassStateTreeTaskBase
+{
+	GENERATED_BODY()
+
+	using FInstanceDataType = FMassZoneGraphFindWanderTargetInstanceData;
+	
+	FMassZoneGraphFindWanderTarget();
+
+protected:
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+
+	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;
+	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
+	TStateTreeExternalDataHandle<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystemHandle;
+	TStateTreeExternalDataHandle<UMassCrowdSubsystem> MassCrowdSubsystemHandle;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FZoneGraphTagFilter AllowedAnnotationTags;
+};
+
+==============================================================
+
+
+=== MassCrowd/Public/IMassCrowdModule.h ===
+===========================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Modules/ModuleInterface.h"
+#include "Modules/ModuleManager.h"
+
+
+/**
+ * The public interface to this module.  In most cases, this interface is only public to sibling modules 
+ * within this plugin.
+ */
+class IMassCrowdModule : public IModuleInterface
+{
+
+public:
+
+	/**
+	 * Singleton-like access to this module's interface.  This is just for convenience!
+	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
+	 *
+	 * @return Returns singleton instance, loading the module on demand if needed
+	 */
+	static inline IMassCrowdModule& Get()
+	{
+		return FModuleManager::LoadModuleChecked<IMassCrowdModule>( "MassCrowd" );
+	}
+
+	/**
+	 * Checks to see if this module is loaded and ready.  It is only valid to call Get() if IsAvailable() returns true.
+	 *
+	 * @return True if the module is loaded and ready to use
+	 */
+	static inline bool IsAvailable()
+	{
+		return FModuleManager::Get().IsModuleLoaded( "MassCrowd" );
+	}
+};
+
+
+===========================================
+
+
+=== MassCrowd/Public/MassCrowdBubble.h ===
+==========================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassReplicationPathHandlers.h"
+#include "MassReplicationTransformHandlers.h"
+#include "MassCrowdReplicatedAgent.h"
+#include "MassClientBubbleHandler.h"
+#include "MassClientBubbleInfoBase.h"
+#include "MassEntityView.h"
+
+#include "MassCrowdBubble.generated.h"
+
+class FMassCrowdClientBubbleHandler;
+
+class MASSCROWD_API FMassCrowdClientBubbleHandler : public TClientBubbleHandlerBase<FCrowdFastArrayItem>
+{
+public:
+	typedef TClientBubbleHandlerBase<FCrowdFastArrayItem> Super;
+	typedef TMassClientBubblePathHandler<FCrowdFastArrayItem> FMassClientBubblePathHandler;
+	typedef TMassClientBubbleTransformHandler<FCrowdFastArrayItem> FMassClientBubbleTransformHandler;
+
+	FMassCrowdClientBubbleHandler()
+		: PathHandler(*this)
+		, TransformHandler(*this)
+	{}
+
+#if UE_REPLICATION_COMPILE_SERVER_CODE
+	const FMassClientBubblePathHandler& GetPathHandler() const { return PathHandler; }
+	FMassClientBubblePathHandler& GetPathHandlerMutable() { return PathHandler; }
+
+	const FMassClientBubbleTransformHandler& GetTransformHandler() const { return TransformHandler; }
+	FMassClientBubbleTransformHandler& GetTransformHandlerMutable() { return TransformHandler; }
+#endif // UE_REPLICATION_COMPILE_SERVER_CODE
+
+
+protected:
+#if UE_REPLICATION_COMPILE_CLIENT_CODE
+	virtual void PostReplicatedAdd(const TArrayView<int32> AddedIndices, int32 FinalSize) override;
+	virtual void PostReplicatedChange(const TArrayView<int32> ChangedIndices, int32 FinalSize) override;
+
+	void PostReplicatedChangeEntity(const FMassEntityView& EntityView, const FReplicatedCrowdAgent& Item) const;
+#endif //UE_REPLICATION_COMPILE_CLIENT_CODE
+
+#if WITH_MASSGAMEPLAY_DEBUG && WITH_EDITOR
+	virtual void DebugValidateBubbleOnServer() override;
+	virtual void DebugValidateBubbleOnClient() override;
+#endif // WITH_MASSGAMEPLAY_DEBUG
+
+	FMassClientBubblePathHandler PathHandler;
+	FMassClientBubbleTransformHandler TransformHandler;
+};
+
+/** Mass client bubble, there will be one of these per client and it will handle replicating the fast array of Agents between the server and clients */
+USTRUCT()
+struct MASSCROWD_API FMassCrowdClientBubbleSerializer : public FMassClientBubbleSerializerBase
+{
+	GENERATED_BODY()
+
+	FMassCrowdClientBubbleSerializer()
+	{
+		Bubble.Initialize(Crowd, *this);
+	};
+		
+	bool NetDeltaSerialize(FNetDeltaSerializeInfo& DeltaParams)
+	{
+		return FFastArraySerializer::FastArrayDeltaSerialize<FCrowdFastArrayItem, FMassCrowdClientBubbleSerializer>(Crowd, DeltaParams, *this);
+	}
+
+public:
+	FMassCrowdClientBubbleHandler Bubble;
+
+protected:
+	/** Fast Array of Agents for efficient replication. Maintained as a freelist on the server, to keep index consistency as indexes are used as Handles into the Array 
+	 *  Note array order is not guaranteed between server and client so handles will not be consistent between them, FMassNetworkID will be.
+	 */
+	UPROPERTY(Transient)
+	TArray<FCrowdFastArrayItem> Crowd;
+};
+
+template<>
+struct TStructOpsTypeTraits<FMassCrowdClientBubbleSerializer> : public TStructOpsTypeTraitsBase2<FMassCrowdClientBubbleSerializer>
+{
+	enum
+	{
+		WithNetDeltaSerializer = true,
+		WithCopy = false,
+	};
+};
+
+/**
+ *  This class will allow us to replicate Mass data based on the fidelity required for each player controller. There is one AMassReplicationActor per PlayerController and 
+ *  which is also its owner.
+ */
+UCLASS()
+class MASSCROWD_API AMassCrowdClientBubbleInfo : public AMassClientBubbleInfoBase
+{
+	GENERATED_BODY()
+
+public:
+	AMassCrowdClientBubbleInfo(const FObjectInitializer& ObjectInitializer);
+
+	FMassCrowdClientBubbleSerializer& GetCrowdSerializer() { return CrowdSerializer; }
+
+protected:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+protected:
+	UPROPERTY(Replicated, Transient)
+	FMassCrowdClientBubbleSerializer CrowdSerializer;
+};
+
+==========================================
+
+
+=== MassCrowd/Public/MassCrowdFragments.h ===
+=============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassEntityTypes.h"
+#include "ZoneGraphTypes.h"
+#include "ZoneGraphAnnotationTypes.h"
+#include "MassCrowdFragments.generated.h"
+
+/**
+ * Special tag to differentiate the crowd from the rest of the other entities
+ * Should not contain any data, this is purely a tag
+ */
+USTRUCT()
+struct MASSCROWD_API FMassCrowdTag : public FMassTag
+{
+	GENERATED_BODY()
+};
+
+/**
+ * Data fragment to store the last lane the agent was tracked on.
+ */
+USTRUCT()
+struct MASSCROWD_API FMassCrowdLaneTrackingFragment : public FMassFragment
+{
+	GENERATED_BODY()
+	FZoneGraphLaneHandle TrackedLaneHandle;
+};
+
+
+USTRUCT()
+struct MASSCROWD_API FMassCrowdObstacleFragment : public FMassFragment
+{
+	GENERATED_BODY()
+
+	/** Obstacle ID reported to the obstruction annotation. */
+	FMassLaneObstacleID LaneObstacleID;
+
+	/** Position of the obstacle when it last moved. */
+	FVector LastPosition = FVector::ZeroVector;
+
+	/** Time since the obstacle has not moved based on speed tolerance. */
+	float TimeSinceStopped = 0.0f;
+
+	/** True of the current obstacle state is moving. */
+	bool bIsMoving = true;
+};
+
+=============================================
+
+
+=== MassCrowd/Public/MassCrowdLaneClosingTest.h ===
+===================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "ZoneGraphTestingActor.h"
+#include "MassCrowdSubsystem.h"
+#include "MassCrowdLaneClosingTest.generated.h"
+
+class UMassCrowdSubsystem;
+
+UCLASS()
+class UZoneGraphCloseCrowdLaneTest : public UZoneLaneTest
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void OnLaneLocationUpdated(const FZoneGraphLaneLocation& PrevLaneLocation, const FZoneGraphLaneLocation& NextLaneLocation) override;
+	virtual void Draw(FPrimitiveDrawInterface* PDI) const override;
+	virtual void OnOwnerSet() override;
+
+private:
+	UPROPERTY(Transient)
+	FZoneGraphLaneLocation LaneLocation;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMassCrowdSubsystem> CrowdSubsystem;
+
+	UPROPERTY(EditAnywhere, Category = Test)
+	ECrowdLaneState LaneState = ECrowdLaneState::Closed;
+
+	UPROPERTY(VisibleAnywhere, Transient, Category = Test)
+	ECrowdLaneState PrevLaneState = ECrowdLaneState::Opened;
+};
+===================================================
+
+
+=== MassCrowd/Public/MassCrowdLaneDataRenderingComponent.h ===
+==============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Components/PrimitiveComponent.h"
+#include "MassCrowdLaneDataRenderingComponent.generated.h"
+
+/**
+ * Primitive component that can be used to render runtime state of zone graph lanes (e.g. Opened|Closed, Density, etc.)
+ * The component must be added on a ZoneGraphData actor.
+ */
+UCLASS(editinlinenew, meta = (BlueprintSpawnableComponent), hidecategories = (Object, LOD, Lighting, VirtualTexture, Transform, HLOD, Collision, TextureStreaming, Mobile, Physics, Tags, AssetUserData, Activation, Cooking, Rendering, Navigation))
+class MASSCROWD_API UMassCrowdLaneDataRenderingComponent : public UPrimitiveComponent
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdLaneDataRenderingComponent() = default;
+
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+private:
+	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	void DebugDrawOnCanvas(UCanvas* Canvas, APlayerController*) const;
+	FDelegateHandle DebugTextDrawingDelegateHandle;
+	FDelegateHandle OnLaneStateChangedDelegateHandle;
+#if WITH_EDITOR
+	FDelegateHandle OnLaneRenderSettingsChangedDelegateHandle;
+#endif // WITH_EDITOR
+#endif // !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+};
+==============================================================
+
+
+=== MassCrowd/Public/MassCrowdMemberTrait.h ===
+===============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassEntityTraitBase.h"
+#include "MassCrowdMemberTrait.generated.h"
+
+/**
+ * Trait to mark an entity with the crowd tag and add required fragments to track current lane
+ */
+UCLASS(meta = (DisplayName = "CrowdMember"))
+class MASSCROWD_API UMassCrowdMemberTrait : public UMassEntityTraitBase
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
+};
+
+===============================================
+
+
+=== MassCrowd/Public/MassCrowdNavigationProcessor.h ===
+=======================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassSignalProcessorBase.h"
+#include "MassObserverProcessor.h"
+#include "MassCrowdFragments.h"
+#include "MassCrowdNavigationProcessor.generated.h"
+
+class UZoneGraphAnnotationSubsystem;
+class UMassCrowdSubsystem;
+
+/** Processor that monitors when entities change lane and notify the MassCrowd subsystem. */
+UCLASS()
+class MASSCROWD_API UMassCrowdLaneTrackingSignalProcessor : public UMassSignalProcessorBase
+{
+	GENERATED_BODY()
+public:
+	UMassCrowdLaneTrackingSignalProcessor();
+
+protected:
+	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void SignalEntities(FMassEntityManager& EntityManager, FMassExecutionContext& Context, FMassSignalNameLookup& /*Unused*/) override;
+};
+
+/** Processors that cleans up the lane tracking on entity destruction. */
+UCLASS()
+class MASSCROWD_API UMassCrowdLaneTrackingDestructor : public UMassObserverProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdLaneTrackingDestructor();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	FMassEntityQuery EntityQuery;
+};
+
+
+UCLASS()
+class MASSCROWD_API UMassCrowdDynamicObstacleProcessor : public UMassProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdDynamicObstacleProcessor();
+
+protected:
+	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context);
+
+	void OnStop(FMassCrowdObstacleFragment& OutObstacle, const float Radius);
+	void OnMove(FMassCrowdObstacleFragment& OutObstacle);
+
+	FMassEntityQuery EntityQuery_Conditional;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystem;
+};
+
+
+UCLASS()
+class MASSCROWD_API UMassCrowdDynamicObstacleInitializer : public UMassObserverProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdDynamicObstacleInitializer();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	FMassEntityQuery EntityQuery;
+};
+
+
+UCLASS()
+class MASSCROWD_API UMassCrowdDynamicObstacleDeinitializer : public UMassObserverProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdDynamicObstacleDeinitializer();
+
+protected:
+	virtual void Initialize(UObject& Owner) override;
+	virtual void ConfigureQueries() override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystem;
+
+	FMassEntityQuery EntityQuery;
+};
+
+=======================================================
+
+
+=== MassCrowd/Public/MassCrowdReplicatedAgent.h ===
+===================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassReplicationTransformHandlers.h"
+#include "MassReplicationTypes.h"
+#include "MassClientBubbleHandler.h"
+#include "MassReplicationPathHandlers.h"
+
+#include "MassCrowdReplicatedAgent.generated.h"
+
+/** The data that is replicated specific to each Crowd agent */
+USTRUCT()
+struct MASSCROWD_API FReplicatedCrowdAgent : public FReplicatedAgentBase
+{
+	GENERATED_BODY()
+
+	const FReplicatedAgentPathData& GetReplicatedPathData() const { return Path; }
+
+	/** This function is required to be provided in FReplicatedAgentBase derived classes that use FReplicatedAgentPathData */
+	FReplicatedAgentPathData& GetReplicatedPathDataMutable() { return Path; }
+
+	const FReplicatedAgentPositionYawData& GetReplicatedPositionYawData() const { return PositionYaw; }
+
+	/** This function is required to be provided in FReplicatedAgentBase derived classes that use FReplicatedAgentPositionYawData */
+	FReplicatedAgentPositionYawData& GetReplicatedPositionYawDataMutable() { return PositionYaw; }
+
+private:
+	UPROPERTY(Transient)
+	FReplicatedAgentPathData Path;
+
+	UPROPERTY(Transient)
+	FReplicatedAgentPositionYawData PositionYaw;
+};
+
+/** Fast array item for efficient agent replication. Remember to make this dirty if any FReplicatedCrowdAgent member variables are modified */
+USTRUCT()
+struct MASSCROWD_API FCrowdFastArrayItem : public FMassFastArrayItemBase
+{
+	GENERATED_BODY()
+
+	FCrowdFastArrayItem() = default;
+	FCrowdFastArrayItem(const FReplicatedCrowdAgent& InAgent, const FMassReplicatedAgentHandle InHandle)
+		: FMassFastArrayItemBase(InHandle)
+		, Agent(InAgent)
+	{}
+
+	/** This typedef is required to be provided in FMassFastArrayItemBase derived classes (with the associated FReplicatedAgentBase derived class) */
+	typedef FReplicatedCrowdAgent FReplicatedAgentType;
+
+	UPROPERTY()
+	FReplicatedCrowdAgent Agent;
+};
+===================================================
+
+
+=== MassCrowd/Public/MassCrowdReplicator.h ===
+==============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassReplicationProcessor.h"
+
+#include "MassCrowdReplicator.generated.h"
+
+/** Class that handles replication and only runs on the server. It queries Mass entity fragments and sets those values when appropriate using the MassClientBubbleHandler. */
+UCLASS()
+class MASSCROWD_API UMassCrowdReplicator : public UMassReplicatorBase
+{
+	GENERATED_BODY()
+
+public:
+	/**
+	 * Overridden to add specific entity query requirements for replication.
+	 * Usually we add replication processor handler requirements.
+	 */
+	virtual void AddRequirements(FMassEntityQuery& EntityQuery) override;
+	
+	/**
+	 * Overridden to process the client replication.
+	 * This methods should call CalculateClientReplication with the appropriate callback implementation.
+	 */
+	virtual void ProcessClientReplication(FMassExecutionContext& Context, FMassReplicationContext& ReplicationContext) override;
+};
+==============================================
+
+
+=== MassCrowd/Public/MassCrowdRepresentationActorManagement.h ===
+=================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassRepresentationActorManagement.h"
+
+#include "MassCrowdRepresentationActorManagement.generated.h"
+
+/**
+ * Overridden representation processor to make it tied to the crowd via the requirements.
+ * It is also the base class for all the different type of crowd representation (Visualization & ServerSideRepresentation)
+ */
+UCLASS(abstract)
+class MASSCROWD_API UMassCrowdRepresentationActorManagement : public UMassRepresentationActorManagement
+{
+	GENERATED_BODY()
+
+protected:
+
+	/**
+	 * Enable/disable a spawned actor
+	 * @param EnabledType is the type of enabling to do on this actor
+	 * @param Actor is the actual actor to perform enabling type on
+	 * @param EntityIdx is the entity index currently processing
+	 * @param Context is the current Mass execution context
+	 */
+	virtual void SetActorEnabled(const EMassActorEnabledType EnabledType, AActor& Actor, const int32 EntityIdx, FMassCommandBuffer& CommandBuffer) const override;
+
+	/**
+	 * Returns an actor of the template type and setup fragments values from it
+	 * @param RepresentationSubsystem to use to get or spawn the actor
+	 * @param EntitySubsystem associated to the mass agent
+	 * @param MassAgent is the handle to the associated mass agent
+	 * @param ActorInfo is the fragment where we are going to store the actor pointer
+	 * @param Transform is the spatial information about where to spawn the actor
+	 * @param TemplateActorIndex is the index of the type fetched with UMassRepresentationSubsystem::FindOrAddTemplateActor()
+	 * @param SpawnRequestHandle (in/out) In: previously requested spawn Out: newly requested spawn
+	 * @param Priority of this spawn request in comparison with the others, lower value means higher priority
+	 * @return the actor spawned
+	 */
+	virtual AActor* GetOrSpawnActor(UMassRepresentationSubsystem& RepresentationSubsystem, FMassEntityManager& EntitySubsystem
+		, const FMassEntityHandle MassAgent, const FTransform& Transform, const int16 TemplateActorIndex
+		, FMassActorSpawnRequestHandle& SpawnRequestHandle, const float Priority) const override;
+
+	/**
+	 * Teleports the actor at the specified transform by preserving its velocity and without collision.
+	 * The destination will be adjusted to fit an existing capsule.
+	 * @param Transform is the new actor's transform 
+	 * @param Actor is the actual actor to teleport
+	 * @param Context is the current Mass execution context
+	 */
+	virtual void TeleportActor(const FTransform& Transform, AActor& Actor, FMassCommandBuffer& CommandBuffer) const override;
+};
+=================================================================
+
+
+=== MassCrowd/Public/MassCrowdRepresentationSubsystem.h ===
+===========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassRepresentationSubsystem.h"
+
+#include "MassCrowdRepresentationSubsystem.generated.h"
+
+/**
+ * Subsystem responsible for all visual of mass crowd agents, will handle actors spawning and static mesh instances
+ */
+UCLASS()
+class MASSCROWD_API UMassCrowdRepresentationSubsystem : public UMassRepresentationSubsystem
+{
+	GENERATED_BODY()
+
+protected:
+	// USubsystem BEGIN
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	// USubsystem END
+};
+===========================================================
+
+
+=== MassCrowd/Public/MassCrowdServerRepresentationLODProcessor.h ===
+====================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassCrowdTypes.h"
+#include "MassCrowdFragments.h"
+#include "MassProcessor.h"
+#include "MassLODCalculator.h"
+#include "MassLODTickRateController.h"
+
+#include "MassCrowdServerRepresentationLODProcessor.generated.h"
+
+UCLASS(meta=(DisplayName="Crowd Simulation LOD"))
+class MASSCROWD_API UMassCrowdServerRepresentationLODProcessor : public UMassProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdServerRepresentationLODProcessor();
+
+protected:
+
+	virtual void ConfigureQueries() override;
+	virtual void Initialize(UObject& InOwner) override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	/** Distance where each LOD becomes relevant */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	float LODDistance[EMassLOD::Max];
+
+	/** Hysteresis percentage on delta between the LOD distances */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", meta = (ClampMin = "0.0", UIMin = "0.0"), config)
+	float BufferHysteresisOnDistancePercentage = 10.0f;
+
+	/** Maximum limit of entity per LOD */
+	UPROPERTY(EditAnywhere, Category = "Mass|LOD", config)
+	int32 LODMaxCount[EMassLOD::Max];
+
+	TMassLODCalculator<FLODDefaultLogic> LODCalculator;
+
+	FMassEntityQuery EntityQuery;
+};
+
+====================================================================
+
+
+=== MassCrowd/Public/MassCrowdServerRepresentationProcessor.h ===
+=================================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassRepresentationProcessor.h"
+
+#include "MassCrowdServerRepresentationProcessor.generated.h"
+
+/**
+ * Overridden representation processor to make it tied to the crowd on the server via the requirements
+ * It is the counter part of the crowd visualization processor on the client.
+ */
+UCLASS(meta = (DisplayName = "Mass Crowd Server Representation"))
+class MASSCROWD_API UMassCrowdServerRepresentationProcessor : public UMassRepresentationProcessor
+{
+	GENERATED_BODY()
+
+public:
+	UMassCrowdServerRepresentationProcessor();
+
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
+	virtual void ConfigureQueries() override;
+};
+=================================================================
+
+
+=== MassCrowd/Public/MassCrowdServerRepresentationTrait.h ===
+=============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once 
+
+#include "MassEntityTraitBase.h"
+#include "MassRepresentationTypes.h"
+#include "MassRepresentationFragments.h"
+#include "GameFramework/Actor.h"
+
+#include "MassCrowdServerRepresentationTrait.generated.h"
+
+
+UCLASS(meta=(DisplayName="Crowd Server Representation"))
+class MASSCROWD_API UMassCrowdServerRepresentationTrait : public UMassEntityTraitBase
+{
+	GENERATED_BODY()
+
+	UMassCrowdServerRepresentationTrait();
+
+protected:
+
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
+
+	/** Actor class of this agent when spawned on server */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	TSubclassOf<AActor> TemplateActor;
+
+	/** Configuration parameters for the representation processor */
+	UPROPERTY(EditAnywhere, Category = "Mass|Visual")
+	FMassRepresentationParameters Params;
+};
+
+=============================================================
+
+
+=== MassCrowd/Public/MassCrowdSettings.h ===
+============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassSettings.h"
+#include "ZoneGraphTypes.h"
+#include "MassCrowdSettings.generated.h"
+
+#if WITH_EDITOR
+/** Called when density settings change. */
+DECLARE_MULTICAST_DELEGATE(FOnMassCrowdLaneDataSettingsChanged);
+/** Called when rendering settings change. */
+DECLARE_MULTICAST_DELEGATE(FOnMassCrowdLaneRenderSettingsChanged);
+#endif
+
+/**
+ * Structure holding data to associate lane densities to
+ * weights so lane selection at intersection could use that
+ * to maintain overall density during the simulation
+ */
+USTRUCT()
+struct MASSCROWD_API FMassCrowdLaneDensityDesc
+{
+	GENERATED_BODY()
+
+	/** Default weight of a lane if it has no density tag */
+	static constexpr float DefaultWeight = 1.0f;
+
+	/** Tag representing the lane density. */
+	UPROPERTY(EditAnywhere, Category = "Lane Density")
+	FZoneGraphTag Tag;
+
+	/**
+	 * Weight associated to the current lane density.
+	 * This weight is used during lane selection at intersection
+	 * and the random selection will consider the weight of each
+	 * lane and the combined weight of all lanes.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Lane Density")
+	float Weight = DefaultWeight;
+
+	UPROPERTY(EditAnywhere, Category = "Lane Density", meta = (HideAlphaChannel))
+	FColor RenderColor = FColor::Silver;
+};
+
+/**
+ * Settings for the MassCrowd plugin.
+ */
+UCLASS(config = Plugins, defaultconfig, DisplayName = "Mass Crowd", dontCollapseCategories)
+class MASSCROWD_API UMassCrowdSettings : public UMassModuleSettings
+{
+	GENERATED_BODY()
+
+public:
+	const TArray<FMassCrowdLaneDensityDesc>& GetLaneDensities() const { return LaneDensities; }
+	float GetMoveDistance() const
+	{ 
+		return FMath::Max(0.0f, MoveDistance + FMath::RandRange(-MoveDistanceRandomDeviation, MoveDistanceRandomDeviation));
+	}
+
+#if WITH_EDITOR
+	mutable FOnMassCrowdLaneDataSettingsChanged OnMassCrowdLaneDataSettingsChanged;
+	mutable FOnMassCrowdLaneRenderSettingsChanged OnMassCrowdLaneRenderSettingsChanged;
+#endif
+
+	/** Base thickness used to render lane data specific to crowd. */
+	UPROPERTY(EditAnywhere, config, meta = (ClampMin = "0.0", UIMin = "0.0"), Category = "Lane Debug Rendering")
+	float LaneBaseLineThickness = 5.0f;
+
+	/** Z offset used to render lane data specific to crowd over the actual zone graph. */
+	UPROPERTY(EditAnywhere, config, meta = (ClampMin = "0.0", UIMin = "0.0"), Category = "Lane Debug Rendering")
+	float LaneRenderZOffset = 50.0f;
+
+	/** Scale factor applied on the base thickness to render intersection lanes data. */
+	UPROPERTY(EditAnywhere, config, meta = (ClampMin = "1.0", UIMin = "1.0", ClampMax = "10.0", UIMax = "10.0"), Category = "Lane Debug Rendering")
+	float IntersectionLaneScaleFactor = 1.5f;
+
+	/** Scale factor applied on the base or intersection thickness to render density outline. */
+	UPROPERTY(EditAnywhere, config, meta = (ClampMin = "1.0", UIMin = "1.0", ClampMax = "10.0", UIMax = "10.0"), Category = "Lane Debug Rendering")
+	float LaneDensityScaleFactor = 1.5f;
+
+	/** Color used to render crowd lane that are opened for navigation. */
+	UPROPERTY(EditAnywhere, config, Category = "Lane Density", meta = (HideAlphaChannel))
+	FColor OpenedLaneColor = FColor::Green;
+
+	/** Color used to render crowd lane that are closed to navigation. */
+	UPROPERTY(EditAnywhere, config, Category = "Lane Density", meta = (HideAlphaChannel))
+	FColor ClosedLaneColor = FColor::Red;
+
+	/** Tag required on a lane to build crowd related runtime data for it and render it. */
+	UPROPERTY(EditDefaultsOnly, config, Category = Lane)
+	FZoneGraphTag CrowdTag;
+
+	/** Tag required on a lane to build intersection crossing runtime data for it. */
+	UPROPERTY(EditDefaultsOnly, config, Category = Lane)
+	FZoneGraphTag CrossingTag;
+
+	/** Distance reserved for each entity while waiting on an intersection lane. */
+	UPROPERTY(EditDefaultsOnly, config, Category = WaitArea)
+	uint32 SlotSize = 50;
+
+	/** Offset from the lane entry where the slots are created. */
+	UPROPERTY(EditDefaultsOnly, config, Category = WaitArea)
+	float SlotOffset = 75;
+
+	/** Text will be added on lanes with entity tracking or waiting area to indicate the current occupation */
+	UPROPERTY(EditAnywhere, config, Category = Options)
+	bool bDisplayTrackingData = true;
+
+	/** Lanes will be displayed to indicates the current state. See MassCrowd settings for parameters. */
+	UPROPERTY(EditAnywhere, config, Category = Options)
+	bool bDisplayStates = true;
+
+	/** Lanes will be displayed to represent their assigned densities. See MassCrowd settings for parameters. */
+	UPROPERTY(EditAnywhere, config, Category = Options)
+	bool bDisplayDensities = true;
+
+	/** An obstacle is considered being stopped when it's speed is less than the tolerance. */
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "cm/s"))
+	float ObstacleStoppingSpeedTolerance = 5.0f;
+
+	/** An obstacle is considered moving when it has moved this much after being stationary. */
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "cm"))
+	float ObstacleMovingDistanceTolerance = 10.0f;
+
+	/** The time an obstacle needs to be not moving before it is reported as stopped.*/
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "s"))
+	float ObstacleTimeToStop = 0.3f;
+
+	/** The radius an obstacle has effects on navigation.*/
+	UPROPERTY(EditAnywhere, config, Category = Obstacles, meta = (ClampMin = "0.0", UIMin = "0.0", ForceUnits = "cm"))
+	float ObstacleEffectRadius = 1000.f;
+
+protected:
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif
+
+	/** Distance ahead of the current lane location for the next movement target location. */
+	UPROPERTY(EditDefaultsOnly, config, meta = (ClampMin = "0.0", UIMin = "0.0"), Category = Movement)
+	float MoveDistance = 500.f;
+
+	/** Random deviation of the of the MoveDistance */
+	UPROPERTY(EditDefaultsOnly, config, meta = (ClampMin = "0.0", UIMin = "0.0"), Category = Movement)
+	float MoveDistanceRandomDeviation = 100.f;
+
+	/** List of all lane density descriptors. */
+	UPROPERTY(EditAnywhere, config, Category = "Lane Density")
+	TArray<FMassCrowdLaneDensityDesc> LaneDensities;
+};
+============================================
+
+
+=== MassCrowd/Public/MassCrowdSpawnerSubsystem.h ===
+====================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassActorSpawnerSubsystem.h"
+
+#include "MassCrowdSpawnerSubsystem.generated.h"
+
+/**
+ * A subsystem managing spawning of crowd
+ */
+UCLASS()
+class MASSCROWD_API UMassCrowdSpawnerSubsystem : public UMassActorSpawnerSubsystem
+{
+	GENERATED_BODY()
+};
+
+====================================================
+
+
+=== MassCrowd/Public/MassCrowdSubsystem.h ===
+=============================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassCrowdTypes.h"
+#include "ZoneGraphTypes.h"
+#include "MassSubsystemBase.h"
+#include "MassCrowdSubsystem.generated.h"
+
+class UZoneGraphAnnotationSubsystem;
+class UMassCrowdSettings;
+class UZoneGraphSubsystem;
+class AZoneGraphData;
+
+#if !UE_BUILD_SHIPPING
+/** Called when a lane changes state at runtime. */
+DECLARE_MULTICAST_DELEGATE(FDebugOnMassCrowdLaneStateChanged);
+#endif
+
+/** Structure holding all pertinent data related to the selected lane. */
+struct FSelectLaneResult
+{
+	/** The handle of the next lane selected from the available links. */
+	FZoneGraphLaneHandle NextLaneHandle;
+
+	/** The distance along the lane the entity should reach before stopping. */
+	TOptional<float> WaitDistance;
+};
+
+/** Container for the crowd lane data associated to a specific registered ZoneGraph data. */
+struct FRegisteredCrowdLaneData
+{
+	void Reset()
+	{
+		CrowdLaneDataArray.Reset();
+		DataHandle.Reset();
+		LaneToTrackingDataLookup.Reset();
+		LaneToBranchingDataLookup.Reset();
+		WaitAreas.Reset();
+	}
+
+	/** Per lane data; array size matches the ZoneGraph storage. */
+	TArray<FZoneGraphCrowdLaneData> CrowdLaneDataArray;
+
+	/** Handle of the storage the data was initialized from. */
+	FZoneGraphDataHandle DataHandle;
+
+	/** Lane to entity tracking data lookup */
+	TMap<int32, FCrowdTrackingLaneData> LaneToTrackingDataLookup;
+
+	/** Lane to branching data lookup */
+	TMap<int32, FCrowdBranchingLaneData> LaneToBranchingDataLookup;
+
+	TArray<FCrowdWaitAreaData> WaitAreas;
+};
+
+/**
+ * Subsystem that tracks mass entities that are wandering on the zone graph.
+ * It will create custom runtime lane data to allow branching decisions.
+ */
+UCLASS()
+class MASSCROWD_API UMassCrowdSubsystem : public UMassSubsystemBase
+{
+	GENERATED_BODY()
+public:
+#if !UE_BUILD_SHIPPING
+	FDebugOnMassCrowdLaneStateChanged DebugOnMassCrowdLaneStateChanged;
+#endif
+
+#if WITH_EDITOR
+	/** Clears and rebuilds all lane and intersection data for registered zone graphs using the current settings. */
+	void RebuildLaneData();
+#endif
+
+	/** @return true if the Crowd subsystem has lane data for specified graph. */
+	bool HasCrowdDataForZoneGraph(const FZoneGraphDataHandle DataHandle) const;
+
+	/**
+	 * Returns the readonly runtime data associated to a given zone graph.
+	 * @param DataHandle A valid handle of the zone graph used to retrieve the runtime crowd data
+	 * @return Runtime data associated to the zone graph if available; nullptr otherwise
+	 * @note Method will ensure if DataHandle is invalid or if associated data doesn't exist. Should call HasCrowdDataForZoneGraph first.
+	 */
+	const FRegisteredCrowdLaneData* GetCrowdData(const FZoneGraphDataHandle DataHandle) const;
+
+	/**
+	 * Returns the readonly runtime data associated to a given zone graph lane.
+	 * @param LaneHandle A valid lane handle used to retrieve the runtime data; ensure if handle is invalid
+	 * @return Runtime data associated to the lane (if available)
+	 */
+	TOptional<FZoneGraphCrowdLaneData> GetCrowdLaneData(const FZoneGraphLaneHandle LaneHandle) const;
+
+	/**
+	 * Returns the entity tracking runtime data associated to a given zone graph lane.
+	 * @param LaneHandle A valid lane handle used to retrieve the associated tracking data; ensure if handle is invalid
+	 * @return Runtime data associated to the lane (nullptr if provided handle is invalid or no data is associated to that lane)
+	 */
+	const FCrowdTrackingLaneData* GetCrowdTrackingLaneData(const FZoneGraphLaneHandle LaneHandle) const;
+
+	/**
+	 * Returns the branching data associated to a given zone graph lane.
+ 	 * @param LaneHandle A valid lane handle used to retrieve the associated data; ensure if handle is invalid
+	 * @return Branching data associated to the lane (nullptr if provided handle is invalid or no data is associated to that lane)
+	 */
+	const FCrowdBranchingLaneData* GetCrowdBranchingLaneData(const FZoneGraphLaneHandle LaneHandle) const;
+
+	/**
+	 * Returns the waiting area runtime data associated to a given zone graph lane.
+	 * @param LaneHandle A valid lane handle used to retrieve the associated intersection data; ensure if handle is invalid
+	 * @return Runtime data associated to the lane (nullptr if provided handle is invalid or no data is associated to that lane)
+	 */
+	const FCrowdWaitAreaData* GetCrowdWaitingAreaData(const FZoneGraphLaneHandle LaneHandle) const;
+
+	/**
+	 * Return the current state of a lane.
+	 * @param LaneHandle A valid lane handle used to retrieve the runtime data and change the lane state; ensure if handle is invalid
+	 * @return The state of the lane
+	 */
+	ECrowdLaneState GetLaneState(const FZoneGraphLaneHandle LaneHandle) const;
+
+	/**
+	 * Changes the state of a lane.
+	 * @param LaneHandle A valid lane handle used to retrieve the runtime data and change the lane state; ensure if handle is invalid
+	 * @param NewState The new state of the lane
+	 * @return True if the state was successfully changed or was already in the right state; false if handle is invalid
+	 */
+	bool SetLaneState(const FZoneGraphLaneHandle LaneHandle, ECrowdLaneState NewState);
+
+	/** @return Combined Tag mask that represents all possible lane density tags. Built from MassCrowdSettings. */
+	FZoneGraphTagMask GetDensityMask() const { return DensityMask; }
+
+	/**
+	 * Acquires a slot from a specified waiting lane. Nearest vacant slot to EntityPosition is returned. 
+	 * @param Entity Requesting entity
+	 * @param EntityPosition Position of the entity.
+	 * @param LaneHandle A handle to a lane with waiting data.
+	 * @param OutSlotPosition Position associated to the acquired slot.
+	 * @param OutSlotDirection Facing direction associated to the acquire slot.
+	 * @return Index of the slot, or INDEX_NONE if no slots are available or if the lane is not a waiting lane.
+	 */
+	int32 AcquireWaitingSlot(const FMassEntityHandle Entity, const FVector& EntityPosition, const FZoneGraphLaneHandle LaneHandle,
+							 FVector& OutSlotPosition, FVector& OutSlotDirection);
+	
+	/**
+	 * Releases previously acquired slot from a specified waiting lane.
+	 * @param Entity Requesting entity
+	 * @param LaneHandle A handle to a lane with waiting data.
+	 * @param SlotIndex Index of the previously acquired slot.
+	 */
+	void ReleaseWaitingSlot(const FMassEntityHandle Entity, const FZoneGraphLaneHandle LaneHandle, const int32 SlotIndex);
+
+	/**
+	 * Callback from the lane tracker processor to indicates a mass entity changing lane.
+	 * @param Entity The mass entity
+	 * @param PreviousLaneHandle Last frame lane handle (can be invalid)
+	 * @param CurrentLaneHandle Current frame lane handle (can be invalid)
+	 */
+	void OnEntityLaneChanged(const FMassEntityHandle Entity, const FZoneGraphLaneHandle PreviousLaneHandle, const FZoneGraphLaneHandle CurrentLaneHandle);
+
+	/** Returns the weight for lane selection that is associated to the given lane based on its density tag. */
+	float GetDensityWeight(const FZoneGraphLaneHandle LaneHandle, const FZoneGraphTagMask LaneTagMask) const;
+
+protected:
+	friend class UMassCrowdLaneTrackingProcessor;
+	friend class UMassCrowdWanderFragmentDestructor;
+	friend class UZoneGraphCrowdLaneAnnotations;
+
+	void UpdateDensityMask();
+
+	// USubsystem BEGIN
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void PostInitialize() override;
+	virtual void Deinitialize() override;
+	// USubsystem END
+
+	void PostZoneGraphDataAdded(const AZoneGraphData* ZoneGraphData);
+	void PreZoneGraphDataRemoved(const AZoneGraphData* ZoneGraphData);
+
+	/**
+	 * Returns the modifiable runtime data associated to a given zone graph lane.
+	 * @param LaneHandle A valid lane handle used to retrieve the runtime data; ensure if handle is invalid
+	 * @return Runtime data associated to the lane if available; nullptr otherwise
+	 */
+	FZoneGraphCrowdLaneData* GetMutableCrowdLaneData(const FZoneGraphLaneHandle LaneHandle);
+
+	/**
+	 * Populates the crowd lane data array with all existing lane in the zone graph.
+	 * Also creates some extra data for lanes that could be used to wait in case of
+	 * temporarily closed lane (e.g. intersection crossings).
+	 */
+	void BuildLaneData(FRegisteredCrowdLaneData& LaneData, const FZoneGraphStorage& Storage);
+
+	/**
+	 * Callback to keep count of entities currently on a given lane.
+	 * @param Entity The entity entering the lane
+	 * @param LaneIndex Index of the lane
+	 * @param TrackingData Runtime state associated to the lane
+	 */
+	void OnEnterTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData);
+
+	/**
+	 * Callback to keep count of entities currently on a given lane.
+	 * @param Entity The entity exiting the lane
+	 * @param LaneIndex Index of the lane
+	 * @param TrackingData Runtime state associated to the lane
+	 */
+	void OnExitTrackedLane(const FMassEntityHandle Entity, const int32 LaneIndex, FCrowdTrackingLaneData& TrackingData);
+
+	/**
+	 * Creates and initializes the occupancy data of a lane.
+	 * @param LaneIndex Index of the source zone graph lane
+	 * @param ZoneGraphStorage ZoneGraph data storage to extract lane information from
+	 * @return The newly created structure holding occupancy data associated to the zone graph lane
+	 */
+	FCrowdTrackingLaneData& CreateTrackingData(const int32 LaneIndex, const FZoneGraphStorage& ZoneGraphStorage);
+
+	/**
+	 * Creates dedicated structure to hold data of a branching lane.
+	 * @param LaneIndex Index of the source zone graph lane
+	 * @param ZoneGraphStorage ZoneGraph data storage to extract lane information from
+	 * @return The newly created structure holding specific data of a branching lane
+	 */
+	FCrowdBranchingLaneData& CreateBranchingData(const int32 LaneIndex, const FZoneGraphStorage& ZoneGraphStorage);
+
+	void CreateWaitSlots(const int32 CrossingLaneIndex, FCrowdWaitAreaData& WaitArea, const FZoneGraphStorage& ZoneGraphStorage);
+
+	UPROPERTY(Transient)
+	TObjectPtr<UZoneGraphSubsystem> ZoneGraphSubsystem = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UZoneGraphAnnotationSubsystem> ZoneGraphAnnotationSubsystem = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<const UMassCrowdSettings> MassCrowdSettings = nullptr;
+
+	FDelegateHandle OnPostZoneGraphDataAddedHandle;
+	FDelegateHandle OnPreZoneGraphDataRemovedHandle;
+#if WITH_EDITOR
+	FDelegateHandle OnMassCrowdSettingsChangedHandle;
+	FDelegateHandle OnZoneGraphDataBuildDoneHandle;
+#endif
+
+	/** Per lane data for all registered ZoneGraph data. */
+	TArray<FRegisteredCrowdLaneData> RegisteredLaneData;
+
+	/** Tag mask that represents all possible lane density tags. Built from MassCrowdSettings. */
+	FZoneGraphTagMask DensityMask;
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassCrowdSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false
+	};
+};
+
+=============================================
+
+
+=== MassCrowd/Public/MassCrowdTypes.h ===
+=========================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassLODLogic.h"
+#include "ZoneGraphTypes.h"
+
+#include "MassCrowdTypes.generated.h"
+
+struct FMassCrowdSimulationLODLogic : public FLODDefaultLogic
+{
+	enum
+	{
+		bDoVariableTickRate = true,
+	};
+};
+
+struct FMassCrowdViewerLODLogic : public FLODDefaultLogic
+{
+	enum
+	{
+		bDoVisibilityLogic = true,
+		bCalculateLODSignificance = true,
+		bLocalViewersOnly = true,
+	};
+};
+
+struct FMassCrowdCombinedLODLogic : public FLODDefaultLogic
+{
+	enum
+	{
+		bDoVariableTickRate = true,
+		bDoVisibilityLogic = true,
+		bCalculateLODSignificance = true,
+		bLocalViewersOnly = true,
+	};
+};
+
+/** State of a given lane */
+UENUM()
+enum class ECrowdLaneState : uint8
+{
+	Opened, // Pedestrians can enter the lane
+	Closed, // Pedestrians can not enter the lane
+};
+
+/** Runtime data associated to lane that can be used to track count of entities on it. */
+USTRUCT()
+struct MASSCROWD_API FCrowdTrackingLaneData
+{
+	GENERATED_BODY()
+
+	/**
+	 * Index of an associated waiting area. This will be valid for branching lanes leading
+	 * to a crossing that requires agent to wait for incoming lane to open.
+	 */
+	int32 WaitAreaIndex = INDEX_NONE;
+
+	int32 NumEntitiesOnLane = 0;
+};
+
+/** Runtime data associated to lane that can be used to wait another one to open. */
+USTRUCT()
+struct MASSCROWD_API FCrowdWaitSlot
+{
+	GENERATED_BODY()
+
+	FVector Position = FVector::Zero();
+	
+	FVector Forward = FVector::ForwardVector;
+
+	float Radius = 0;
+
+	bool bOccupied = false;
+};
+
+/** Runtime data associated to entry to a lane that can be opened or closed. */
+USTRUCT()
+struct MASSCROWD_API FCrowdWaitAreaData
+{
+	GENERATED_BODY()
+
+	void Reset()
+	{
+		Slots.Reset();
+		NumFreeSlots = 0;
+	}
+	
+	bool IsFull() const { return NumFreeSlots == 0; }
+	int32 GetNumSlots() const { return Slots.Num(); }
+	int32 GetNumFreeSlots() const { return NumFreeSlots; }
+	int32 GetNumOccupiedSlots() const { return Slots.Num() - NumFreeSlots; }
+
+	TArray<FCrowdWaitSlot> Slots;
+
+	TArray<FZoneGraphLaneHandle> ConnectedLanes;
+	
+	int32 NumFreeSlots = 0;
+};
+
+/** Runtime data associated to branching. */
+USTRUCT()
+struct MASSCROWD_API FCrowdBranchingLaneData
+{
+	GENERATED_BODY()
+
+	/**
+	 * Density mask extracted from the incoming lane.
+	 * This is required since the intersection might split and reach different densities on connected shapes.
+	 * We can't keep a single density for the whole polygon so we keep it per lane.
+	 */
+	uint32 DensityMask = 0;
+};
+
+/** Structure holding runtime data associated to a zone graph lane to handle pedestrian navigation. */
+USTRUCT()
+struct FZoneGraphCrowdLaneData
+{
+	GENERATED_BODY()
+public:
+	ECrowdLaneState GetState() const { return State; }
+	void SetState(ECrowdLaneState Value) { State = Value; }
+protected:
+	ECrowdLaneState State = ECrowdLaneState::Opened;
+};
+
+=========================================
+
+
+=== MassCrowd/Public/MassCrowdVisualizationLODProcessor.h ===
+=============================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassVisualizationLODProcessor.h"
+#include "MassLODCollectorProcessor.h"
+#include "MassCrowdVisualizationLODProcessor.generated.h"
+
+/*
+ * Created a crowd version for parallelization of the crowd with the traffic
+ */
+UCLASS(meta=(DisplayName="Crowd visualization LOD"))
+class MASSCROWD_API UMassCrowdVisualizationLODProcessor : public UMassVisualizationLODProcessor
+{
+	GENERATED_BODY()
+public:
+	UMassCrowdVisualizationLODProcessor();
+
+protected:
+	virtual void ConfigureQueries() override;
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+};
+
+/*
+ * Created a crowd version for parallelization of the crowd with the traffic
+ */
+UCLASS(meta = (DisplayName = "Crowd LOD Collection "))
+class MASSCROWD_API UMassCrowdLODCollectorProcessor : public UMassLODCollectorProcessor
+{
+	GENERATED_BODY()
+
+	UMassCrowdLODCollectorProcessor();
+
+protected:
+	virtual void ConfigureQueries() override;
+};
+
+
+=============================================================
+
+
+=== MassCrowd/Public/MassCrowdVisualizationProcessor.h ===
+==========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassRepresentationProcessor.h"
+
+#include "MassCrowdVisualizationProcessor.generated.h"
+
+/**
+ * Overridden visualization processor to make it tied to the crowd via the requirements
+ */
+UCLASS(meta = (DisplayName = "Mass Crowd Visualization"))
+class MASSCROWD_API UMassCrowdVisualizationProcessor : public UMassVisualizationProcessor
+{
+	GENERATED_BODY()
+public:
+	UMassCrowdVisualizationProcessor();
+
+protected:
+
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
+	virtual void ConfigureQueries() override;
+};
+
+/**
+ * A custom visualization processor for debugging mass crowd
+ */
+UCLASS(meta = (DisplayName = "Mass Crowd Visualization"))
+class MASSCROWD_API UMassDebugCrowdVisualizationProcessor : public UMassProcessor
+{
+	GENERATED_BODY()
+public:
+	UMassDebugCrowdVisualizationProcessor();
+
+protected:
+
+	/** Configure the owned FMassEntityQuery instances to express processor's requirements */
+	virtual void ConfigureQueries() override;
+
+	virtual void Initialize(UObject& Owner) override;
+
+	/**
+	 * Execution method for this processor
+	 * @param EntitySubsystem is the system to execute the lambdas on each entity chunk
+	 * @param Context is the execution context to be passed when executing the lambdas
+	 */
+	virtual void Execute(FMassEntityManager& EntityManager, FMassExecutionContext& Context) override;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UWorld> World;
+
+	FMassEntityQuery EntityQuery;
+};
+==========================================================
+
+
+=== MassCrowd/Public/MassCrowdVisualizationTrait.h ===
+======================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once 
+
+#include "MassVisualizationTrait.h"
+#include "MassCrowdVisualizationTrait.generated.h"
+
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta=(DisplayName="Crowd Visualization"))
+class MASSCROWD_API UMassCrowdVisualizationTrait : public UMassVisualizationTrait
+{
+	GENERATED_BODY()
+public:
+	UMassCrowdVisualizationTrait();
+
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
+};
+
+======================================================
+
+
+=== MassCrowd/Public/ZoneGraphCrowdLaneAnnotations.h ===
+========================================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MassCrowdSubsystem.h"
+#include "ZoneGraphAnnotationComponent.h"
+#include "ZoneGraphAnnotationTypes.h"
+
+#include "ZoneGraphCrowdLaneAnnotations.generated.h"
+
+/** Event indicating the new state of a lane. */
+USTRUCT()
+struct MASSCROWD_API FZoneGraphCrowdLaneStateChangeEvent : public FZoneGraphAnnotationEventBase
+{
+	GENERATED_BODY()
+
+	FZoneGraphCrowdLaneStateChangeEvent() = default;
+	FZoneGraphCrowdLaneStateChangeEvent(const FZoneGraphLaneHandle LaneHandle, const ECrowdLaneState NewState)
+		: Lane(LaneHandle), State(NewState)	{}
+
+	/** Affected lane. */
+	UPROPERTY()
+	FZoneGraphLaneHandle Lane;
+
+	/** New state. */
+	UPROPERTY()
+	ECrowdLaneState State = ECrowdLaneState::Opened;
+};
+
+/**
+ * Zone graph blocking behavior
+ */
+UCLASS(ClassGroup = AI, BlueprintType, meta = (BlueprintSpawnableComponent))
+class MASSCROWD_API UZoneGraphCrowdLaneAnnotations : public UZoneGraphAnnotationComponent
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void PostSubsystemsInitialized() override;
+	virtual FZoneGraphTagMask GetAnnotationTags() const override;
+	virtual void HandleEvents(const FInstancedStructContainer& Events) override;
+	virtual void TickAnnotation(const float DeltaTime, FZoneGraphAnnotationTagContainer& AnnotationTagContainer) override;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	virtual void DebugDraw(FZoneGraphAnnotationSceneProxy* DebugProxy) override;
+	virtual void DebugDrawCanvas(UCanvas* Canvas, APlayerController*) override;
+#endif // UE_ENABLE_DEBUG_DRAWING
+
+	/** Annotation Tag to mark a closed lane. */
+	UPROPERTY(EditAnywhere, Category = CrowdLane)
+	FZoneGraphTag CloseLaneTag;
+
+	/** Annotation Tag to mark a waiting lane. */
+	UPROPERTY(EditAnywhere, Category = CrowdLane)
+	FZoneGraphTag WaitingLaneTag;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
+	bool bDisplayTags = false;
+
+	/** Array of queued events. */
+	TArray<FZoneGraphCrowdLaneStateChangeEvent> StateChangeEvents;
+
+	/** Cached ZoneGraphSubsystem */
+	UPROPERTY(Transient)
+	TObjectPtr<UMassCrowdSubsystem> CrowdSubsystem = nullptr;
+};
+
+========================================================
+
+
+=== MassCrowd/MassCrowd.Build.cs ===
+====================================
+
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+namespace UnrealBuildTool.Rules
+{
+	public class MassCrowd: ModuleRules
+	{
+		public MassCrowd(ReadOnlyTargetRules Target) : base(Target)
+		{
+			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"AIModule",
+					"MassEntity",
+					"Core",
+					"CoreUObject",
+					"Engine",
+					"MassActors",
+					"MassCommon",
+					"MassLOD",
+					"MassMovement",
+					"MassNavigation",
+					"MassZoneGraphNavigation",
+					"MassReplication",
+					"MassAIReplication",
+					"MassSignals",
+					"MassSimulation",
+					"MassSpawner",
+					"MassRepresentation",
+					"MassAIBehavior",
+					"NetCore",
+					"StateTreeModule",
+					"ZoneGraph",
+					"ZoneGraphAnnotations",
+					"ZoneGraphDebug"
+				}
+			);
+
+			SetupIrisSupport(Target);
+		}
+	}
+}
+====================================
+
