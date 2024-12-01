@@ -48,7 +48,7 @@ class CodebaseRAGSystem:
     def _retrieve_context(self, state: GraphState) -> GraphState:
         """문맥 검색 노드"""
         question = state["current_question"]
-        results = self.vector_store.similarity_search(question, k=3)
+        results = self.vector_store.similarity_search(question, k=100)
         state["context"] = results
         return state
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     rag_system = CodebaseRAGSystem(VECTOR_STORE_PATH, GOOGLE_API_KEY)
 
     # 테스트 질문
-    question = "PawnAction 클래스의 주요 기능은 무엇인가요?"
+    question = "MassAI 모듈의 주요 기능을 알려주세요"
     response = rag_system.query(question)
 
     # 결과 출력
