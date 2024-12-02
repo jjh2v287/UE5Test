@@ -7,3 +7,4 @@ Saved
 .vsconfig
 .vs/UE5Test/v17/.suo
 *.user
+PythonProject/__pycache__
