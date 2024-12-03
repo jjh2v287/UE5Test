@@ -9,7 +9,7 @@ from clang.cindex import Index, CursorKind, Cursor
 import clang.cindex
 
 # Clang 설정
-clang.cindex.Config.set_library_file("llvm/bin/libclang.dll")
+clang.cindex.Config.set_library_file("llvm/bin/libclang.dll") # clang+llvm-19.1.4-x86_64-pc-windows-msvc.tar
 
 
 @dataclass
