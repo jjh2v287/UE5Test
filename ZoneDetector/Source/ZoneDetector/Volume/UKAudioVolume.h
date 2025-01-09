@@ -11,7 +11,7 @@ class UBoxComponent;
  * 
  */
 UCLASS(Blueprintable, hidecategories = (Attachment, Collision, Volume))
-class UKGAME_API AUKAudioVolume : public AAudioVolume
+class ZONEDETECTOR_API AUKAudioVolume : public AAudioVolume
 {
 	GENERATED_BODY()
 
@@ -37,6 +37,7 @@ protected:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void EditorReplacedActor(AActor* OldActor) override;
 #endif // WITH_EDITOR
 	
 	UFUNCTION()

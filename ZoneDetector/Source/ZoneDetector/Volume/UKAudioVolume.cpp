@@ -113,6 +113,23 @@ void AUKAudioVolume::PostEditChangeProperty(struct FPropertyChangedEvent& Proper
 	const FVector BoxExtent = GetBoxExtent();
 	BoxComp->SetBoxExtent(BoxExtent);
 }
+
+void AUKAudioVolume::EditorReplacedActor(AActor* OldActor)
+{
+	Super::EditorReplacedActor(OldActor);
+
+	if (AAudioVolume* OldAudioVolume = Cast<AAudioVolume>(OldActor))
+	{
+		FTransform OldTransform = OldAudioVolume->GetActorTransform();
+		this->SetActorTransform(OldTransform);
+		if (GetBrushComponent() && GetBrushComponent()->BrushBodySetup && !GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems.IsEmpty() &&
+		OldAudioVolume->GetBrushComponent() && OldAudioVolume->GetBrushComponent()->BrushBodySetup && !OldAudioVolume->GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems.IsEmpty()
+		)
+		{
+			GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems[0] = MoveTemp(OldAudioVolume->GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems[0]);
+		}
+	}
+}
 #endif // WITH_EDITOR
 
 float AUKAudioVolume::GetDistanceToWalls(const FVector& Location) const
