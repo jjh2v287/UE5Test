@@ -107,11 +107,6 @@ float AUKAudioVolume::GetDistanceToPlane(const FPlane& Plane, const FVector& Loc
 }
 
 #if WITH_EDITOR
-void AUKAudioVolume::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-}
-
 void AUKAudioVolume::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
