@@ -5,7 +5,6 @@
 #include "Components/BoxComponent.h"
 #include "Components/BrushComponent.h"
 #include "BodySetupEnums.h"
-// #include "BSPOps.h"
 #include "Engine/Polys.h"
 #include "Engine/BrushBuilder.h"
 #include "Kismet/GameplayStatics.h"
@@ -108,6 +107,11 @@ float AUKAudioVolume::GetDistanceToPlane(const FPlane& Plane, const FVector& Loc
 }
 
 #if WITH_EDITOR
+void AUKAudioVolume::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+}
+
 void AUKAudioVolume::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -138,8 +142,13 @@ void AUKAudioVolume::EditorReplacedActor(AActor* OldActor)
 			GetBrushComponent()->Brush->Nodes.Reset();
 			GetBrushComponent()->Brush->Nodes.Append(OldAudioVolume->GetBrushComponent()->Brush->Nodes);
 			GetBrushComponent()->BrushBodySetup->CopyBodyPropertiesFrom(OldAudioVolume->GetBrushComponent()->BrushBodySetup);
-
-			// FBSPOps::csgCopyBrush( this, OldAudioVolume, PF_DefaultFlags,  OldAudioVolume->GetFlags(), true, true, true );
+			if(OldAudioVolume->BrushBuilder != nullptr)
+			{
+				BrushBuilder = DuplicateObject<UBrushBuilder>(OldAudioVolume->BrushBuilder, this);
+			}
+			Brush->Modify(false);
+			Brush->EmptyModel(1, 0);
+			Brush->BuildBound();
 		}
 
 		ReregisterAllComponents();

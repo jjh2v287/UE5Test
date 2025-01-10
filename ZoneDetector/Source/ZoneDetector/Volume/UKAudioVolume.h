@@ -36,6 +36,7 @@ protected:
 	static float GetDistanceToPlane(const FPlane& Plane, const FVector& Location);
 
 #if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void EditorReplacedActor(AActor* OldActor) override;
 #endif // WITH_EDITOR
