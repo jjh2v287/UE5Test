@@ -26,5 +26,8 @@
 			"Name": "AudioGameplayVolume",
 			"Enabled": true
 		}
+	],
+	"TargetPlatforms": [
+		"Windows"
 	]
 }

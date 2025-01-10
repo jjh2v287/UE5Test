@@ -15,6 +15,7 @@ void AUKAudioGameplayVolume::BeginPlay()
 {
 	Super::BeginPlay();
 	InitializeWallPlanes();
+	SetActorTickEnabled(false);
 }
 
 void AUKAudioGameplayVolume::Tick(float DeltaSeconds)

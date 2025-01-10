@@ -5,6 +5,9 @@
 #include "Components/BoxComponent.h"
 #include "Components/BrushComponent.h"
 #include "BodySetupEnums.h"
+// #include "BSPOps.h"
+#include "Engine/Polys.h"
+#include "Engine/BrushBuilder.h"
 #include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/BodySetup.h"
 
@@ -22,6 +25,7 @@ AUKAudioVolume::AUKAudioVolume()
 void AUKAudioVolume::BeginPlay()
 {
 	Super::BeginPlay();
+	SetActorTickEnabled(false);
 	InitializeWallPlanes();
 	if (BoxComp)
 	{
@@ -49,8 +53,7 @@ void AUKAudioVolume::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AAct
 {
 	if (OtherActor && OtherActor != this)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Begin Overlap with: %s"), *OtherActor->GetName());
-		// 원하는 로직을 여기서 처리
+		SetActorTickEnabled(true);
 	}
 }
 
@@ -58,8 +61,7 @@ void AUKAudioVolume::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor
 {
 	if (OtherActor && OtherActor != this)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("End Overlap with: %s"), *OtherActor->GetName());
-		// 원하는 로직을 여기서 처리
+		SetActorTickEnabled(false);
 	}
 }
 
@@ -122,12 +124,27 @@ void AUKAudioVolume::EditorReplacedActor(AActor* OldActor)
 	{
 		FTransform OldTransform = OldAudioVolume->GetActorTransform();
 		this->SetActorTransform(OldTransform);
-		if (GetBrushComponent() && GetBrushComponent()->BrushBodySetup && !GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems.IsEmpty() &&
-		OldAudioVolume->GetBrushComponent() && OldAudioVolume->GetBrushComponent()->BrushBodySetup && !OldAudioVolume->GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems.IsEmpty()
-		)
+		SetPriority(OldAudioVolume->GetPriority());
+		SetEnabled(OldAudioVolume->GetEnabled());
+		SetReverbSettings(OldAudioVolume->GetReverbSettings());
+		SetInteriorSettings(OldAudioVolume->GetInteriorSettings());
+		SetSubmixSendSettings(OldAudioVolume->GetSubmixSendSettings());
+		SetSubmixOverrideSettings(OldAudioVolume->GetSubmixOverrideSettings());
+		
+		if (GetBrushComponent() && GetBrushComponent()->BrushBodySetup && OldAudioVolume->GetBrushComponent() && OldAudioVolume->GetBrushComponent()->BrushBodySetup)
 		{
-			GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems[0] = MoveTemp(OldAudioVolume->GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems[0]);
+			GetBrushComponent()->Brush->Polys->Element.Reset();
+			GetBrushComponent()->Brush->Polys->Element.Append(OldAudioVolume->GetBrushComponent()->Brush->Polys->Element);
+			GetBrushComponent()->Brush->Nodes.Reset();
+			GetBrushComponent()->Brush->Nodes.Append(OldAudioVolume->GetBrushComponent()->Brush->Nodes);
+			GetBrushComponent()->BrushBodySetup->CopyBodyPropertiesFrom(OldAudioVolume->GetBrushComponent()->BrushBodySetup);
+
+			// FBSPOps::csgCopyBrush( this, OldAudioVolume, PF_DefaultFlags,  OldAudioVolume->GetFlags(), true, true, true );
 		}
+
+		ReregisterAllComponents();
+		const FVector BoxExtent = GetBoxExtent();
+		BoxComp->SetBoxExtent(BoxExtent);
 	}
 }
 #endif // WITH_EDITOR
@@ -136,7 +153,7 @@ float AUKAudioVolume::GetDistanceToWalls(const FVector& Location) const
 {
 	if (!IsLocationInside(Location))
 	{
-		return -1.0f;
+		return 0.0f;
 	}
 
 	float MinDistance = MAX_FLT;
