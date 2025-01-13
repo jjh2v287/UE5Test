@@ -13,6 +13,7 @@
 AUKAudioVolume::AUKAudioVolume()
 {
 	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false;
 
 	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
 	BoxComp->SetupAttachment(RootComponent);
@@ -24,18 +25,9 @@ AUKAudioVolume::AUKAudioVolume()
 void AUKAudioVolume::BeginPlay()
 {
 	Super::BeginPlay();
-	SetActorTickEnabled(false);
 	InitializeWallPlanes();
-	if (BoxComp)
-	{
-		if (BoxComp->OnComponentBeginOverlap.IsBound())
-		{
-			BoxComp->OnComponentBeginOverlap.RemoveAll(this);
-			BoxComp->OnComponentEndOverlap.RemoveAll(this);
-		}
-		BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxBeginOverlap);
-		BoxComp->OnComponentEndOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxEndOverlap);
-	}
+	BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxBeginOverlap);
+	BoxComp->OnComponentEndOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxEndOverlap);
 }
 
 void AUKAudioVolume::EndPlay(const EEndPlayReason::Type EndPlayReason)
