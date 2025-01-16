@@ -1,14 +1,13 @@
 // Copyright Kong Studios, Inc. All Rights Reserved.
 
-
 #include "UKAudioVolume.h"
 #include "Components/BoxComponent.h"
 #include "Components/BrushComponent.h"
-#include "BodySetupEnums.h"
+#include "Model.h"
 #include "Engine/Polys.h"
 #include "Engine/BrushBuilder.h"
-#include "Kismet/GameplayStatics.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Subsystems/SoundMananger/UKAudioEngineSubsystem.h"
 
 AUKAudioVolume::AUKAudioVolume()
 {
@@ -25,7 +24,9 @@ AUKAudioVolume::AUKAudioVolume()
 void AUKAudioVolume::BeginPlay()
 {
 	Super::BeginPlay();
+	
 	InitializeWallPlanes();
+
 	BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxBeginOverlap);
 	BoxComp->OnComponentEndOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxEndOverlap);
 }
@@ -33,48 +34,58 @@ void AUKAudioVolume::BeginPlay()
 void AUKAudioVolume::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	Super::EndPlay(EndPlayReason);
-	if (BoxComp)
-	{
-		BoxComp->OnComponentBeginOverlap.RemoveAll(this);
-		BoxComp->OnComponentEndOverlap.RemoveAll(this);
-	}
-}
 
-void AUKAudioVolume::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-{
-	if (OtherActor && OtherActor != this)
-	{
-		SetActorTickEnabled(true);
-	}
-}
+	BoxComp->OnComponentBeginOverlap.RemoveAll(this);
+	BoxComp->OnComponentEndOverlap.RemoveAll(this);
 
-void AUKAudioVolume::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
-{
-	if (OtherActor && OtherActor != this)
-	{
-		SetActorTickEnabled(false);
-	}
+	OverlapActor.Reset();
+	SetActorTickEnabled(false);
 }
 
 void AUKAudioVolume::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	const APawn* Pawn = UGameplayStatics::GetPlayerPawn(this, 0);
-	const float Length = GetDistanceToWalls(Pawn->GetActorLocation());
-
-	UKismetSystemLibrary::PrintString(this, FString::SanitizeFloat(Length), true, true, FLinearColor::Black,0.0f);
+	const float DistanceToWalls = GetDistanceToWalls(OverlapActor->GetActorLocation());
+	const float NewRainAttenuation = FMath::GetMappedRangeValueClamped(FVector2D{ 0.0f, RainAttenuationDistance }, FVector2D{ 1.0f, 0.0f }, DistanceToWalls);
+	UUKAudioEngineSubsystem::Get()->RainAttenuation = NewRainAttenuation;
 }
 
 FVector AUKAudioVolume::GetBoxExtent() const
 {
 	FVector BoxExtent = FVector(100.0f, 100.0f, 100.0f);
-	if (GetBrushComponent() && GetBrushComponent()->BrushBodySetup && !GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems.IsEmpty())
+	const UBrushComponent* BrushComp = GetBrushComponent();
+	if (BrushComp && BrushComp->BrushBodySetup && !BrushComp->BrushBodySetup->AggGeom.ConvexElems.IsEmpty())
 	{
-		BoxExtent = GetBrushComponent()->BrushBodySetup->AggGeom.ConvexElems[0].ElemBox.Max;
+		BoxExtent = BrushComp->BrushBodySetup->AggGeom.ConvexElems[0].ElemBox.Max;
 	}
 	
-	return  BoxExtent;
+	return BoxExtent;
+}
+
+float AUKAudioVolume::GetDistanceToWalls(const FVector& Location) const
+{
+	if (!IsLocationInside(Location))
+	{
+		return 0.0f;
+	}
+
+	float MinDistance = MAX_FLT;
+	for (const FPlane& Plane : CachedWallPlanes)
+	{
+		float Distance = GetDistanceToPlane(Plane, Location);
+		MinDistance = FMath::Min(MinDistance, Distance);
+	}
+	return MinDistance;
+}
+
+bool AUKAudioVolume::IsLocationInside(const FVector& Location) const
+{
+	const FTransform BoxTransform = GetBrushComponent()->GetComponentTransform();
+	const FVector LocalPoint = BoxTransform.InverseTransformPosition(Location);
+	const FVector BoxExtent = GetBoxExtent();
+	
+	return FMath::Abs(LocalPoint.X) <= BoxExtent.X && FMath::Abs(LocalPoint.Y) <= BoxExtent.Y && FMath::Abs(LocalPoint.Z) <= BoxExtent.Z;
 }
 
 void AUKAudioVolume::InitializeWallPlanes()
@@ -96,6 +107,26 @@ void AUKAudioVolume::InitializeWallPlanes()
 float AUKAudioVolume::GetDistanceToPlane(const FPlane& Plane, const FVector& Location)
 {
 	return FMath::Abs(Plane.PlaneDot(Location));
+}
+
+void AUKAudioVolume::OnBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor && OtherActor != this)
+	{
+		OverlapActor = OtherActor;
+		SetActorTickEnabled(true);
+	}
+}
+
+void AUKAudioVolume::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	if (OtherActor && OtherActor != this)
+	{
+		OverlapActor.Reset();
+		SetActorTickEnabled(false);
+		
+		UUKAudioEngineSubsystem::Get()->RainAttenuation = 1.0f;
+	}
 }
 
 #if WITH_EDITOR
@@ -121,14 +152,16 @@ void AUKAudioVolume::EditorReplacedActor(AActor* OldActor)
 		SetInteriorSettings(OldAudioVolume->GetInteriorSettings());
 		SetSubmixSendSettings(OldAudioVolume->GetSubmixSendSettings());
 		SetSubmixOverrideSettings(OldAudioVolume->GetSubmixOverrideSettings());
-		
-		if (GetBrushComponent() && GetBrushComponent()->BrushBodySetup && OldAudioVolume->GetBrushComponent() && OldAudioVolume->GetBrushComponent()->BrushBodySetup)
+
+		UBrushComponent* BrushComp = GetBrushComponent();
+		const UBrushComponent* OldBrushComp = OldAudioVolume->GetBrushComponent();
+		if (BrushComp && BrushComp->BrushBodySetup && OldBrushComp && OldBrushComp->BrushBodySetup)
 		{
-			GetBrushComponent()->Brush->Polys->Element.Reset();
-			GetBrushComponent()->Brush->Polys->Element.Append(OldAudioVolume->GetBrushComponent()->Brush->Polys->Element);
-			GetBrushComponent()->Brush->Nodes.Reset();
-			GetBrushComponent()->Brush->Nodes.Append(OldAudioVolume->GetBrushComponent()->Brush->Nodes);
-			GetBrushComponent()->BrushBodySetup->CopyBodyPropertiesFrom(OldAudioVolume->GetBrushComponent()->BrushBodySetup);
+			BrushComp->Brush->Polys->Element.Reset();
+			BrushComp->Brush->Polys->Element.Append(OldBrushComp->Brush->Polys->Element);
+			BrushComp->Brush->Nodes.Reset();
+			BrushComp->Brush->Nodes.Append(OldBrushComp->Brush->Nodes);
+			BrushComp->BrushBodySetup->CopyBodyPropertiesFrom(OldBrushComp->BrushBodySetup);
 			if(OldAudioVolume->BrushBuilder != nullptr)
 			{
 				BrushBuilder = DuplicateObject<UBrushBuilder>(OldAudioVolume->BrushBuilder, this);
@@ -144,30 +177,3 @@ void AUKAudioVolume::EditorReplacedActor(AActor* OldActor)
 	}
 }
 #endif // WITH_EDITOR
-
-float AUKAudioVolume::GetDistanceToWalls(const FVector& Location) const
-{
-	if (!IsLocationInside(Location))
-	{
-		return 0.0f;
-	}
-
-	float MinDistance = MAX_FLT;
-	for (const FPlane& Plane : CachedWallPlanes)
-	{
-		float Distance = GetDistanceToPlane(Plane, Location);
-		MinDistance = FMath::Min(MinDistance, Distance);
-	}
-	return MinDistance;
-}
-
-bool AUKAudioVolume::IsLocationInside(const FVector& Location) const
-{
-	const FTransform BoxTransform = GetBrushComponent()->GetComponentTransform();
-	const FVector LocalPoint = BoxTransform.InverseTransformPosition(Location);
-	const FVector BoxExtent = GetBoxExtent();
-	
-	return FMath::Abs(LocalPoint.X) <= BoxExtent.X &&
-		   FMath::Abs(LocalPoint.Y) <= BoxExtent.Y &&
-		   FMath::Abs(LocalPoint.Z) <= BoxExtent.Z;
-}
