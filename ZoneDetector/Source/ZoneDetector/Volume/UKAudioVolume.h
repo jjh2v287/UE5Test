@@ -12,7 +12,7 @@ class UBoxComponent;
  * 
  */
 UCLASS(hidecategories=(Advanced, Attachment, Collision, Volume))
-class UKGAME_API AUKAudioVolume : public AAudioVolume
+class ZONEDETECTOR_API AUKAudioVolume : public AAudioVolume
 {
 	GENERATED_BODY()
 
