@@ -7,18 +7,21 @@
 #include "Engine/Polys.h"
 #include "Engine/BrushBuilder.h"
 #include "PhysicsEngine/BodySetup.h"
-// #include "Subsystems/SoundMananger/UKAudioEngineSubsystem.h"
+#include "Subsystems/SoundMananger/UKAudioEngineSubsystem.h"
 
-AUKAudioVolume::AUKAudioVolume()
+AUKAudioVolume::AUKAudioVolume(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
-	BoxComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
+	BoxComp = ObjectInitializer.CreateDefaultSubobject<UBoxComponent>(this, TEXT("BoxComp"));
 	BoxComp->SetupAttachment(RootComponent);
 	BoxComp->CanCharacterStepUpOn = ECB_No;
 	BoxComp->SetCollisionProfileName(TEXT("OverlapOnlyPlayer"));
 	BoxComp->SetGenerateOverlapEvents(true);
+	BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxBeginOverlap);
+	BoxComp->OnComponentEndOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxEndOverlap);
 }
 
 void AUKAudioVolume::BeginPlay()
@@ -26,9 +29,6 @@ void AUKAudioVolume::BeginPlay()
 	Super::BeginPlay();
 	
 	InitializeWallPlanes();
-
-	BoxComp->OnComponentBeginOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxBeginOverlap);
-	BoxComp->OnComponentEndOverlap.AddDynamic(this, &AUKAudioVolume::OnBoxEndOverlap);
 }
 
 void AUKAudioVolume::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -48,7 +48,7 @@ void AUKAudioVolume::Tick(float DeltaSeconds)
 
 	const float DistanceToWalls = GetDistanceToWalls(OverlapActor->GetActorLocation());
 	const float NewRainAttenuation = FMath::GetMappedRangeValueClamped(FVector2D{ 0.0f, RainAttenuationDistance }, FVector2D{ 1.0f, 0.0f }, DistanceToWalls);
-	// UUKAudioEngineSubsystem::Get()->RainAttenuation = NewRainAttenuation;
+	UUKAudioEngineSubsystem::Get()->RainAttenuation = NewRainAttenuation;
 }
 
 FVector AUKAudioVolume::GetBoxExtent() const
@@ -125,7 +125,7 @@ void AUKAudioVolume::OnBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor
 		OverlapActor.Reset();
 		SetActorTickEnabled(false);
 		
-		// UUKAudioEngineSubsystem::Get()->RainAttenuation = 1.0f;
+		UUKAudioEngineSubsystem::Get()->RainAttenuation = 1.0f;
 	}
 }
 

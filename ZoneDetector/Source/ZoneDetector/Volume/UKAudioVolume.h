@@ -14,10 +14,7 @@ class UBoxComponent;
 UCLASS(hidecategories=(Advanced, Attachment, Collision, Volume))
 class ZONEDETECTOR_API AUKAudioVolume : public AAudioVolume
 {
-	GENERATED_BODY()
-
-	AUKAudioVolume();
-public:
+	GENERATED_UCLASS_BODY()
 
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
