@@ -7,8 +7,29 @@ public class ZKGame : ModuleRules
 	public ZKGame(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		
+		PublicIncludePaths.AddRange(new string[] 
+		{	
+			"ZKGame",
+		});
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core", 
+			"CoreUObject", 
+			"Engine", 
+			"InputCore", 
+			"EnhancedInput",
+			
+			// Gameplay Abilities
+			"GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks",
+			
+			// GameFeatures
+			"GameFeatures",
+			"ModularGameplay",
+		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

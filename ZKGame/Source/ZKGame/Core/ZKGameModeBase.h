@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ZKActor.generated.h"
+#include "GameFramework/GameModeBase.h"
+#include "ZKGameModeBase.generated.h"
 
 /**
  * 
  */
 UCLASS(Blueprintable)
-class ZKGAME_API AZKActor : public AActor
+class ZKGAME_API AZKGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-public:
-	AZKActor();
+	
 };
