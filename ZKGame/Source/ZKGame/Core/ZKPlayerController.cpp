@@ -37,18 +37,24 @@ void AZKPlayerController::SetupInputComponent()
 
 void AZKPlayerController::Move(const FInputActionValue& Value)
 {
-   const FVector2D MovementVector = Value.Get<FVector2D>();
-   
-   if (APawn* ControlledPawn = GetPawn())
-   {
-       const FRotator Rotation = GetControlRotation();
-       const FRotator YawRotation(0, Rotation.Yaw, 0);
-       
-       const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-       const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+   // input is a Vector2D
+   FVector2D MovementVector = Value.Get<FVector2D>();
 
-       ControlledPawn->AddMovementInput(ForwardDirection, MovementVector.Y);
-       ControlledPawn->AddMovementInput(RightDirection, MovementVector.X);
+   if (GetCharacter() != nullptr)
+   {
+      // find out which way is forward
+      const FRotator Rotation = GetControlRotation();
+      const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+      // get forward vector
+      const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	
+      // get right vector 
+      const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+      // add movement 
+      GetCharacter()->AddMovementInput(ForwardDirection, MovementVector.Y);
+      GetCharacter()->AddMovementInput(RightDirection, MovementVector.X);
    }
 }
 
