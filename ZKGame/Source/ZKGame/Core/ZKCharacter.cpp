@@ -90,6 +90,9 @@ void AZKCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 		// Roll
 		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &AZKCharacter::Roll);
+
+		// Attack
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AZKCharacter::Attack);
 	}
 }
 
@@ -132,4 +135,9 @@ void AZKCharacter::Look(const FInputActionValue& Value)
 void AZKCharacter::Roll()
 {
 	OnRollEvent();
+}
+
+void AZKCharacter::Attack()
+{
+	OnAttackEvent();
 }

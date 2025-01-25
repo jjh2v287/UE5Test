@@ -49,6 +49,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* RollAction;
 
+	/** Jump Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* AttackAction;
+
 	/** Returns CameraBoom subobject **/
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	
@@ -57,6 +61,9 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Input)
 	void OnRollEvent();
+
+	UFUNCTION(BlueprintImplementableEvent, Category = Input)
+	void OnAttackEvent();
 	
 protected:
 
@@ -68,6 +75,9 @@ protected:
 
 	/** Called for looking input */
 	void Roll();
+
+	/** Called for looking input */
+	void Attack();
 			
 	virtual void NotifyControllerChanged() override;
 
