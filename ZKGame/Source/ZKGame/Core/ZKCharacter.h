@@ -11,7 +11,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
-class ZKAbilitySystemComponent;
+class UZKAbilitySystemComponent;
 struct FInputActionValue;
 
 UCLASS(Blueprintable)
@@ -24,7 +24,7 @@ public:
 	explicit AZKCharacter(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UAbilitySystemComponent* AbilitySystemComponent;
+	UZKAbilitySystemComponent* AbilitySystemComponent;
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))

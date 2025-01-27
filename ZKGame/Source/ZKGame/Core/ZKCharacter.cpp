@@ -13,6 +13,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "ZKAbilitySystemComponent.h"
 
 // Sets default values
 AZKCharacter::AZKCharacter(const FObjectInitializer& ObjectInitializer)
@@ -60,7 +61,7 @@ AZKCharacter::AZKCharacter(const FObjectInitializer& ObjectInitializer)
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 
-	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
+	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UZKAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
 	AbilitySystemComponent->SetIsReplicated(true); // 멀티플레이어용 리플리케이션 활성화
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed); // 리플리케이션 모드 설정
 }
