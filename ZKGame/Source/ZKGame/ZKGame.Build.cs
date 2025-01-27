@@ -13,6 +13,7 @@ public class ZKGame : ModuleRules
 			"ZKGame",
 			"ZKGame/Core",
 			"ZKGame/Component",
+			"ZKGame/Ability",
 		});
 	
 		PublicDependencyModuleNames.AddRange(new string[]

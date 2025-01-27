@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "ZKGameplayAbilityBase.h"
 #include "ZKCharacter.generated.h"
 
 class USpringArmComponent;
@@ -23,6 +24,20 @@ public:
 	// Sets default values for this character's properties
 	explicit AZKCharacter(const FObjectInitializer& ObjectInitializer);
 
+	void BeginPlay() override;
+
+	/** Abilities to grant to this character on creation. These will be activated by tag or event and are not bound to specific inputs */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Abilities)
+	TArray<TSubclassOf<UGameplayAbility>> GameplayAbilities;
+
+	/** Passive gameplay effects applied on creation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Abilities)
+	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
+
+	/** List of attributes modified by the ability system */
+	UPROPERTY()
+	UAttributeSet* AttributeSet;
+	
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UZKAbilitySystemComponent* AbilitySystemComponent;
 
@@ -71,7 +86,7 @@ public:
 	void OnAttackEvent();
 
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
-	
+
 protected:
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -84,6 +99,9 @@ protected:
 
 	/** Called for looking input */
 	void Attack();
+
+	/* StartupGameplayAbilities */
+	void AddStartupGameplayAbilities();
 			
 	virtual void NotifyControllerChanged() override;
 

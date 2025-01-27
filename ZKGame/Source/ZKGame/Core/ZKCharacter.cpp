@@ -66,6 +66,13 @@ AZKCharacter::AZKCharacter(const FObjectInitializer& ObjectInitializer)
 	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed); // 리플리케이션 모드 설정
 }
 
+void AZKCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	AddStartupGameplayAbilities();
+}
+
 void AZKCharacter::NotifyControllerChanged()
 {
 	Super::NotifyControllerChanged();
@@ -152,4 +159,14 @@ void AZKCharacter::Roll()
 void AZKCharacter::Attack()
 {
 	OnAttackEvent();
+}
+
+void AZKCharacter::AddStartupGameplayAbilities()
+{
+	// Grant abilities, but only on the server	
+	for (TSubclassOf<UGameplayAbility>& StartupAbility : GameplayAbilities)
+	{
+		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, 1, INDEX_NONE, this));
+	}
+
 }
