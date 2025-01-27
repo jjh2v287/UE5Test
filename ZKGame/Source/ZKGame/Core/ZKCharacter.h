@@ -4,16 +4,18 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AbilitySystemInterface.h"
 #include "ZKCharacter.generated.h"
 
 class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class ZKAbilitySystemComponent;
 struct FInputActionValue;
 
 UCLASS(Blueprintable)
-class ZKGAME_API AZKCharacter : public ACharacter
+class ZKGAME_API AZKCharacter : public ACharacter, public IAbilitySystemInterface 
 {
 	GENERATED_BODY()
 
@@ -21,36 +23,39 @@ public:
 	// Sets default values for this character's properties
 	explicit AZKCharacter(const FObjectInitializer& ObjectInitializer);
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+	UAbilitySystemComponent* AbilitySystemComponent;
+
 	/** Camera boom positioning the camera behind the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	USpringArmComponent* CameraBoom;
 
 	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
 	
 	/** MappingContext */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
 
 	/** Move Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
 
 	/** Look Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
 	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UInputAction* JumpAction;
 
 	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UInputAction* RollAction;
 
 	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
 	UInputAction* AttackAction;
 
 	/** Returns CameraBoom subobject **/
@@ -59,14 +64,15 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Input)
+	UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
 	void OnRollEvent();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = Input)
+	UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
 	void OnAttackEvent();
+
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 	
 protected:
-
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 

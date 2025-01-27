@@ -11,6 +11,8 @@ public class ZKGame : ModuleRules
 		PublicIncludePaths.AddRange(new string[] 
 		{	
 			"ZKGame",
+			"ZKGame/Core",
+			"ZKGame/Component",
 		});
 	
 		PublicDependencyModuleNames.AddRange(new string[]
