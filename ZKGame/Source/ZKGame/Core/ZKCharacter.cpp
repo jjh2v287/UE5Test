@@ -6,7 +6,6 @@
 #include "AbilitySystemComponent.h"
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
-#include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
