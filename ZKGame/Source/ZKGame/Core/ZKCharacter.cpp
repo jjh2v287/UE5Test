@@ -121,19 +121,47 @@ void AZKCharacter::Move(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		// find out which way is forward
+		// 카메라 회전값 얻기
 		const FRotator Rotation = Controller->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
-		// get forward vector
+		// 전방 벡터 계산
 		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	
-		// get right vector 
+		// 우측 벡터 계산
 		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
 		// add movement 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
+
+		// 이동 입력이 있을 때만 회전 처리
+		if (!MovementVector.IsNearlyZero())
+		{
+			// 이동 방향 계산
+			FVector MovementDirection = ForwardDirection * MovementVector.Y + RightDirection * MovementVector.X;
+			MovementDirection.Normalize(); // 방향 정규화
+        
+			// 목표 회전값 계산
+			FRotator TargetRotation = MovementDirection.Rotation();
+            
+			// 현재 회전과 목표 회전 사이의 각도 차이 계산
+			float DeltaYaw = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, TargetRotation.Yaw);
+
+			// 각도 차이에 기반한 회전 속도 계산 (90도를 0.15초에 회전)
+			// float RotationRate = FMath::Abs(DeltaYaw) / 0.15f;  // degrees/second
+
+			// 예: 180도일 때 0.25초가 되도록 조정
+			float BaseRotationAngle = 90.0f;  // 기준 각도
+			float BaseRotationTime = 0.15f;   // 기준 시간
+			float TimeScale = 0.25f / (BaseRotationTime * 2.0f);  // 180도 회전시 시간 스케일
+			float RotationTime = FMath::Abs(DeltaYaw / BaseRotationAngle) * BaseRotationTime * TimeScale;
+			float RotationRate = FMath::Abs(DeltaYaw) / RotationTime;
+			// 선형 회전 적용
+			FRotator NewRotation = FMath::RInterpConstantTo(GetActorRotation(), TargetRotation, GetWorld()->GetDeltaSeconds(), RotationRate);
+            
+			SetActorRotation(NewRotation);
+		}
 	}
 }
 
