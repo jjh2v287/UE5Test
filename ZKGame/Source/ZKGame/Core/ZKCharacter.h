@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -18,95 +16,87 @@ struct FInputActionValue;
 UCLASS(Blueprintable)
 class ZKGAME_API AZKCharacter : public ACharacter, public IAbilitySystemInterface 
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	explicit AZKCharacter(const FObjectInitializer& ObjectInitializer);
+    // Constructor
+    explicit AZKCharacter(const FObjectInitializer& ObjectInitializer);
 
-	void BeginPlay() override;
+    // Override functions
+    virtual void Tick(float DeltaSeconds) override;
+    virtual void BeginPlay() override;
+    virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	/** Abilities to grant to this character on creation. These will be activated by tag or event and are not bound to specific inputs */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Abilities)
-	TArray<TSubclassOf<UGameplayAbility>> GameplayAbilities;
+    // Gameplay Ability System Properties
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Abilities)
+    TArray<TSubclassOf<UGameplayAbility>> GameplayAbilities;
 
-	/** Passive gameplay effects applied on creation */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Abilities)
-	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Abilities)
+    TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
 
-	/** List of attributes modified by the ability system */
-	UPROPERTY()
-	UAttributeSet* AttributeSet;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UZKAbilitySystemComponent* AbilitySystemComponent;
+    UPROPERTY()
+    UAttributeSet* AttributeSet;
 
-	/** Camera boom positioning the camera behind the character */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	USpringArmComponent* CameraBoom;
+    // Component Properties
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UZKAbilitySystemComponent* AbilitySystemComponent;
 
-	/** Follow camera */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UCameraComponent* FollowCamera;
-	
-	/** MappingContext */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* DefaultMappingContext;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    USpringArmComponent* CameraBoom;
 
-	/** Move Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UInputAction* MoveAction;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UCameraComponent* FollowCamera;
 
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UInputAction* LookAction;
+    // Input Properties
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UInputMappingContext* DefaultMappingContext;
 
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UInputAction* JumpAction;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UInputAction* MoveAction;
 
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UInputAction* RollAction;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UInputAction* LookAction;
 
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
-	UInputAction* AttackAction;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UInputAction* JumpAction;
 
-	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	
-	/** Returns FollowCamera subobject **/
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UInputAction* RollAction;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
-	void OnRollEvent();
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ZK", meta = (AllowPrivateAccess = "true"))
+    UInputAction* AttackAction;
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
-	void OnAttackEvent();
+    // Getter Functions
+    FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+    FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+    // Blueprint Events
+    UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
+    void OnRollEvent();
+
+    UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
+    void OnAttackEvent();
 
 protected:
-	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
+    // Input Functions
+    void Move(const FInputActionValue& Value);
+    void Look(const FInputActionValue& Value);
+    void Roll();
+    void Attack();
 
-	/** Called for looking input */
-	void Look(const FInputActionValue& Value);
+    // Override Functions
+    virtual void NotifyControllerChanged() override;
+    virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	/** Called for looking input */
-	void Roll();
-
-	/** Called for looking input */
-	void Attack();
-
-	/* StartupGameplayAbilities */
-	void AddStartupGameplayAbilities();
-			
-	virtual void NotifyControllerChanged() override;
-
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+    // Gameplay Ability Functions
+    void AddStartupGameplayAbilities();
+    
+    // Rotation Function
+    void CalculateRotationRate();
 
 private:
-	
+    // Rotation Properties
+    FRotator TargetRotation;
+    bool bIsRotating;
+    float CurrentRotationRate;
 };

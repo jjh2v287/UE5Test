@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "ZKCharacter.h"
 
 #include "AbilitySystemComponent.h"
@@ -14,186 +11,183 @@
 #include "InputActionValue.h"
 #include "ZKAbilitySystemComponent.h"
 
-// Sets default values
+// Constructor
 AZKCharacter::AZKCharacter(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+    : Super(ObjectInitializer)
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+    /* 나중에 추가할 코드에 대한 힌트
+        GetCapsuleComponent()->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.0f));
+        UKCharacterMovementComponent = Cast<UUKCharacterMovementComponent>(GetCharacterMovement());
+        UKSkeletalMeshComponent = Cast<UUKCharacterSkeletalMeshComponent>(GetMesh());
+        AnimInstance = Cast<UUKCharacterAnimInstance>(GetMesh()->GetAnimInstance());
+        CapsuleModifierComponent = CreateDefaultSubobject<UUKCapsuleModifierComponent>(TEXT("CapsuleModifierComponent"));
+        AbilitySystemComponent = CreateOptionalDefaultSubobject<UUKAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    */
+    
+    PrimaryActorTick.bCanEverTick = true;
 
-	// GetCapsuleComponent()->SetWalkableSlopeOverride(FWalkableSlopeOverride(WalkableSlope_Unwalkable, 0.0f));
-	// UKCharacterMovementComponent = Cast<UUKCharacterMovementComponent>(GetCharacterMovement());
-	// UKSkeletalMeshComponent = Cast<UUKCharacterSkeletalMeshComponent>(GetMesh());
-	// AnimInstance = Cast<UUKCharacterAnimInstance>(GetMesh()->GetAnimInstance());
-	// CapsuleModifierComponent = CreateDefaultSubobject<UUKCapsuleModifierComponent>(TEXT("CapsuleModifierComponent"));
-	// AbilitySystemComponent = CreateOptionalDefaultSubobject<UUKAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+    // Character rotation settings
+    bUseControllerRotationPitch = false;
+    bUseControllerRotationYaw = false;
+    bUseControllerRotationRoll = false;
 
-	// Don't rotate when the controller rotates. Let that just affect the camera.
-	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
-	bUseControllerRotationRoll = false;
+    // Configure character movement
+    UCharacterMovementComponent* MovementComponent = GetCharacterMovement();
+    MovementComponent->bOrientRotationToMovement = true;
+    MovementComponent->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+    MovementComponent->JumpZVelocity = 700.f;
+    MovementComponent->AirControl = 0.35f;
+    MovementComponent->MaxWalkSpeed = 500.f;
+    MovementComponent->MinAnalogWalkSpeed = 20.f;
+    MovementComponent->BrakingDecelerationWalking = 2000.f;
+    MovementComponent->BrakingDecelerationFalling = 1500.0f;
 
-	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
+    // Create camera boom
+    CameraBoom = ObjectInitializer.CreateDefaultSubobject<USpringArmComponent>(this, TEXT("CameraBoom"));
+    CameraBoom->SetupAttachment(RootComponent);
+    CameraBoom->TargetArmLength = 400.0f;
+    CameraBoom->bUsePawnControlRotation = true;
 
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
-	GetCharacterMovement()->JumpZVelocity = 700.f;
-	GetCharacterMovement()->AirControl = 0.35f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
-	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
-	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
+    // Create follow camera
+    FollowCamera = ObjectInitializer.CreateDefaultSubobject<UCameraComponent>(this, TEXT("FollowCamera"));
+    FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+    FollowCamera->bUsePawnControlRotation = false;
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
-	CameraBoom = ObjectInitializer.CreateDefaultSubobject<USpringArmComponent>(this, TEXT("CameraBoom"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
-
-	// Create a follow camera
-	FollowCamera = ObjectInitializer.CreateDefaultSubobject<UCameraComponent>(this, TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
-
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
-
-	AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UZKAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
-	AbilitySystemComponent->SetIsReplicated(true); // 멀티플레이어용 리플리케이션 활성화
-	AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed); // 리플리케이션 모드 설정
+    // Setup ability system
+    AbilitySystemComponent = ObjectInitializer.CreateDefaultSubobject<UZKAbilitySystemComponent>(this, TEXT("AbilitySystemComponent"));
+    AbilitySystemComponent->SetIsReplicated(true);
+    AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 }
 
+// Override Functions
 void AZKCharacter::BeginPlay()
 {
-	Super::BeginPlay();
-
-	AddStartupGameplayAbilities();
+    Super::BeginPlay();
+    AddStartupGameplayAbilities();
 }
 
-void AZKCharacter::NotifyControllerChanged()
+void AZKCharacter::Tick(float DeltaTime)
 {
-	Super::NotifyControllerChanged();
+    Super::Tick(DeltaTime);
 
-	// Add Input Mapping Context
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-	}
-}
+    if (bIsRotating)
+    {
+        FRotator NewRotation = FMath::RInterpConstantTo(GetActorRotation(), TargetRotation, DeltaTime, CurrentRotationRate);
+        SetActorRotation(NewRotation);
 
-void AZKCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-
-		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AZKCharacter::Move);
-
-		// Looking
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AZKCharacter::Look);
-		
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
-		// Roll
-		EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &AZKCharacter::Roll);
-
-		// Attack
-		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AZKCharacter::Attack);
-	}
+        if (FMath::IsNearlyEqual(GetActorRotation().Yaw, TargetRotation.Yaw, 1.0f))
+        {
+            SetActorRotation(TargetRotation);
+            bIsRotating = false;
+        }
+    }
 }
 
 UAbilitySystemComponent* AZKCharacter::GetAbilitySystemComponent() const
 {
-	return AbilitySystemComponent;
+    return AbilitySystemComponent;
 }
 
+void AZKCharacter::NotifyControllerChanged()
+{
+    Super::NotifyControllerChanged();
+
+    if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+    {
+        if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+        {
+            Subsystem->AddMappingContext(DefaultMappingContext, 0);
+        }
+    }
+}
+
+void AZKCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+    if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+    {
+        EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AZKCharacter::Move);
+        EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AZKCharacter::Look);
+        EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+        EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+        EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &AZKCharacter::Roll);
+        EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AZKCharacter::Attack);
+    }
+}
+
+// Input Functions
 void AZKCharacter::Move(const FInputActionValue& Value)
 {
-	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
+    FVector2D MovementVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
-	{
-		// 카메라 회전값 얻기
-		const FRotator Rotation = Controller->GetControlRotation();
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
+    if (Controller != nullptr)
+    {
+        const FRotator Rotation = Controller->GetControlRotation();
+        const FRotator YawRotation(0, Rotation.Yaw, 0);
+        const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+        const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-		// 전방 벡터 계산
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	
-		// 우측 벡터 계산
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+        AddMovementInput(ForwardDirection, MovementVector.Y);
+        AddMovementInput(RightDirection, MovementVector.X);
 
-		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
-
-		// 이동 입력이 있을 때만 회전 처리
-		if (!MovementVector.IsNearlyZero())
-		{
-			// 이동 방향 계산
-			FVector MovementDirection = ForwardDirection * MovementVector.Y + RightDirection * MovementVector.X;
-			MovementDirection.Normalize(); // 방향 정규화
-        
-			// 목표 회전값 계산
-			FRotator TargetRotation = MovementDirection.Rotation();
+        if (!MovementVector.IsNearlyZero())
+        {
+            FVector MovementDirection = ForwardDirection * MovementVector.Y + RightDirection * MovementVector.X;
+            MovementDirection.Normalize();
             
-			// 현재 회전과 목표 회전 사이의 각도 차이 계산
-			float DeltaYaw = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, TargetRotation.Yaw);
-
-			// 각도 차이에 기반한 회전 속도 계산 (90도를 0.15초에 회전)
-			// float RotationRate = FMath::Abs(DeltaYaw) / 0.15f;  // degrees/second
-
-			// 예: 180도일 때 0.25초가 되도록 조정
-			float BaseRotationAngle = 90.0f;  // 기준 각도
-			float BaseRotationTime = 0.15f;   // 기준 시간
-			float TimeScale = 0.25f / (BaseRotationTime * 2.0f);  // 180도 회전시 시간 스케일
-			float RotationTime = FMath::Abs(DeltaYaw / BaseRotationAngle) * BaseRotationTime * TimeScale;
-			float RotationRate = FMath::Abs(DeltaYaw) / RotationTime;
-			// 선형 회전 적용
-			FRotator NewRotation = FMath::RInterpConstantTo(GetActorRotation(), TargetRotation, GetWorld()->GetDeltaSeconds(), RotationRate);
-            
-			SetActorRotation(NewRotation);
-		}
-	}
+            TargetRotation = MovementDirection.Rotation();
+            CalculateRotationRate();
+            bIsRotating = true;
+        }
+    }
 }
 
 void AZKCharacter::Look(const FInputActionValue& Value)
 {
-	// input is a Vector2D
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
+    FVector2D LookAxisVector = Value.Get<FVector2D>();
 
-	if (Controller != nullptr)
-	{
-		// add yaw and pitch input to controller
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
-	}
+    if (Controller != nullptr)
+    {
+        AddControllerYawInput(LookAxisVector.X);
+        AddControllerPitchInput(LookAxisVector.Y);
+    }
 }
 
 void AZKCharacter::Roll()
 {
-	OnRollEvent();
+    OnRollEvent();
 }
 
 void AZKCharacter::Attack()
 {
-	OnAttackEvent();
+    OnAttackEvent();
 }
 
+// Gameplay Ability Functions
 void AZKCharacter::AddStartupGameplayAbilities()
 {
-	// Grant abilities, but only on the server	
-	for (TSubclassOf<UGameplayAbility>& StartupAbility : GameplayAbilities)
-	{
-		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, 1, INDEX_NONE, this));
-	}
+    for (TSubclassOf<UGameplayAbility>& StartupAbility : GameplayAbilities)
+    {
+        AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(StartupAbility, 1, INDEX_NONE, this));
+    }
+}
 
+// Rotation Function
+void AZKCharacter::CalculateRotationRate()
+{
+    float DeltaYaw = FMath::FindDeltaAngleDegrees(GetActorRotation().Yaw, TargetRotation.Yaw);
+    float AbsDeltaYaw = FMath::Abs(DeltaYaw);
+    
+    float TargetRotationTime;
+    if (AbsDeltaYaw <= 90.0f)
+    {
+        TargetRotationTime = 0.15f * (AbsDeltaYaw / 90.0f);
+    }
+    else
+    {
+        float ExtraAngle = AbsDeltaYaw - 90.0f;
+        float ExtraTime = (0.2f - 0.15f) * (ExtraAngle / 90.0f);
+        TargetRotationTime = 0.15f + ExtraTime;
+    }
+    
+    CurrentRotationRate = AbsDeltaYaw / TargetRotationTime;
 }
