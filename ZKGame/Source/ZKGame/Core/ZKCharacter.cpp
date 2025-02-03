@@ -70,7 +70,7 @@ void AZKCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bIsRotating)
+    if (bIsWideRotation && !bIsWideRotationLock)
     {
         FRotator NewRotation = FMath::RInterpConstantTo(GetActorRotation(), TargetRotation, DeltaTime, CurrentRotationRate);
         SetActorRotation(NewRotation);
@@ -78,7 +78,7 @@ void AZKCharacter::Tick(float DeltaTime)
         if (FMath::IsNearlyEqual(GetActorRotation().Yaw, TargetRotation.Yaw, 1.0f))
         {
             SetActorRotation(TargetRotation);
-            bIsRotating = false;
+            bIsWideRotation = false;
         }
     }
 }
@@ -114,6 +114,17 @@ void AZKCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
     }
 }
 
+FRotator AZKCharacter::GetInputTargetRotation() const
+{
+    return TargetRotation;
+}
+
+void AZKCharacter::SetWideRotationLock(const bool bIsLock)
+{
+    bIsWideRotationLock = bIsLock;
+    bIsWideRotation = false;
+}
+
 // Input Functions
 void AZKCharacter::Move(const FInputActionValue& Value)
 {
@@ -136,7 +147,7 @@ void AZKCharacter::Move(const FInputActionValue& Value)
             
             TargetRotation = MovementDirection.Rotation();
             CalculateRotationRate();
-            bIsRotating = true;
+            bIsWideRotation = true;
         }
     }
 }

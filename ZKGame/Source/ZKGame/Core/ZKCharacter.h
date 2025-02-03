@@ -77,6 +77,12 @@ public:
     UFUNCTION(BlueprintImplementableEvent, Category = "ZK")
     void OnAttackEvent();
 
+    UFUNCTION(BlueprintPure, Category = "ZK")
+    FRotator GetInputTargetRotation() const;
+
+    UFUNCTION(BlueprintCallable)
+    void SetWideRotationLock(const bool bIsLock);
+
 protected:
     // Input Functions
     void Move(const FInputActionValue& Value);
@@ -97,6 +103,7 @@ protected:
 private:
     // Rotation Properties
     FRotator TargetRotation;
-    bool bIsRotating;
+    bool bIsWideRotation;
+    bool bIsWideRotationLock;
     float CurrentRotationRate;
 };
