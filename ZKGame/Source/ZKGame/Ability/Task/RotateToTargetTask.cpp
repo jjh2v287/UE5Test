@@ -3,7 +3,7 @@
 
 #include "Ability/Task/RotateToTargetTask.h"
 
-URotateToTargetTask* URotateToTargetTask::RotateActorToTarget(UGameplayAbility* OwningAbility, FRotator TargetRotation, float Duration)
+URotateToTargetTask* URotateToTargetTask::RotateActorToTarget(UGameplayAbility* OwningAbility, const FRotator TargetRotation, const float Duration)
 {
 	URotateToTargetTask* MyTask = NewAbilityTask<URotateToTargetTask>(OwningAbility);
 	MyTask->TargetRotation = TargetRotation;
