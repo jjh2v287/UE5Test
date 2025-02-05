@@ -109,7 +109,7 @@ void AZKCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
         EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AZKCharacter::Look);
         EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
         EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-        EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Completed, this, &AZKCharacter::Roll);
+        EnhancedInputComponent->BindAction(RollAction, ETriggerEvent::Started, this, &AZKCharacter::Roll);
         EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AZKCharacter::Attack);
     }
 }
