@@ -32,79 +32,14 @@ void UZKMeleeAttack_AnimNotifyState::NotifyTick(USkeletalMeshComponent* MeshComp
 	UAnimMontage* PlayMontage = MeshComp->GetAnimInstance()->GetCurrentActiveMontage();
 	CurrentMontagePosition = MeshComp->GetAnimInstance()->Montage_GetPosition(PlayMontage);
 	
-	TraceTest1(MeshComp, Animation, FrameDeltaTime, EventReference);
-	// TraceTest2(MeshComp, Animation, FrameDeltaTime, EventReference);
+	TraceTest(MeshComp, Animation, FrameDeltaTime, EventReference);
+	// LegacyTrace(MeshComp, Animation, FrameDeltaTime, EventReference);
 }
 
-void UZKMeleeAttack_AnimNotifyState::TraceTest1(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+void UZKMeleeAttack_AnimNotifyState::TraceTest(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
 	float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
 {
-	USkeleton* Skeleton = Animation->GetSkeleton();
-	const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();
-	FTransform CurrentBoneTransform = FTransform::Identity;
 	AActor* Owner = MeshComp->GetOwner();
-	FTransform RelativeTransform = MeshComp->GetComponentTransform().GetRelativeTransform(Owner->GetTransform());
-	CurrentBoneTransform = RelativeTransform * CurrentBoneTransform;
-	FName boneName = MeshComp->GetSocketBoneName(BoneName);
-	int32 BoneIndex = ReferenceSkeleton.FindBoneIndex(boneName);
-	
-	int32 ParentIndex = BoneIndex;
-	TArray<int32> ParentBoneIndexes;
-	while (ParentIndex != INDEX_NONE)
-	{
-		ParentBoneIndexes.Emplace(ParentIndex);
-		ParentIndex = ReferenceSkeleton.GetParentIndex(ParentIndex);
-	}
-	Algo::Reverse(ParentBoneIndexes);
-	
-	if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(Animation))
-	{
-		int32 CurSegmentIndex = AnimMontage->SlotAnimTracks[0].AnimTrack.GetSegmentIndexAtTime(CurrentMontagePosition);
-		if (CurSegmentIndex < 0)
-		{
-			return;
-		}
-		UAnimSequence* CurSequenc = Cast<UAnimSequence>(AnimMontage->SlotAnimTracks[0].AnimTrack.AnimSegments[CurSegmentIndex].GetAnimReference().Get());
-		for (int32 ParentBoneIndex : ParentBoneIndexes)
-		{
-			if (ParentBoneIndex == 0)
-				continue;
-				
-			FSkeletonPoseBoneIndex PoseBoneIndex = FSkeletonPoseBoneIndex(ParentBoneIndex);
-			FTransform OutAtom = FTransform::Identity;
-			CurSequenc->GetBoneTransform(OutAtom, PoseBoneIndex, CurrentMontagePosition, false);
-			CurrentBoneTransform = OutAtom * CurrentBoneTransform;
-		}
-	}
-	
-	// 액터 월드 행영 적용
-	FVector StartFinalBoneTransform = Owner->GetActorRotation().RotateVector(CurrentBoneTransform.GetLocation());
-	StartFinalBoneTransform = StartFinalBoneTransform + Owner->GetTransform().GetLocation();
-	
-	// 스윕을 수행하여 경로상의 충돌 검사를 실행
-	TArray<FHitResult> HitResults;
-	TArray<AActor*> ActorsToIgnore = {Owner};
-	bool bHit =  UKismetSystemLibrary::CapsuleTraceMulti(
-		Owner,
-		StartFinalBoneTransform,
-		StartFinalBoneTransform,
-		1.f,
-		1.f,
-		ETraceTypeQuery::TraceTypeQuery1,
-		false,
-		ActorsToIgnore,
-		EDrawDebugTrace::Type::ForDuration,
-		HitResults, true,
-		FLinearColor::Red,
-		FLinearColor::Blue,
-		20.f);
-}
-
-void UZKMeleeAttack_AnimNotifyState::TraceTest2(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-	float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
-{
-UAnimMontage* PlayMontage = MeshComp->GetAnimInstance()->GetCurrentActiveMontage();
-	CurrentMontagePosition = MeshComp->GetAnimInstance()->Montage_GetPosition(PlayMontage);
 
 	// 1. 애니메이션 길이 내에서 PlaybackTime 보정 (루핑 고려)
 	const float SequenceLength = Animation->GetPlayLength();
@@ -163,28 +98,48 @@ UAnimMontage* PlayMontage = MeshComp->GetAnimInstance()->GetCurrentActiveMontage
 	}
 
 	// 6. 원하는 본의 인덱스를 찾습니다.
-	int32 BoneIndex2 = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
-	if (BoneIndex2 == INDEX_NONE)
+	FName SocketBoneName = MeshComp->GetSocketBoneName(BoneName);
+	int32 BoneIndex = ReferenceSkeleton.FindBoneIndex(SocketBoneName);
+	if (BoneIndex == INDEX_NONE)
 	{
-		BoneIndex2 = 0;
+		BoneIndex = 0;
 		UE_LOG(LogTemp, Warning, TEXT("GetBoneTransformAtTime: Bone '%s' not found in Skeleton."), *BoneName.ToString());
 	}
 
-	FTransform MeshTransform = MeshComp->GetComponentTransform();
+	int32 ParentIndex = BoneIndex;
+	TArray<int32> ParentBoneIndexes;
+	while (ParentIndex != INDEX_NONE)
+	{
+		ParentBoneIndexes.Emplace(ParentIndex);
+		ParentIndex = ReferenceSkeleton.GetParentIndex(ParentIndex);
+	}
+	Algo::Reverse(ParentBoneIndexes);
 
-	// 7. 추출된 본의 Transform을 가져온 후, Skeletal Mesh의 컴포넌트 Transform을 적용해 월드 공간으로 변환합니다.
-	//    (필요에 따라 추가 오프셋이 있을 경우 더 계산할 수 있음)
-	const FCompactPoseBoneIndex CompactIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneIndex2));
-	FTransform LocalBoneTransform = PoseData.GetPose()[CompactIndex];
-	FTransform OutTransform = LocalBoneTransform * MeshTransform;
-	
+	FTransform OutTransform = FTransform::Identity;
+	FTransform RelativeTransform = MeshComp->GetComponentTransform().GetRelativeTransform(Owner->GetTransform());
+	OutTransform = RelativeTransform * OutTransform;
+	for (int32 ParentBoneIndex : ParentBoneIndexes)
+	{
+		if (ParentBoneIndex == 0)
+			continue;
+				
+		// 7. 추출된 본의 Transform을 가져온 후, Skeletal Mesh의 컴포넌트 Transform을 적용해 월드 공간으로 변환합니다.
+		//    (필요에 따라 추가 오프셋이 있을 경우 더 계산할 수 있음)
+		const FCompactPoseBoneIndex CompactIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(ParentBoneIndex));
+		FTransform LocalBoneTransform = PoseData.GetPose()[CompactIndex];
+		OutTransform = LocalBoneTransform * OutTransform;
+	}
+
+	FVector StartFinalBoneTransform = Owner->GetActorRotation().RotateVector(OutTransform.GetLocation());
+	StartFinalBoneTransform = StartFinalBoneTransform + Owner->GetTransform().GetLocation();
+
 	// 스윕을 수행하여 경로상의 충돌 검사를 실행
 	TArray<FHitResult> HitResults;
-	TArray<AActor*> ActorsToIgnore = {MeshComp->GetOwner()};
+	TArray<AActor*> ActorsToIgnore = {Owner};
 	bool bHit =  UKismetSystemLibrary::CapsuleTraceMulti(
-		MeshComp->GetOwner(),
-		OutTransform.GetLocation(),
-		OutTransform.GetLocation(),
+		Owner,
+		StartFinalBoneTransform,
+		StartFinalBoneTransform,
 		1.f,
 		1.f,
 		ETraceTypeQuery::TraceTypeQuery1,
@@ -194,5 +149,71 @@ UAnimMontage* PlayMontage = MeshComp->GetAnimInstance()->GetCurrentActiveMontage
 		HitResults, true,
 		FLinearColor::Red,
 		FLinearColor::Blue,
-		20.f);
+		5.f);
 }
+
+/*void UZKMeleeAttack_AnimNotifyState::LegacyTrace(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+	float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
+{
+	const float SequenceLength = Animation->GetPlayLength();
+	const float ClampedTime = FMath::Fmod(CurrentMontagePosition, SequenceLength);
+	USkeleton* Skeleton = Animation->GetSkeleton();
+	const FReferenceSkeleton& ReferenceSkeleton = Skeleton->GetReferenceSkeleton();
+	FTransform CurrentBoneTransform = FTransform::Identity;
+	AActor* Owner = MeshComp->GetOwner();
+	FTransform RelativeTransform = MeshComp->GetComponentTransform().GetRelativeTransform(Owner->GetTransform());
+	CurrentBoneTransform = RelativeTransform * CurrentBoneTransform;
+	FName boneName = MeshComp->GetSocketBoneName(BoneName);
+	int32 BoneIndex = ReferenceSkeleton.FindBoneIndex(boneName);
+	
+	int32 ParentIndex = BoneIndex;
+	TArray<int32> ParentBoneIndexes;
+	while (ParentIndex != INDEX_NONE)
+	{
+		ParentBoneIndexes.Emplace(ParentIndex);
+		ParentIndex = ReferenceSkeleton.GetParentIndex(ParentIndex);
+	}
+	Algo::Reverse(ParentBoneIndexes);
+	
+	if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(Animation))
+	{
+		int32 CurSegmentIndex = AnimMontage->SlotAnimTracks[0].AnimTrack.GetSegmentIndexAtTime(ClampedTime);
+		if (CurSegmentIndex < 0)
+		{
+			return;
+		}
+		UAnimSequence* CurSequenc = Cast<UAnimSequence>(AnimMontage->SlotAnimTracks[0].AnimTrack.AnimSegments[CurSegmentIndex].GetAnimReference().Get());
+		for (int32 ParentBoneIndex : ParentBoneIndexes)
+		{
+			if (ParentBoneIndex == 0)
+				continue;
+				
+			FSkeletonPoseBoneIndex PoseBoneIndex = FSkeletonPoseBoneIndex(ParentBoneIndex);
+			FTransform OutAtom = FTransform::Identity;
+			CurSequenc->GetBoneTransform(OutAtom, PoseBoneIndex, ClampedTime, false);
+			CurrentBoneTransform = OutAtom * CurrentBoneTransform;
+		}
+	}
+	
+	// 액터 월드 행영 적용
+	FVector StartFinalBoneTransform = Owner->GetActorRotation().RotateVector(CurrentBoneTransform.GetLocation());
+	StartFinalBoneTransform = StartFinalBoneTransform + Owner->GetTransform().GetLocation();
+	
+	// 스윕을 수행하여 경로상의 충돌 검사를 실행
+	TArray<FHitResult> HitResults;
+	TArray<AActor*> ActorsToIgnore = {Owner};
+	bool bHit =  UKismetSystemLibrary::CapsuleTraceMulti(
+		Owner,
+		StartFinalBoneTransform,
+		StartFinalBoneTransform,
+		1.f,
+		1.f,
+		ETraceTypeQuery::TraceTypeQuery1,
+		false,
+		ActorsToIgnore,
+		EDrawDebugTrace::Type::ForDuration,
+		HitResults, true,
+		FLinearColor::Red,
+		FLinearColor::Blue,
+		5.f);
+}*/
