@@ -162,6 +162,9 @@ void UZKMeleeAttack_AnimNotifyState::TraceTest(USkeletalMeshComponent* MeshComp,
 		}
 
 		// 8. 월드 공간 변환
+		FTransform StartSocketTransform = MeshComp->GetSocketTransform(BoneName, RTS_ParentBoneSpace);
+		PreTransform = StartSocketTransform * PreTransform;
+		CurrentTransform = StartSocketTransform * CurrentTransform;
 		FVector StartBoneTransform = Owner->GetActorRotation().RotateVector(PreTransform.GetLocation());
 		StartBoneTransform = StartBoneTransform + Owner->GetTransform().GetLocation();
 		FVector EndBoneTransform = Owner->GetActorRotation().RotateVector(CurrentTransform.GetLocation());
