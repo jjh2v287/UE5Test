@@ -63,8 +63,8 @@ void UZKMeleeAttack_AnimNotifyState::TraceTest(USkeletalMeshComponent* MeshComp,
 	UE_LOG(LogAnimation,Warning, TEXT("count %d : delta/ addTime %f"), count, (delta / addTime) + 0.0001);
 	for (int32 i = 1; i < count; i++)
 	{
-		float PreAnimTime = ClampedPreTime + ((i - 1) * addTime);
-		float CurrentAnimTime = ClampedPreTime + (i * addTime);
+		double PreAnimTime = ClampedPreTime + ((i - 1) * addTime);
+		double CurrentAnimTime = ClampedPreTime + (i * addTime);
 	
 		// 2. 애니메이션 데이터 추출 준비
 		FAnimExtractContext ExtractionPreContext(PreAnimTime , true);
