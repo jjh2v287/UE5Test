@@ -80,7 +80,7 @@ void FWaypointPathfinder::DrawDebugPath(const UWorld* World, const TArray<AZKWay
             false,
             DebugSettings.DrawDuration,
             0,
-            3.0f
+            0.5f
         );
     }
 }
@@ -93,13 +93,13 @@ void FWaypointPathfinder::DrawDebugInteractionToPath(const UWorld* World, const 
     DrawDebugSphere(
         World,
         InteractionPoint,
-        50.0f,
+        30.0f,
         16,
         FColor::Blue,
         false,
         DebugSettings.DrawDuration,
         0,
-        3.0f
+        0.5f
     );
 
     // 상호작용 지점에서 첫 번째 웨이포인트까지 선 그리기
