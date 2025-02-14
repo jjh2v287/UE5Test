@@ -72,7 +72,7 @@ void AUKWaypointManager::Tick(float DeltaSeconds)
         16,
         FColor::Red,
         false,
-        0.01f,
+        -1.0f,
         0,
         0.5f
     );
@@ -92,7 +92,7 @@ void AUKWaypointManager::Tick(float DeltaSeconds)
                 30.f,
                 FColor::Red,
                 false,
-                0.01f,
+                -1.0f,
                 0,
                 1.0f
             );
@@ -107,7 +107,7 @@ void AUKWaypointManager::Tick(float DeltaSeconds)
         16,
         FColor::Red,
         false,
-        0.01f,
+        -1.0f,
         0,
         0.5f
     );
