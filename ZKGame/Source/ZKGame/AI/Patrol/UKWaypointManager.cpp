@@ -2,6 +2,7 @@
 
 #include "UKWaypointManager.h"
 #include "GraphAStar.h"
+#include "UKPathFindingSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
 AUKWaypointManager* AUKWaypointManager::SingletonInstance = nullptr;
@@ -62,7 +63,7 @@ void AUKWaypointManager::Tick(float DeltaSeconds)
     AUKWaypoint* StartWaypoint= FindNearestWaypoint(StartActor->GetActorLocation());
     AUKWaypoint* EndWaypoint= FindNearestWaypoint(EndActor->GetActorLocation());
     TArray<AUKWaypoint*> FinalWaypoints = {StartWaypoint};
-    TArray<AUKWaypoint*> FindWaypoints = FindPath(StartWaypoint, EndWaypoint);
+    // TArray<AUKWaypoint*> FindWaypoints = FindPath(StartWaypoint, EndWaypoint);
 
     // 상호작용 지점 표시
     DrawDebugSphere(
@@ -77,7 +78,7 @@ void AUKWaypointManager::Tick(float DeltaSeconds)
         0.5f
     );
 
-    FinalWaypoints.Append(FindWaypoints);
+    // FinalWaypoints.Append(FindWaypoints);
     // 상호작용 지점에서 첫 번째 웨이포인트까지 선 그리기
     if (FinalWaypoints.Num() > 1)
     {
