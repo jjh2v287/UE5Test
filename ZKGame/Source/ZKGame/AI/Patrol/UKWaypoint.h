@@ -12,6 +12,18 @@ class ZKGAME_API AUKWaypoint : public AActor
 	GENERATED_BODY()
 public:
 	AUKWaypoint(const FObjectInitializer& ObjectInitializer);
+	
+	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
+	virtual bool ShouldTickIfViewportsOnly() const override
+	{
+		return true;
+	};
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void DrawDebugLines();
+#endif
 
 	// 연결된 웨이포인트들의 정보
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Waypoint")
