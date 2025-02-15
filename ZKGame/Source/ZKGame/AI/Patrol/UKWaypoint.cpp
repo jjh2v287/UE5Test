@@ -43,7 +43,10 @@ void AUKWaypoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
                 if (NextPoint && !NextPoint->PathPoints.Contains(this))
                 {
                     NextPoint->PathPoints.Add(this);
-                    NextPoint->MarkPackageDirty();
+                    if (NextPoint->MarkPackageDirty())
+                    {
+                        UE_LOG(LogActor, Log, TEXT("%s PostEditChangeProperty"), *PropertyName.ToString());
+                    }
                 }
             }
         }
@@ -53,7 +56,6 @@ void AUKWaypoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 void AUKWaypoint::DrawDebugLines()
 {
     const FVector StartLocation = GetActorLocation();
-    const float LineOffset = 10.0f; // 선 간격 조절값
     
     // 이전 경로 표시 (왼쪽으로 오프셋)
     for (const AUKWaypoint* Point : PathPoints)
@@ -62,27 +64,10 @@ void AUKWaypoint::DrawDebugLines()
         {
             FVector Direction = (Point->GetActorLocation() - StartLocation).GetSafeNormal();
             FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector);
-            
+
+            constexpr  float LineOffset = 10.0f; // 선 간격 조절값
             FVector OffsetStart = StartLocation - RightVector * LineOffset;
             FVector OffsetEnd = Point->GetActorLocation() - RightVector * LineOffset;
-            
-            DrawDebugDirectionalArrow(
-                GetWorld(),
-                OffsetStart,
-                OffsetEnd,
-                100.0f,
-                FColor::Purple,
-                false,
-                -1.0f,
-                0,
-                1.0f
-            );
-
-            Direction = (Point->GetActorLocation() - StartLocation).GetSafeNormal();
-            RightVector = FVector::CrossProduct(Direction, FVector::UpVector);
-            
-            OffsetStart = StartLocation + RightVector * -LineOffset;
-            OffsetEnd = Point->GetActorLocation() + RightVector * -LineOffset;
             
             DrawDebugDirectionalArrow(
                 GetWorld(),

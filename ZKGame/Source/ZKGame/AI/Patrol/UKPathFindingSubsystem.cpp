@@ -93,6 +93,7 @@ void UUKPathFindingSubsystem::ClearWaypoints()
 void UUKPathFindingSubsystem::AllRegisterWaypoint()
 {
     // 월드의 모든 웨이포인트 수집
+    WaypointRegistry.Empty();
     TArray<AActor*> FoundWaypoints;
     UGameplayStatics::GetAllActorsOfClass(GetWorld(), AUKWaypoint::StaticClass(), FoundWaypoints);
     
