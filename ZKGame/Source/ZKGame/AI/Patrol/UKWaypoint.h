@@ -18,8 +18,6 @@ public:
 	virtual void BeginPlay() override;
 
 	virtual void Destroyed() override;
-	
-	virtual void PostEditMove(bool bFinished) override;
 
 	// 연결된 웨이포인트들의 정보
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Waypoint")
@@ -34,6 +32,7 @@ public:
 	void UpdateConnectedSplines();
 
 #if WITH_EDITOR
+	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

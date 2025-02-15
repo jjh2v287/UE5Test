@@ -25,22 +25,6 @@ void AUKWaypoint::Destroyed()
     Super::Destroyed();
 }
 
-void AUKWaypoint::PostEditMove(bool bFinished)
-{
-    Super::PostEditMove(bFinished);
-    // 자신의 스플라인 업데이트
-    UpdateConnectedSplines();
-
-    // 자신을 가리키는 다른 웨이포인트들의 스플라인도 업데이트
-    for (AUKWaypoint* OtherPoint : TActorRange<AUKWaypoint>(GetWorld()))
-    {
-        if (OtherPoint && OtherPoint != this && OtherPoint->PathPoints.Contains(this))
-        {
-            OtherPoint->UpdateConnectedSplines();
-        }
-    }
-}
-
 void AUKWaypoint::UpdateSplines()
 {
     ClearSplinePaths();
@@ -59,6 +43,7 @@ void AUKWaypoint::CreateSplinePath(AUKWaypoint* TargetPoint)
     if (!TargetPoint || !GetWorld()) return;
 
     FVector Direction = (TargetPoint->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+    // FVector Direction = GetActorForwardVector();
     FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector);
     
     constexpr float LineOffset = 10.0f;
@@ -108,6 +93,7 @@ void AUKWaypoint::UpdateConnectedSplines()
         if (PathPoints[i] && i < SplinePaths.Num() && SplinePaths[i])
         {
             FVector Direction = (PathPoints[i]->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+            // FVector Direction = GetActorForwardVector();
             FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector);
             
             constexpr float LineOffset = 10.0f;
@@ -120,6 +106,22 @@ void AUKWaypoint::UpdateConnectedSplines()
 }
 
 #if WITH_EDITOR
+void AUKWaypoint::PostEditMove(bool bFinished)
+{
+    Super::PostEditMove(bFinished);
+    // 자신의 스플라인 업데이트
+    UpdateConnectedSplines();
+
+    // 자신을 가리키는 다른 웨이포인트들의 스플라인도 업데이트
+    for (AUKWaypoint* OtherPoint : TActorRange<AUKWaypoint>(GetWorld()))
+    {
+        if (OtherPoint && OtherPoint != this && OtherPoint->PathPoints.Contains(this))
+        {
+            OtherPoint->UpdateConnectedSplines();
+        }
+    }
+}
+
 void AUKWaypoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);

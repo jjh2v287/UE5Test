@@ -10,8 +10,10 @@ AUKWaypointSpline::AUKWaypointSpline(const FObjectInitializer& ObjectInitializer
 	PrimaryActorTick.bCanEverTick = true;
     
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("SplineComponent"));
+#if WITH_EDITOR
 	SplineComponent->bShouldVisualizeScale = true;
 	SplineComponent->ScaleVisualizationWidth = 5.0f;
+#endif
 	RootComponent = SplineComponent;
 }
 
