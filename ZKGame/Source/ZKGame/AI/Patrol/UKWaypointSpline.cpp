@@ -4,9 +4,10 @@
 #include "UKWaypointSpline.h"
 
 
-AUKWaypointSpline::AUKWaypointSpline()
+AUKWaypointSpline::AUKWaypointSpline(const FObjectInitializer& ObjectInitializer)
+	:Super(ObjectInitializer)
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
     
 	SplineComponent = CreateDefaultSubobject<USplineComponent>(TEXT("SplineComponent"));
 	SplineComponent->bShouldVisualizeScale = true;

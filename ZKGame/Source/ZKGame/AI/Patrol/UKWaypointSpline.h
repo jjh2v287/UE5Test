@@ -12,7 +12,7 @@ class ZKGAME_API AUKWaypointSpline : public AActor
 {
 	GENERATED_BODY()
 public:
-	AUKWaypointSpline();
+	AUKWaypointSpline(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Spline")
 	USplineComponent* SplineComponent;
@@ -25,7 +25,7 @@ public:
 	FColor DebugLineColor = FColor::Blue;
     
 	UPROPERTY(EditAnywhere, Category = "Debug")
-	float DebugLineThickness = 2.0f;
+	float DebugLineThickness = 1.0f;
     
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	int32 DebugLineSegments = 32;
@@ -36,5 +36,9 @@ public:
 	virtual void Tick(float DeltaTime) override;
     
 private:
+	virtual bool ShouldTickIfViewportsOnly() const override
+	{
+		return true;
+	}
 	void DrawDebugSpline();
 };
