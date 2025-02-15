@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UKWaypointSpline.h"
+#include "Components/SplineComponent.h"
 #include "GameFramework/Actor.h"
 #include "UKWaypoint.generated.h"
 
@@ -12,20 +14,26 @@ class ZKGAME_API AUKWaypoint : public AActor
 	GENERATED_BODY()
 public:
 	AUKWaypoint(const FObjectInitializer& ObjectInitializer);
-	
+    
 	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaTime) override;
-	virtual bool ShouldTickIfViewportsOnly() const override
-	{
-		return true;
-	};
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void DrawDebugLines();
-#endif
+	virtual void Destroyed() override;
+	
+	virtual void PostEditMove(bool bFinished) override;
 
 	// 연결된 웨이포인트들의 정보
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Waypoint")
 	TArray<AUKWaypoint*> PathPoints;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Waypoint")
+	TArray<AUKWaypointSpline*> SplinePaths;
+
+	void UpdateSplines();
+	void CreateSplinePath(AUKWaypoint* TargetPoint);
+	void ClearSplinePaths();
+	void UpdateConnectedSplines();
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 };
