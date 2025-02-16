@@ -19,6 +19,8 @@ public:
 
 	virtual void Destroyed() override;
 
+	virtual void Tick(float DeltaTime) override;
+
 	// 연결된 웨이포인트들의 정보
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Waypoint")
 	TArray<AUKWaypoint*> PathPoints;
@@ -31,8 +33,14 @@ public:
 	void ClearSplinePaths();
 	void UpdateConnectedSplines();
 
+	virtual bool ShouldTickIfViewportsOnly() const override
+	{
+		return true;
+	};
+
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void DrawDebugLines();
 #endif
 };

@@ -60,16 +60,16 @@ void AUKWaypointSpline::DrawDebugSpline()
 		const FVector Location2 = SplineComponent->GetLocationAtDistanceAlongSpline(Distance2, ESplineCoordinateSpace::World);
 
 		// 메인 라인
-		DrawDebugLine(
-			GetWorld(),
-			Location1,
-			Location2,
-			DebugLineColor,
-			false,  // persistent lines
-			-1.0f,  // lifetime
-			0,      // depth priority
-			DebugLineThickness
-		);
+		// DrawDebugLine(
+		// 	GetWorld(),
+		// 	Location1,
+		// 	Location2,
+		// 	DebugLineColor,
+		// 	false,  // persistent lines
+		// 	-1.0f,  // lifetime
+		// 	0,      // depth priority
+		// 	DebugLineThickness
+		// );
 
 		// 방향 표시 화살표 (선택적)
 		if (i % 4 == 0)  // 4개 세그먼트마다 화살표 표시

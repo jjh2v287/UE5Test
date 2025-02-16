@@ -25,6 +25,14 @@ void AUKWaypoint::Destroyed()
     Super::Destroyed();
 }
 
+void AUKWaypoint::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+#if WITH_EDITOR
+    DrawDebugLines();
+#endif
+}
+
 void AUKWaypoint::UpdateSplines()
 {
     ClearSplinePaths();
@@ -145,6 +153,36 @@ void AUKWaypoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
                 }
             }
             UpdateSplines();
+        }
+    }
+}
+void AUKWaypoint::DrawDebugLines()
+{
+    const FVector StartLocation = GetActorLocation();
+    
+    // 이전 경로 표시 (왼쪽으로 오프셋)
+    for (const AUKWaypoint* Point : PathPoints)
+    {
+        if (Point)
+        {
+            FVector Direction = (Point->GetActorLocation() - StartLocation).GetSafeNormal();
+            FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector);
+
+            constexpr  float LineOffset = 10.0f; // 선 간격 조절값
+            FVector OffsetStart = StartLocation - RightVector * LineOffset;
+            FVector OffsetEnd = Point->GetActorLocation() - RightVector * LineOffset;
+            
+            DrawDebugDirectionalArrow(
+                GetWorld(),
+                OffsetStart,
+                OffsetEnd,
+                100.0f,
+                FColor::Purple,
+                false,
+                -1.0f,
+                0,
+                1.0f
+            );
         }
     }
 }
