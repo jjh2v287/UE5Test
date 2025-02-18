@@ -17,14 +17,18 @@ AUKPatrolPathSpline::AUKPatrolPathSpline(const FObjectInitializer& ObjectInitial
 	SplineComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
 }
 
-void AUKPatrolPathSpline::BeginPlay()
+void AUKPatrolPathSpline::PostInitializeComponents()
 {
-	Super::BeginPlay();
-
+	Super::PostInitializeComponents();
 	if (UUKPatrolPathSubsystem::Get())
 	{
 		UUKPatrolPathSubsystem::Get()->RegisterPatrolSpline(this);
 	}
+}
+
+void AUKPatrolPathSpline::BeginPlay()
+{
+	Super::BeginPlay();
 }
 
 void AUKPatrolPathSpline::BeginDestroy()

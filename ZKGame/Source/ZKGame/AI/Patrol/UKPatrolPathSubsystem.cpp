@@ -28,12 +28,18 @@ void UUKPatrolPathSubsystem::Deinitialize()
 
 void UUKPatrolPathSubsystem::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 {
-	PatrolPathSplines.Emplace(Waypoint);
+	if (!PatrolPathSplines.Contains(Waypoint->SplineName))
+	{
+		PatrolPathSplines.Emplace(Waypoint->SplineName, Waypoint);
+	}
 }
 
 void UUKPatrolPathSubsystem::UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 {
-	PatrolPathSplines.Remove(Waypoint);
+	if (PatrolPathSplines.Contains(Waypoint->SplineName))
+	{
+		PatrolPathSplines.Remove(Waypoint->SplineName);
+	}
 }
 
 FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindClosePatrolPath(FVector Location)
@@ -44,8 +50,9 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindClosePatrolPath(FVector Lo
 		return Result;
 	}
 
-	for (AUKPatrolPathSpline* Spline : PatrolPathSplines)
+	for (const auto Pair : PatrolPathSplines)
 	{
+		AUKPatrolPathSpline* Spline = Pair.Value;
 		if (!IsValid(Spline))
 		{
 			continue;
@@ -66,7 +73,7 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindClosePatrolPath(FVector Lo
 		if (CurrentDistance < Result.Distance)
 		{
 			Result.SplineComponent = Spline->SplineComponent;
-			Result.Location = PointLocation;
+			Result.CloseLocation = PointLocation;
 			Result.Distance = CurrentDistance;
 		}
 	}
@@ -82,8 +89,12 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPath(const FVe
 		return Result;
 	}
 
+	TArray<FName> Keys;
+	PatrolPathSplines.GenerateKeyArray(Keys);
 	int32 RandomIndex = FMath::RandRange(0, PatrolPathSplines.Num()-1);
-	if (const AUKPatrolPathSpline* Spline = PatrolPathSplines[RandomIndex])
+	const FName& RandomKey = Keys[RandomIndex];
+	
+	if (const AUKPatrolPathSpline* Spline = PatrolPathSplines.FindRef(RandomKey))
 	{
 		if (!IsValid(Spline))
 		{
@@ -105,9 +116,39 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPath(const FVe
 		if (CurrentDistance < Result.Distance)
 		{
 			Result.SplineComponent = Spline->SplineComponent;
-			Result.Location = PointLocation;
+			Result.CloseLocation = PointLocation;
 			Result.Distance = CurrentDistance;
 		}
+	}
+        
+	return Result;
+}
+
+FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex)
+{
+	FPatrolSplineSearchResult Result;
+	if (PatrolPathSplines.Num() == 0)
+	{
+		return Result;
+	}
+
+	if (const AUKPatrolPathSpline* Spline = PatrolPathSplines.FindRef(SplineName))
+	{
+		if (!Spline->SplineComponent)
+		{
+			return Result;
+		}
+
+		const FVector CloseLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
+		const FVector StartLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(StartIndex, ESplineCoordinateSpace::World);
+		const FVector EndLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(EndIndex, ESplineCoordinateSpace::World);
+		const float CurrentDistance = FVector::Distance(Location, CloseLocation);
+            
+		Result.SplineComponent = Spline->SplineComponent;
+		Result.Distance = CurrentDistance;
+		Result.CloseLocation = CloseLocation;
+		Result.StartLocation = StartLocation;
+		Result.EndLocation = EndLocation;
 	}
         
 	return Result;

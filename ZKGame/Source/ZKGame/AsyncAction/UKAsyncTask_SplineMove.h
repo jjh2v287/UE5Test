@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UKAsyncTask_Base.h"
+#include "AI/Patrol/UKPatrolPathSubsystem.h"
 #include "UKAsyncTask_SplineMove.generated.h"
 
 class UWorld;
@@ -27,14 +28,14 @@ public:
 public:
 	/**
 	 * Create a latent UUKAsyncTask_RotateCharacter Node
-	 * @param WorldContextObject	Current Object to use this use async node.
+	 * @param Owner					Owner Actor
 	 * @param SplineName			SplineName
 	 * @param StartIndex			Start Point Index
 	 * @param EndIndex				End Point Index
 	 * @return This UUKAsyncTask_SplineMove blueprint node
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", WorldContext = "WorldContextObject", DisplayName = "SplineMove", Category = "UK|AsyncTask"))
-	static UUKAsyncTask_SplineMove* SplineMove(const UObject* WorldContextObject, TSubclassOf<class UUKAsyncTask_SplineMove> Class, const FName SplineName, const int32 StartIndex, const int32 EndIndex);
+	static UUKAsyncTask_SplineMove* SplineMove(AActor* Owner, TSubclassOf<class UUKAsyncTask_SplineMove> Class, const FName SplineName, const int32 StartIndex, const int32 EndIndex);
 
 public:
 	virtual void Activate() override;
@@ -52,7 +53,13 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent)
 	void OnTick(const float DeltaTime);
 
+	UFUNCTION(BlueprintPure)
+	AActor* GetOwner() const;
+	
 protected:
+	UPROPERTY(Transient)
+	AActor* Owner = nullptr;
+	
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
 	FName SplineName;
 
@@ -61,4 +68,7 @@ protected:
 	
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
     int32 EndIndex;
+
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	FPatrolSplineSearchResult PatrolSplineSearchResult;
 };
