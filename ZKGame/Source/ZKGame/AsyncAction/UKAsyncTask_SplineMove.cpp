@@ -8,10 +8,14 @@ UUKAsyncTask_SplineMove::UUKAsyncTask_SplineMove(const FObjectInitializer& Objec
 {
 }
 
-UUKAsyncTask_SplineMove* UUKAsyncTask_SplineMove::SplineMove(const UObject* WorldContextObject, TSubclassOf<class UUKAsyncTask_SplineMove> Class)
+UUKAsyncTask_SplineMove* UUKAsyncTask_SplineMove::SplineMove(const UObject* WorldContextObject, TSubclassOf<class UUKAsyncTask_SplineMove> Class, const FName SplineName, const int32 StartIndex, const int32 EndIndex)
 {
-	UUKAsyncTask_SplineMove* AsyncNode = NewObject<UUKAsyncTask_SplineMove>(WorldContextObject, Class);
+	UUKAsyncTask_SplineMove* AsyncNode = NewObject<UUKAsyncTask_SplineMove>(WorldContextObject->GetWorld(), Class.Get());
 
+	AsyncNode->SplineName = SplineName;
+	AsyncNode->StartIndex = StartIndex;
+	AsyncNode->EndIndex = EndIndex;
+	
 	//  Call to globally register this object with a game instance, it will not be destroyed until SetReadyToDestroy is called
 	if (WorldContextObject)
 	{
@@ -33,8 +37,26 @@ void UUKAsyncTask_SplineMove::Activate()
 	OnActivate();
 }
 
+void UUKAsyncTask_SplineMove::FinishTask(const bool bSucceeded)
+{
+	if (bSucceeded)
+	{
+		OnMoveFinish.Broadcast();
+		bTickable = false;
+		Cancel();
+	}
+	else
+	{
+		OnMoveFail.Broadcast();
+		bTickable = false;
+		Cancel();
+	}
+}
+
 void UUKAsyncTask_SplineMove::Cancel()
 {
+	OnMoveFinish.Clear();
+	OnMoveFail.Clear();
 	Super::Cancel();
 }
 
