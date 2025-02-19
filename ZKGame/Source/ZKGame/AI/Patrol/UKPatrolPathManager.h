@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UKPatrolPathSpline.h"
 #include "Components/SplineComponent.h"
-#include "UKPatrolPathSubsystem.generated.h"
+#include "UKPatrolPathManager.generated.h"
 
 USTRUCT(BlueprintType)
 struct ZKGAME_API FPatrolSplineSearchResult
@@ -29,17 +29,27 @@ struct ZKGAME_API FPatrolSplineSearchResult
 
 	UPROPERTY(BlueprintReadOnly)
 	float Distance = MAX_FLT;
+
+	void Reset()
+	{
+		Success = false;
+		SplineComponent = nullptr;
+		CloseLocation = FVector::ZeroVector;
+		StartLocation = FVector::ZeroVector;
+		EndLocation = FVector::ZeroVector;
+		Distance = MAX_FLT;
+	}
 };
 
 /**
  * 
  */
 UCLASS()
-class ZKGAME_API UUKPatrolPathSubsystem : public UGameInstanceSubsystem
+class ZKGAME_API UUKPatrolPathManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
-	static UUKPatrolPathSubsystem* Get();
+	static UUKPatrolPathManager* Get();
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
@@ -57,10 +67,10 @@ public:
 	FPatrolSplineSearchResult FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex);
 
 	UFUNCTION(BlueprintCallable)
-	FPatrolSplineSearchResult FindPatrolPathWithBoundsByTagAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint);
+	FPatrolSplineSearchResult FindPatrolPathWithBoundsByNameAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint);
 
 private:
-	static UUKPatrolPathSubsystem* Instance;
+	static UUKPatrolPathManager* Instance;
 
 	UPROPERTY(Transient)
 	TMap<FName, AUKPatrolPathSpline*> PatrolPathSplines;

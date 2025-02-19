@@ -1,6 +1,8 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKAsyncTask_SplineMove2.h"
+
+#include "AI/Patrol/UKPatrolPathManager.h"
 #include "Engine/World.h"
 
 UUKAsyncTask_SplineMove2::UUKAsyncTask_SplineMove2(const FObjectInitializer& ObjectInitializer)
@@ -52,13 +54,13 @@ void UUKAsyncTask_SplineMove2::Activate()
 		return;
 	}
 	
-	if (!UUKPatrolPathSubsystem::Get())
+	if (!UUKPatrolPathManager::Get())
 	{
 		FinishTask(false);
 		return;
 	}
 
-	PatrolSplineSearchResult = UUKPatrolPathSubsystem::Get()->FindPatrolPathWithBoundsByTagAndLocation(FVector::ZeroVector, SplineName, StartIndex, EndIndex);
+	PatrolSplineSearchResult = UUKPatrolPathManager::Get()->FindPatrolPathWithBoundsByNameAndLocation(FVector::ZeroVector, SplineName, StartIndex, EndIndex);
 	if (!PatrolSplineSearchResult.Success)
 	{
 		FinishTask(false);

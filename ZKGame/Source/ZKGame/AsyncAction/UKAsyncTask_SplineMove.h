@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UKAsyncTask_Base.h"
-#include "AI/Patrol/UKPatrolPathSubsystem.h"
+#include "AI/Patrol/UKPatrolPathManager.h"
 #include "UKAsyncTask_SplineMove.generated.h"
 
 class UWorld;

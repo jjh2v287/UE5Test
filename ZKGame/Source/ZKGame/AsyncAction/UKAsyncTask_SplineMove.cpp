@@ -2,7 +2,7 @@
 
 #include "UKAsyncTask_SplineMove.h"
 
-#include "AI/Patrol/UKPatrolPathSubsystem.h"
+#include "AI/Patrol/UKPatrolPathManager.h"
 #include "Engine/World.h"
 
 UUKAsyncTask_SplineMove::UUKAsyncTask_SplineMove(const FObjectInitializer& ObjectInitializer)
@@ -37,9 +37,9 @@ UUKAsyncTask_SplineMove* UUKAsyncTask_SplineMove::SplineMove(AActor* Owner, TSub
 void UUKAsyncTask_SplineMove::Activate()
 {
 	Super::Activate();
-	if (UUKPatrolPathSubsystem::Get())
+	if (UUKPatrolPathManager::Get())
 	{
-		PatrolSplineSearchResult = UUKPatrolPathSubsystem::Get()->FindRandomPatrolPathToTest(SplineName, FVector::ZeroVector, StartIndex, EndIndex);
+		PatrolSplineSearchResult = UUKPatrolPathManager::Get()->FindRandomPatrolPathToTest(SplineName, FVector::ZeroVector, StartIndex, EndIndex);
 	}
 	OnActivate();
 }

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UKAsyncTask_Base.h"
-#include "AI/Patrol/UKPatrolPathSubsystem.h"
+#include "AI/Patrol/UKPatrolPathManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "UKAsyncTask_SplineMove2.generated.h"
 

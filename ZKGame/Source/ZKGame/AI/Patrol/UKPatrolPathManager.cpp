@@ -1,22 +1,22 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
-#include "UKPatrolPathSubsystem.h"
+#include "UKPatrolPathManager.h"
 #include "Components/SplineComponent.h"
 
-UUKPatrolPathSubsystem* UUKPatrolPathSubsystem::Instance = nullptr;
+UUKPatrolPathManager* UUKPatrolPathManager::Instance = nullptr;
 
-UUKPatrolPathSubsystem* UUKPatrolPathSubsystem::Get()
+UUKPatrolPathManager* UUKPatrolPathManager::Get()
 {
 	return Instance;
 }
 
-void UUKPatrolPathSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UUKPatrolPathManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Instance = this;
 }
 
-void UUKPatrolPathSubsystem::Deinitialize()
+void UUKPatrolPathManager::Deinitialize()
 {
 	if (Instance == this)
 	{
@@ -26,7 +26,7 @@ void UUKPatrolPathSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UUKPatrolPathSubsystem::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
+void UUKPatrolPathManager::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 {
 	if (!PatrolPathSplines.Contains(Waypoint->SplineName))
 	{
@@ -34,7 +34,7 @@ void UUKPatrolPathSubsystem::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 	}
 }
 
-void UUKPatrolPathSubsystem::UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
+void UUKPatrolPathManager::UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 {
 	if (PatrolPathSplines.Contains(Waypoint->SplineName))
 	{
@@ -42,7 +42,7 @@ void UUKPatrolPathSubsystem::UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoin
 	}
 }
 
-FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindClosePatrolPath(FVector Location)
+FPatrolSplineSearchResult UUKPatrolPathManager::FindClosePatrolPath(FVector Location)
 {
 	FPatrolSplineSearchResult Result;
 	if (PatrolPathSplines.Num() == 0)
@@ -81,7 +81,7 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindClosePatrolPath(FVector Lo
 	return Result;
 }
 
-FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPath(const FVector Location)
+FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPath(const FVector Location)
 {
 	FPatrolSplineSearchResult Result;
 	if (PatrolPathSplines.Num() == 0)
@@ -124,7 +124,7 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPath(const FVe
 	return Result;
 }
 
-FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex)
+FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex)
 {
 	FPatrolSplineSearchResult Result;
 	if (PatrolPathSplines.Num() == 0)
@@ -154,7 +154,7 @@ FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindRandomPatrolPathToTest(FNa
 	return Result;
 }
 
-FPatrolSplineSearchResult UUKPatrolPathSubsystem::FindPatrolPathWithBoundsByTagAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint)
+FPatrolSplineSearchResult UUKPatrolPathManager::FindPatrolPathWithBoundsByNameAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint)
 {
 	FPatrolSplineSearchResult Result;
 	if (PatrolPathSplines.Num() == 0)

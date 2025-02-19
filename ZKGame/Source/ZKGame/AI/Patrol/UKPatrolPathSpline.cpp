@@ -1,7 +1,7 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKPatrolPathSpline.h"
-#include "UKPatrolPathSubsystem.h"
+#include "UKPatrolPathManager.h"
 #include "Components/SplineComponent.h"
 
 
@@ -20,9 +20,9 @@ AUKPatrolPathSpline::AUKPatrolPathSpline(const FObjectInitializer& ObjectInitial
 void AUKPatrolPathSpline::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	if (UUKPatrolPathSubsystem::Get())
+	if (UUKPatrolPathManager::Get())
 	{
-		UUKPatrolPathSubsystem::Get()->RegisterPatrolSpline(this);
+		UUKPatrolPathManager::Get()->RegisterPatrolSpline(this);
 	}
 }
 
@@ -33,9 +33,9 @@ void AUKPatrolPathSpline::BeginPlay()
 
 void AUKPatrolPathSpline::BeginDestroy()
 {
-	if (UUKPatrolPathSubsystem::Get())
+	if (UUKPatrolPathManager::Get())
 	{
-		UUKPatrolPathSubsystem::Get()->UnregisterPatrolSpline(this);
+		UUKPatrolPathManager::Get()->UnregisterPatrolSpline(this);
 	}
 	
 	Super::BeginDestroy();
