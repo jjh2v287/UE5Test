@@ -14,6 +14,9 @@ struct ZKGAME_API FPatrolSplineSearchResult
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(BlueprintReadOnly)
+	bool Success = false;
+
+	UPROPERTY(BlueprintReadOnly)
 	USplineComponent* SplineComponent = nullptr;
 
 	UPROPERTY(BlueprintReadOnly)
@@ -24,7 +27,6 @@ struct ZKGAME_API FPatrolSplineSearchResult
 
 	UPROPERTY(BlueprintReadOnly)
 	FVector EndLocation = FVector::ZeroVector;
-	
 
 	UPROPERTY(BlueprintReadOnly)
 	float Distance = MAX_FLT;
@@ -54,6 +56,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	FPatrolSplineSearchResult FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex);
+
+	UFUNCTION(BlueprintCallable)
+	FPatrolSplineSearchResult FindPatrolPathWithBoundsByTagAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint);
 
 private:
 	static UUKPatrolPathSubsystem* Instance;
