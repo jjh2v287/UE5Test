@@ -35,7 +35,7 @@ public:
 	 * @return This UUKAsyncTask_SplineMove blueprint node
 	 */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DisplayName = "SplineMove2", Category = "UK|AsyncTask"))
-	static UUKAsyncTask_SplineMove2* SplineMove2(AActor* Owner, const FName SplineName, const int32 StartIndex, const int32 EndIndex);
+	static UUKAsyncTask_SplineMove2* SplineMove2(AActor* Owner, const FName SplineName, const int32 StartIndex, const int32 EndIndex, const float TripTime);
 
 	virtual void Activate() override;
 
@@ -59,6 +59,9 @@ protected:
     int32 EndIndex;
 
 	UPROPERTY(Transient)
+	float TripTime = 0.0f;
+
+	UPROPERTY(Transient)
 	FPatrolSplineSearchResult PatrolSplineSearchResult;
 
 	UPROPERTY(Transient)
@@ -66,6 +69,9 @@ protected:
 
 	UPROPERTY(Transient)
 	float GoalDistance = 0.0f;
+
+	UPROPERTY(Transient)
+	float PreMaxWalkSpeed = 0.0f;
 	
 	UPROPERTY(Transient)
 	UCharacterMovementComponent* CharacterMovement = nullptr;

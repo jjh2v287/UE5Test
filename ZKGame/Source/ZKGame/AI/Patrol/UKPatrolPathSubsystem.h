@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UKPatrolPathSpline.h"
 #include "Components/SplineComponent.h"
-#include "Subsystems/WorldSubsystem.h"
 #include "UKPatrolPathSubsystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -36,7 +35,7 @@ struct ZKGAME_API FPatrolSplineSearchResult
  * 
  */
 UCLASS()
-class ZKGAME_API UUKPatrolPathSubsystem : public UWorldSubsystem
+class ZKGAME_API UUKPatrolPathSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:

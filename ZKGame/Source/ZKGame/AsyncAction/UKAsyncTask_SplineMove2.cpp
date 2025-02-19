@@ -10,7 +10,7 @@ UUKAsyncTask_SplineMove2::UUKAsyncTask_SplineMove2(const FObjectInitializer& Obj
 {
 }
 
-UUKAsyncTask_SplineMove2* UUKAsyncTask_SplineMove2::SplineMove2(AActor* Owner, const FName SplineName, const int32 StartIndex, const int32 EndIndex)
+UUKAsyncTask_SplineMove2* UUKAsyncTask_SplineMove2::SplineMove2(AActor* Owner, const FName SplineName, const int32 StartIndex, const int32 EndIndex, const float TripTime)
 {
 	UUKAsyncTask_SplineMove2* AsyncNode = NewObject<UUKAsyncTask_SplineMove2>();
 
@@ -18,6 +18,7 @@ UUKAsyncTask_SplineMove2* UUKAsyncTask_SplineMove2::SplineMove2(AActor* Owner, c
 	AsyncNode->SplineName = SplineName;
 	AsyncNode->StartIndex = StartIndex;
 	AsyncNode->EndIndex = EndIndex;
+	AsyncNode->TripTime = TripTime;
 	AsyncNode->CharacterMovement = Cast<UCharacterMovementComponent>(Owner->GetComponentByClass(UCharacterMovementComponent::StaticClass()));
 	
 	//  Call to globally register this object with a game instance, it will not be destroyed until SetReadyToDestroy is called
@@ -69,6 +70,15 @@ void UUKAsyncTask_SplineMove2::Activate()
 
 	const FVector SplineGoalLocation = PatrolSplineSearchResult.SplineComponent->GetLocationAtSplineInputKey(EndIndex, ESplineCoordinateSpace::World);
 	GoalDistance =  PatrolSplineSearchResult.SplineComponent->GetDistanceAlongSplineAtLocation(SplineGoalLocation, ESplineCoordinateSpace::World);
+
+	const FVector OwnerLocation = Owner->GetActorLocation();
+	const FVector CloseLocation = PatrolSplineSearchResult.SplineComponent->FindLocationClosestToWorldLocation(OwnerLocation, ESplineCoordinateSpace::World);
+	const float OwnerAndSplineDistance = FVector::Distance(OwnerLocation, CloseLocation);
+	const float DistanceFromSctorToSpline = PatrolSplineSearchResult.SplineComponent->GetDistanceAlongSplineAtLocation(Owner->GetActorLocation(), ESplineCoordinateSpace::World);
+	const float SplineLength = PatrolSplineSearchResult.SplineComponent->GetSplineLength();
+	const float NewMaxWalkSpeed = ((SplineLength - DistanceFromSctorToSpline) + OwnerAndSplineDistance) / TripTime;
+	PreMaxWalkSpeed = CharacterMovement->MaxWalkSpeed;
+	CharacterMovement->MaxWalkSpeed = NewMaxWalkSpeed;
 }
 
 void UUKAsyncTask_SplineMove2::FinishTask(const bool bSucceeded)
@@ -87,6 +97,10 @@ void UUKAsyncTask_SplineMove2::FinishTask(const bool bSucceeded)
 
 void UUKAsyncTask_SplineMove2::Cancel()
 {
+	if (CharacterMovement)
+	{
+		CharacterMovement->MaxWalkSpeed = PreMaxWalkSpeed;
+	}
 	OnMoveFinish.Clear();
 	OnMoveFail.Clear();
 	Super::Cancel();
@@ -96,24 +110,25 @@ void UUKAsyncTask_SplineMove2::Tick(const float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	const float CurrentSplineKey = PatrolSplineSearchResult.SplineComponent->GetInputKeyValueAtDistanceAlongSpline(CurrentDistance);
-	const FVector CurrentSplineLocation = PatrolSplineSearchResult.SplineComponent->GetLocationAtSplineInputKey(CurrentSplineKey, ESplineCoordinateSpace::World);
-	const FVector CurrentActorLocation = Owner->GetActorLocation();
-	const float Distance = FVector::Dist2D(CurrentSplineLocation, CurrentActorLocation);
-	if (Distance < 10.0f)
+	const FVector ActorLocation = Owner->GetActorLocation();
+	float NearestDistance = PatrolSplineSearchResult.SplineComponent->GetDistanceAlongSplineAtLocation(ActorLocation, ESplineCoordinateSpace::World);
+	CurrentDistance = NearestDistance + (CharacterMovement->MaxWalkSpeed * DeltaTime);
+
+	// Check if you reached the end of the spline
+	if (CurrentDistance >= GoalDistance)
 	{
-		CurrentDistance += CharacterMovement->MaxWalkSpeed * DeltaTime;
+		CurrentDistance = GoalDistance;
 	}
 	
-	const FVector ActorLocation = Owner->GetActorLocation();
+	const float Dist2D = FVector::Dist2D(PatrolSplineSearchResult.EndLocation, ActorLocation);
+	if (Dist2D < 1.0f)
+	{
+		FinishTask(true);
+		return;
+	}
+	
 	const float SplineKey = PatrolSplineSearchResult.SplineComponent->GetInputKeyValueAtDistanceAlongSpline(CurrentDistance);
 	const FVector NextSplineLocation = PatrolSplineSearchResult.SplineComponent->GetLocationAtSplineInputKey(SplineKey, ESplineCoordinateSpace::World);
 	const FVector AddInputVector = NextSplineLocation - ActorLocation;
 	CharacterMovement->AddInputVector(AddInputVector);
-
-	if (CurrentDistance > GoalDistance)
-	{
-		CurrentDistance = GoalDistance;
-		FinishTask(true);
-	}
 }
