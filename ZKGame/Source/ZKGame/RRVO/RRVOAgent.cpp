@@ -150,7 +150,7 @@ FVelocityObstacle ARRVOAgent::ComputeVelocityObstacle(ARRVOAgent* OtherAgent, fl
     ScaledM.BottomLeft = ScaledVertices[3];
     
     // 4. 원점에서의 접선 계산
-    TPair<FVector, FVector> Tangents = ComputeTangents(ScaledM, FVector::ZeroVector);
+    TPair<FVector, FVector> Tangents = {};//ComputeTangents(ScaledM, FVector::ZeroVector);
     FVector LeftTangent = Tangents.Key;
     FVector RightTangent = Tangents.Value;
     
@@ -188,15 +188,15 @@ FVelocityObstacle ARRVOAgent::ComputeVelocityObstacle(ARRVOAgent* OtherAgent, fl
     // 6. VO의 경계를 시계 방향으로 정렬
     if (VO.Boundary.Num() > 2)
     {
-        FVector Center = FVector::ZeroVector;
+        FVector CenterTow = FVector::ZeroVector;
         for (const FVector& Vertex : VO.Boundary)
         {
-            Center += Vertex;
+            CenterTow += Vertex;
         }
-        Center /= VO.Boundary.Num();
+        CenterTow /= VO.Boundary.Num();
         
-        VO.Boundary.Sort([Center](const FVector& A, const FVector& B) {
-            return FMath::Atan2(A.Y - Center.Y, A.X - Center.X) < FMath::Atan2(B.Y - Center.Y, B.X - Center.X);
+        VO.Boundary.Sort([CenterTow](const FVector& A, const FVector& B) {
+            return FMath::Atan2(A.Y - CenterTow.Y, A.X - CenterTow.X) < FMath::Atan2(B.Y - CenterTow.Y, B.X - CenterTow.X);
         });
     }
     
@@ -208,7 +208,7 @@ FVelocityObstacle ARRVOAgent::ComputeVelocityObstacle(ARRVOAgent* OtherAgent, fl
 }
 
 // 알고리즘 3: 새로운 속도와 방향 계산
-TPair<FVector, float> ARRVOAgent::ComputeNewVelocityAndOrientation()
+/*TPair<FVector, float> ARRVOAgent::ComputeNewVelocityAndOrientation()
 {
     // 초기화
     TArray<FLinearProgram> LPs;
@@ -321,7 +321,7 @@ TPair<FVector, float> ARRVOAgent::ComputeNewVelocityAndOrientation()
     }
     
     return TPair<FVector, float>(BestVelocity, BestOrientation);
-}
+}*/
 
 // Minkowski Sum 계산
 FRRVORect ARRVOAgent::ComputeMinkowskiSum(const FRRVORect& RectA, const FRRVORect& RectB)
@@ -336,4 +336,13 @@ FRRVORect ARRVOAgent::ComputeMinkowskiSum(const FRRVORect& RectA, const FRRVORec
     TArray<FVector> VerticesB = RectB.GetVertices();
 
     return FRRVORect();
+}
+
+FVector ARRVOAgent::SolveLinearProgram(const FLinearProgram& LP)
+{
+    return FVector::ZeroVector;
+}
+
+void ARRVOAgent::UpdateAgent(float DeltaTime)
+{
 }

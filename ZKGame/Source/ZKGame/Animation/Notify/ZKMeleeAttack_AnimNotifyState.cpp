@@ -2,6 +2,11 @@
 
 
 #include "Animation/Notify/ZKMeleeAttack_AnimNotifyState.h"
+#include "Animation/AnimMontage.h"
+#include "BonePose.h"
+#include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequenceBase.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 UZKMeleeAttack_AnimNotifyState::UZKMeleeAttack_AnimNotifyState()

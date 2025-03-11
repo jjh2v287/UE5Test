@@ -6,6 +6,7 @@
 #include "Containers/Array.h"
 #include "Math/Vector.h"
 #include "Math/UnrealMathUtility.h"
+#include "Templates/Tuple.h"
 #include "RRVOAgent.generated.h"
 
 /**
@@ -161,7 +162,7 @@ struct FLinearProgram
 };
 
 UCLASS()
-class RRVO_API ARRVOAgent : public AActor
+class ZKGAME_API ARRVOAgent : public AActor
 {
     GENERATED_BODY()
     
@@ -198,6 +199,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RRVO")
     TArray<ARRVOAgent*> Neighbors;
 
+    TMap<int32, FVector> test;
+    
     // RRVO 알고리즘 구현 메서드
     
     /**
@@ -215,8 +218,8 @@ public:
     /**
      * 알고리즘 3: 새로운 속도와 방향 계산
      */
-    UFUNCTION(BlueprintCallable, Category = "RRVO")
-    TPair<FVector, float> ComputeNewVelocityAndOrientation();
+    // UFUNCTION(BlueprintCallable, Category = "RRVO")
+    // TPair<FVector, float> ComputeNewVelocityAndOrientation();
 
     /**
      * Minkowski Sum 계산
@@ -227,8 +230,8 @@ public:
     /**
      * 원점을 지나는 접선 계산
      */
-    UFUNCTION(BlueprintCallable, Category = "RRVO")
-    TPair<FVector, FVector> ComputeTangents(const FRRVORect& Rect, const FVector& Point);
+    // UFUNCTION(BlueprintCallable, Category = "RRVO")
+    // TPair<FVector, FVector> ComputeTangents(const FRRVORect& Rect, const FVector& Point);
 
     /**
      * 선형 프로그램 해결
