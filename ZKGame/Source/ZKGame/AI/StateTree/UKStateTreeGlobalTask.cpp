@@ -8,9 +8,32 @@
 
 #define LOCTEXT_NAMESPACE "GameplayStateTree"
 
+EStateTreeRunStatus UUKGlobalTaskData::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
+{
+	RunStatus = EStateTreeRunStatus::Running;
+	// Event binding and initial setting of data
+	UE_LOG(LogTemp, Warning, TEXT("UUKGlobalTaskData EnterState"));
+	return RunStatus;
+}
+
+EStateTreeRunStatus UUKGlobalTaskData::Tick(FStateTreeExecutionContext& Context, const float DeltaTime)
+{
+	UE_LOG(LogTemp, Warning, TEXT("UUKGlobalTaskData Tick %f"), DeltaTime);
+	return RunStatus;
+}
+
+void UUKGlobalTaskData::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
+{
+	UE_LOG(LogTemp, Warning, TEXT("UUKGlobalTaskData ExitState"));
+}
+
 EStateTreeRunStatus FUKStateTreeGlobalTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+	UUKGlobalTaskData* Instance = Context.GetInstanceDataPtr<UUKGlobalTaskData>(*this);
+	check(Instance);
+	return Instance->EnterState(Context, Transition);
+	
+	/*FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 	TWeakObjectPtr<AActor> OwnerActor = InstanceData.Actor.Get();
 
 	if (InstanceData.Actor->IsValidLowLevel())
@@ -41,18 +64,21 @@ EStateTreeRunStatus FUKStateTreeGlobalTask::EnterState(FStateTreeExecutionContex
 	// 		// OwnerActor->GetWorld()->GetTimerManager().ClearTimer(InstanceData.TimerHandle);
 	// 	}, 1.0f, false);
 	// }
-	return Super::EnterState(Context, Transition);
+	return Super::EnterState(Context, Transition);*/
 }
 
 EStateTreeRunStatus FUKStateTreeGlobalTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
-	return Super::Tick(Context, DeltaTime);
+	UUKGlobalTaskData* Instance = Context.GetInstanceDataPtr<UUKGlobalTaskData>(*this);
+	check(Instance);
+	return Instance->Tick(Context, DeltaTime);
 }
 
 void FUKStateTreeGlobalTask::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	Super::ExitState(Context, Transition);
+	UUKGlobalTaskData* Instance = Context.GetInstanceDataPtr<UUKGlobalTaskData>(*this);
+	check(Instance);
+	Instance->ExitState(Context, Transition);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -7,12 +7,12 @@
 #include "Tasks/StateTreeAITask.h"
 #include "UKStateTreeGlobalTask.generated.h"
 
-USTRUCT()
+/*USTRUCT()
 struct FUKStateTreeGlobalTaskData
 {
 	GENERATED_BODY()
 
-	/** Optional actor where to draw the text at. */
+	/** Optional actor where to draw the text at. #1#
 	UPROPERTY(EditAnywhere, Category = "Input", meta=(Optional))
 	TObjectPtr<AActor> Actor = nullptr;
 
@@ -28,15 +28,31 @@ struct FUKStateTreeGlobalTaskData
 
 	UPROPERTY(Transient)
 	FTimerHandle TimerHandle;
+};*/
+
+UCLASS()
+class ZKGAME_API UUKGlobalTaskData : public UObject
+{
+	GENERATED_BODY()
+	
+public:
+	EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition);
+	EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime);
+	void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition);
+	
+protected:
+	EStateTreeRunStatus RunStatus = EStateTreeRunStatus::Running;
 };
 
 USTRUCT(meta = (DisplayName = "Global Task", Category = "AI|Action"))
-struct FUKStateTreeGlobalTask : public FStateTreeTaskCommonBase
+struct ZKGAME_API FUKStateTreeGlobalTask : public FStateTreeTaskCommonBase
 {
 	GENERATED_BODY()
 
-	using FInstanceDataType = FUKStateTreeGlobalTaskData;
-	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	// using FInstanceDataType = FUKStateTreeGlobalTaskData;
+	// virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+	using UInstanceDataType = UUKGlobalTaskData;
+	virtual const UStruct* GetInstanceDataType() const override { return UInstanceDataType::StaticClass(); };
 	
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
