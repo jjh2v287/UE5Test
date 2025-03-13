@@ -41,7 +41,13 @@ public:
 	void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition);
 	
 protected:
+	UFUNCTION()
+	void OnHitCallback(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+
 	EStateTreeRunStatus RunStatus = EStateTreeRunStatus::Running;
+
+	UPROPERTY(EditAnywhere, Category = "Input", meta=(Optional))
+	TObjectPtr<AAIController> AIController = nullptr;
 };
 
 USTRUCT(meta = (DisplayName = "Global Task", Category = "AI|Action"))

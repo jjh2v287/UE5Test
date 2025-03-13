@@ -3,6 +3,7 @@
 #include "UKStateTreeGlobalTask.h"
 #include "StateTreeExecutionContext.h"
 #include "TimerManager.h"
+#include "Components/CapsuleComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UKStateTreeGlobalTask)
 
@@ -12,6 +13,18 @@ EStateTreeRunStatus UUKGlobalTaskData::EnterState(FStateTreeExecutionContext& Co
 {
 	RunStatus = EStateTreeRunStatus::Running;
 	// Event binding and initial setting of data
+	if (AIController)
+	{
+		AActor* Instigator = AIController->GetInstigator();
+		if (Instigator)
+		{
+			UCapsuleComponent* CapsuleComponent = Instigator->GetComponentByClass<UCapsuleComponent>();
+			if (CapsuleComponent)
+			{
+				CapsuleComponent->OnComponentHit.AddDynamic(this, &UUKGlobalTaskData::OnHitCallback);
+			}
+		}
+	}
 	UE_LOG(LogTemp, Warning, TEXT("UUKGlobalTaskData EnterState"));
 	return RunStatus;
 }
@@ -25,6 +38,11 @@ EStateTreeRunStatus UUKGlobalTaskData::Tick(FStateTreeExecutionContext& Context,
 void UUKGlobalTaskData::ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition)
 {
 	UE_LOG(LogTemp, Warning, TEXT("UUKGlobalTaskData ExitState"));
+}
+
+void UUKGlobalTaskData::OnHitCallback(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	UE_LOG(LogTemp, Warning, TEXT("UUKGlobalTaskData OnHitCallback %s"), *OtherActor->GetName());
 }
 
 EStateTreeRunStatus FUKStateTreeGlobalTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
