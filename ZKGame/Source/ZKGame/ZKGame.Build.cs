@@ -36,7 +36,9 @@ public class ZKGame : ModuleRules
 			//
 			"StateTreeModule",
 			"GameplayStateTreeModule",
-			"AIModule"
+			"AIModule",
+			"GameplayBehaviorsModule",
+			"NavigationSystem"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "GameplayCameras" });
