@@ -5,6 +5,7 @@
 #include "StateTreeExecutionContext.h"
 #include "UKStateTreeAIComponentSchema.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKStateTreeAIComponent)
 
 TSubclassOf<UStateTreeSchema> UUKStateTreeAIComponent::GetSchema() const
 {

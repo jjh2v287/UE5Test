@@ -12,7 +12,7 @@ class UBlackboardComponent;
  * 
  */
 UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "UK StateTreeAIComponent", CommonSchema))
-class UUKStateTreeAIComponentSchema : public UStateTreeAIComponentSchema
+class UUKStateTreeAIComponentSchema : public UStateTreeComponentSchema
 {
 	GENERATED_BODY()
 public:
@@ -29,6 +29,10 @@ public:
 #endif // WITH_EDITOR
 
 protected:
+	/** AIController class the StateTree is expected to run on. Allows to bind to specific Actor class' properties. */
+	UPROPERTY(EditAnywhere, Category = "Defaults", NoClear)
+	TSubclassOf<AAIController> AIControllerClass = nullptr;
+	
 	UPROPERTY(EditAnywhere, Category = "Defaults", NoClear)
 	TSubclassOf<UBlackboardComponent> BlackboardComponentClass = nullptr;
 };

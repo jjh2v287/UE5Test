@@ -16,6 +16,9 @@ public:
 	//~ BEGIN IStateTreeSchemaProvider
 	TSubclassOf<UStateTreeSchema> GetSchema() const override;
 	//~ END
-
+	
 	virtual bool SetContextRequirements(FStateTreeExecutionContext& Context, bool bLogErrors = false) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TMap<FName, FVector> VectorPram;
 };
