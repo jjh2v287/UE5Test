@@ -61,17 +61,17 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     // 디버그 드로잉
     if (bDrawDebug)
     {
-        FVector StartLoaction = GetActorLocation() + FVector(0,0, 50);
-        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + CurrentVelocity, 15, FColor::Black, false, -1, 0, 1.0f);
-        StartLoaction += FVector(0,0, 2);
-        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + SeparationForce, 15, FColor::Yellow, false, -1, 0, 1.0f);
-        StartLoaction += FVector(0,0, 4);
-        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + PredictiveAvoidanceForce, 15, FColor::Purple, false, -1, 0, 1.0f);
-        StartLoaction += FVector(0,0, 6);
-        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + SteerForce, 15, FColor::Red, false, -1, 0, 1.0f);
-        StartLoaction += FVector(0,0, 8);
-        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + SteeringForce, 15, FColor::Green, false, -1, 0, 1.0f);
-        DrawDebugSphere(GetWorld(), StartLoaction, AgentRadius, 12, FColor::Green, false, -1, 0, 1.0f);
+        FVector StartLocation = GetActorLocation() + FVector(0,0, 50);
+        DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + CurrentVelocity, 15, FColor::Black, false, -1, 0, 1.0f);
+        StartLocation += FVector(0,0, 2);
+        DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + SeparationForce, 15, FColor::Yellow, false, -1, 0, 1.0f);
+        StartLocation += FVector(0,0, 4);
+        DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + PredictiveAvoidanceForce, 15, FColor::Purple, false, -1, 0, 1.0f);
+        StartLocation += FVector(0,0, 6);
+        DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + SteerForce, 15, FColor::Red, false, -1, 0, 1.0f);
+        StartLocation += FVector(0,0, 8);
+        DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + SteeringForce, 15, FColor::Green, false, -1, 0, 1.0f);
+        DrawDebugSphere(GetWorld(), StartLocation, AgentRadius, 12, FColor::Green, false, -1, 0, 1.0f);
     }
 }
 
@@ -267,7 +267,7 @@ FVector AAvoidanceCharacter::CalculateSteeringForce(float DeltaTime)
     // 조향력 계산 (목표 속도와 현재 속도의 차이)
     float SteerStrength = 1.0f / 0.3f; // 반응 시간의 역수
     FVector SteerForce = (DesiredVelocity - GetCharacterMovement()->Velocity) * SteerStrength;
-    
+
     return SteerForce;
 }
 
