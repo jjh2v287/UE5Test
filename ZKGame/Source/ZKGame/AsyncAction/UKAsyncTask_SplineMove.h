@@ -4,6 +4,7 @@
 
 #include "UKAsyncTask_Base.h"
 #include "AI/Patrol/UKPatrolPathManager.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "UKAsyncTask_SplineMove.generated.h"
 
 class UWorld;
@@ -25,19 +26,18 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FMoveFailDelegate OnMoveFail;
 
-public:
 	/**
 	 * Create a latent UUKAsyncTask_RotateCharacter Node
 	 * @param Owner					Owner Actor
 	 * @param SplineName			SplineName
 	 * @param StartIndex			Start Point Index
 	 * @param EndIndex				End Point Index
+	 * @param TripTime				It does not apply now.
 	 * @return This UUKAsyncTask_SplineMove blueprint node
 	 */
-	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", WorldContext = "WorldContextObject", DisplayName = "SplineMove", Category = "UK|AsyncTask"))
-	static UUKAsyncTask_SplineMove* SplineMove(AActor* Owner, TSubclassOf<class UUKAsyncTask_SplineMove> Class, const FName SplineName, const int32 StartIndex, const int32 EndIndex);
+	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", DisplayName = "SplineMove", Category = "UK|AsyncTask"))
+	static UUKAsyncTask_SplineMove* SplineMove(AActor* Owner, const FName SplineName, const int32 StartIndex, const int32 EndIndex, const float TripTime);
 
-public:
 	virtual void Activate() override;
 
 	UFUNCTION(BlueprintCallable)
@@ -46,29 +46,34 @@ public:
 protected:
 	virtual void Cancel() override;
 	virtual void Tick(float DeltaTime) override;
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnActivate();
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void OnTick(const float DeltaTime);
-
-	UFUNCTION(BlueprintPure)
-	AActor* GetOwner() const;
 	
-protected:
 	UPROPERTY(Transient)
 	AActor* Owner = nullptr;
 	
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Transient)
 	FName SplineName;
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Transient)
 	int32 StartIndex;
 	
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
-    int32 EndIndex;
+	UPROPERTY(Transient)
+	int32 EndIndex;
 
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Transient)
+	float TripTime = 0.0f;
+	
+	UPROPERTY(Transient)
 	FPatrolSplineSearchResult PatrolSplineSearchResult;
+
+	UPROPERTY(Transient)
+	float CurrentDistance = 0.0f;
+
+	UPROPERTY(Transient)
+	float GoalDistance = 0.0f;
+
+	UPROPERTY(Transient)
+	float PreMaxWalkSpeed = 0.0f;
+	
+	UPROPERTY(Transient)
+	UCharacterMovementComponent* CharacterMovement = nullptr;
 };

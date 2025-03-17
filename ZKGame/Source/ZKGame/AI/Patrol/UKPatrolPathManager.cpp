@@ -1,14 +1,12 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKPatrolPathManager.h"
+#include "UKPatrolPathSpline.h"
 #include "Components/SplineComponent.h"
 
-UUKPatrolPathManager* UUKPatrolPathManager::Instance = nullptr;
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKPatrolPathManager)
 
-UUKPatrolPathManager* UUKPatrolPathManager::Get()
-{
-	return Instance;
-}
+UUKPatrolPathManager* UUKPatrolPathManager::Instance = nullptr;
 
 void UUKPatrolPathManager::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -18,15 +16,12 @@ void UUKPatrolPathManager::Initialize(FSubsystemCollectionBase& Collection)
 
 void UUKPatrolPathManager::Deinitialize()
 {
-	if (Instance == this)
-	{
-		PatrolPathSplines.Empty();
-		Instance = nullptr;
-	}
+	PatrolPathSplines.Empty();
+	Instance = nullptr;
 	Super::Deinitialize();
 }
 
-void UUKPatrolPathManager::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
+auto UUKPatrolPathManager::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint) -> void
 {
 	if (!PatrolPathSplines.Contains(Waypoint->SplineName))
 	{
@@ -34,7 +29,7 @@ void UUKPatrolPathManager::RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 	}
 }
 
-void UUKPatrolPathManager::UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
+void UUKPatrolPathManager::UnregisterPatrolSpline(const AUKPatrolPathSpline* Waypoint)
 {
 	if (PatrolPathSplines.Contains(Waypoint->SplineName))
 	{
@@ -42,7 +37,7 @@ void UUKPatrolPathManager::UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoint)
 	}
 }
 
-FPatrolSplineSearchResult UUKPatrolPathManager::FindClosePatrolPath(FVector Location)
+FPatrolSplineSearchResult UUKPatrolPathManager::FindClosePatrolPath(const FVector Location)
 {
 	FPatrolSplineSearchResult Result;
 	if (PatrolPathSplines.Num() == 0)
@@ -50,24 +45,24 @@ FPatrolSplineSearchResult UUKPatrolPathManager::FindClosePatrolPath(FVector Loca
 		return Result;
 	}
 
-	for (const auto Pair : PatrolPathSplines)
+	for (const TPair<FName, AUKPatrolPathSpline*>& Pair : PatrolPathSplines)
 	{
-		AUKPatrolPathSpline* Spline = Pair.Value;
+		const AUKPatrolPathSpline* Spline = Pair.Value;
 		if (!IsValid(Spline))
 		{
 			continue;
 		}
 
-		if (Spline->SplineComponent)
+		if (!Spline->SplineComponent)
 		{
-			
+			continue;
 		}
 
 		// Find the closest location in Spline
-		FVector PointLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
+		const FVector PointLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
             
 		// calculation of distance from current location
-		float CurrentDistance = FVector::Distance(Location, PointLocation);
+		const float CurrentDistance = FVector::Distance(Location, PointLocation);
             
 		// if you find a closer point update results
 		if (CurrentDistance < Result.Distance)
@@ -75,11 +70,13 @@ FPatrolSplineSearchResult UUKPatrolPathManager::FindClosePatrolPath(FVector Loca
 			Result.SplineComponent = Spline->SplineComponent;
 			Result.CloseLocation = PointLocation;
 			Result.Distance = CurrentDistance;
+			Result.Success = true;
 		}
 	}
-        
+
 	return Result;
 }
+
 
 FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPath(const FVector Location)
 {
@@ -93,14 +90,9 @@ FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPath(const FVect
 	PatrolPathSplines.GenerateKeyArray(Keys);
 	int32 RandomIndex = FMath::RandRange(0, PatrolPathSplines.Num()-1);
 	const FName& RandomKey = Keys[RandomIndex];
-	
+
 	if (const AUKPatrolPathSpline* Spline = PatrolPathSplines.FindRef(RandomKey))
 	{
-		if (!IsValid(Spline))
-		{
-			return Result;
-		}
-
 		if (!Spline->SplineComponent)
 		{
 			return Result;
@@ -119,12 +111,13 @@ FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPath(const FVect
 			Result.CloseLocation = PointLocation;
 			Result.Distance = CurrentDistance;
 		}
+		Result.Success = true;
 	}
-        
+
 	return Result;
 }
 
-FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex)
+FPatrolSplineSearchResult UUKPatrolPathManager::FindClosePatrolPathByName(const FVector Location, const FName& SplineName)
 {
 	FPatrolSplineSearchResult Result;
 	if (PatrolPathSplines.Num() == 0)
@@ -132,63 +125,98 @@ FPatrolSplineSearchResult UUKPatrolPathManager::FindRandomPatrolPathToTest(FName
 		return Result;
 	}
 
-	if (const AUKPatrolPathSpline* Spline = PatrolPathSplines.FindRef(SplineName))
+	TArray<FName> FoundKeys;
+	for (const TPair<FName, AUKPatrolPathSpline*>& Pair : PatrolPathSplines)
 	{
-		if (!Spline->SplineComponent)
+		FString KeyString = Pair.Key.ToString();
+		if (KeyString.StartsWith(SplineName.ToString()))
 		{
-			return Result;
+			FoundKeys.Add(Pair.Key);
 		}
-
-		const FVector CloseLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
-		const FVector StartLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(StartIndex, ESplineCoordinateSpace::World);
-		const FVector EndLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(EndIndex, ESplineCoordinateSpace::World);
-		const float CurrentDistance = FVector::Distance(Location, CloseLocation);
-            
-		Result.SplineComponent = Spline->SplineComponent;
-		Result.Distance = CurrentDistance;
-		Result.CloseLocation = CloseLocation;
-		Result.StartLocation = StartLocation;
-		Result.EndLocation = EndLocation;
 	}
-        
+
+	for (const FName& Key : FoundKeys)
+	{
+		if (const AUKPatrolPathSpline* Spline = PatrolPathSplines.FindRef(Key))
+		{
+			if (!Spline->SplineComponent)
+			{
+				return Result;
+			}
+
+			// Find the closest location in Spline
+			const FVector PointLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
+            
+			// calculation of distance from current location
+			const float CurrentDistance = FVector::Distance(Location, PointLocation);
+            
+			// if you find a closer point update results
+			if (CurrentDistance < Result.Distance)
+			{
+				Result.SplineComponent = Spline->SplineComponent;
+				Result.CloseLocation = PointLocation;
+				Result.Distance = CurrentDistance;
+				Result.Success = true;
+			}
+		}
+	}
+	
 	return Result;
 }
 
 FPatrolSplineSearchResult UUKPatrolPathManager::FindPatrolPathWithBoundsByNameAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint)
 {
 	FPatrolSplineSearchResult Result;
-	if (PatrolPathSplines.Num() == 0)
-	{
-		return Result;
-	}
+    if (PatrolPathSplines.Num() == 0)
+    {
+    	return Result;
+    }
 	
 	if (const AUKPatrolPathSpline* Spline = PatrolPathSplines.FindRef(SplineName))
 	{
-		if (!Spline->SplineComponent)
-		{
-			return Result;
-		}
+    	if (!Spline->SplineComponent)
+    	{
+    		return Result;
+    	}
 
-		int32 MaxSplinePointCount = Spline->SplineComponent->GetNumberOfSplinePoints();
-		if (StartPoint >= MaxSplinePointCount || EndPoint >= MaxSplinePointCount)
-		{
-			return Result;
-		}
+    	int32 MaxSplinePointCount = Spline->SplineComponent->GetNumberOfSplinePoints();
+	    if (StartPoint >= MaxSplinePointCount || EndPoint >= MaxSplinePointCount)
+	    {
+	    	return Result;
+	    }
 
-		const float StartKey = static_cast<float>(StartPoint);
-		const float EndKey = static_cast<float>(EndPoint);
+    	const float StartKey = static_cast<float>(StartPoint);
+    	const float EndKey = static_cast<float>(EndPoint);
     	
-		// Find the closest location in Spline
-		const FVector PointLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
-		const FVector StartPointLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(StartKey, ESplineCoordinateSpace::World);
-		const FVector EndPointLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(EndKey, ESplineCoordinateSpace::World);
+    	// Find the closest location in Spline
+    	const FVector PointLocation = Spline->SplineComponent->FindLocationClosestToWorldLocation(Location, ESplineCoordinateSpace::World);
+    	const FVector StartPointLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(StartKey, ESplineCoordinateSpace::World);
+    	const FVector EndPointLocation = Spline->SplineComponent->GetLocationAtSplineInputKey(EndKey, ESplineCoordinateSpace::World);
         
-		Result.SplineComponent = Spline->SplineComponent;
-		Result.CloseLocation = PointLocation;
-		Result.StartLocation = StartPointLocation;
-		Result.EndLocation = EndPointLocation;
+    	Result.SplineComponent = Spline->SplineComponent;
+    	Result.CloseLocation = PointLocation;
+    	Result.StartLocation = StartPointLocation;
+    	Result.EndLocation = EndPointLocation;
+		Result.Success = true;
+    }
+
+    return Result;
+}
+
+FVector UUKPatrolPathManager::GetSplinePointLocation(const FName& SplineName, int32 Index)
+{
+	FVector OutVector = FVector::ZeroVector; 
+	if (!PatrolPathSplines.Contains(SplineName))
+	{
+		return OutVector;
 	}
 
-	Result.Success = true;
-	return Result;
+	AUKPatrolPathSpline* PathSpline = PatrolPathSplines.FindRef(SplineName);
+	if (PathSpline->SplineComponent->GetNumberOfSplinePoints() <= Index)
+	{
+		return OutVector;
+	}
+
+	OutVector = PathSpline->SplineComponent->GetLocationAtSplinePoint(Index, ESplineCoordinateSpace::World);
+	return OutVector;
 }

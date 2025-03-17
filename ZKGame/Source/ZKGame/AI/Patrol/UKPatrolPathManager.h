@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UKPatrolPathSpline.h"
 #include "Components/SplineComponent.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "UKPatrolPathManager.generated.h"
+
+struct FGameplayTag;
+class AUKPatrolPathSpline;
 
 USTRUCT(BlueprintType)
 struct ZKGAME_API FPatrolSplineSearchResult
@@ -14,7 +17,7 @@ struct ZKGAME_API FPatrolSplineSearchResult
 
 	UPROPERTY(BlueprintReadOnly)
 	bool Success = false;
-
+	
 	UPROPERTY(BlueprintReadOnly)
 	USplineComponent* SplineComponent = nullptr;
 
@@ -29,17 +32,7 @@ struct ZKGAME_API FPatrolSplineSearchResult
 
 	UPROPERTY(BlueprintReadOnly)
 	float Distance = MAX_FLT;
-
-	void Reset()
-	{
-		Success = false;
-		SplineComponent = nullptr;
-		CloseLocation = FVector::ZeroVector;
-		StartLocation = FVector::ZeroVector;
-		EndLocation = FVector::ZeroVector;
-		Distance = MAX_FLT;
-	}
-};
+}; 
 
 /**
  * 
@@ -49,25 +42,28 @@ class ZKGAME_API UUKPatrolPathManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 public:
-	static UUKPatrolPathManager* Get();
+	static UUKPatrolPathManager* Get() { return Instance; }
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 
 	void RegisterPatrolSpline(AUKPatrolPathSpline* Waypoint);
-	void UnregisterPatrolSpline(AUKPatrolPathSpline* Waypoint);
+	void UnregisterPatrolSpline(const AUKPatrolPathSpline* Waypoint);
 
 	UFUNCTION(BlueprintCallable)
-	FPatrolSplineSearchResult FindClosePatrolPath(FVector Location);
+	FPatrolSplineSearchResult FindClosePatrolPath(const FVector Location);
 
 	UFUNCTION(BlueprintCallable)
 	FPatrolSplineSearchResult FindRandomPatrolPath(const FVector Location);
 
 	UFUNCTION(BlueprintCallable)
-	FPatrolSplineSearchResult FindRandomPatrolPathToTest(FName SplineName, const FVector Location, const int32 StartIndex, const int32 EndIndex);
+	FPatrolSplineSearchResult FindClosePatrolPathByName(const FVector Location, const FName& SplineName);
 
 	UFUNCTION(BlueprintCallable)
 	FPatrolSplineSearchResult FindPatrolPathWithBoundsByNameAndLocation(const FVector Location, const FName SplineName, const int32 StartPoint, const int32 EndPoint);
+	
+	UFUNCTION(BlueprintPure)
+	FVector GetSplinePointLocation(const FName& SplineName, int32 Index);
 
 private:
 	static UUKPatrolPathManager* Instance;

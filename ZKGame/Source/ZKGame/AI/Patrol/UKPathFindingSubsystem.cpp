@@ -1,4 +1,5 @@
 #include "UKPathFindingSubsystem.h"
+#include "Engine/Engine.h"
 #include "Kismet/GameplayStatics.h"
 
 // 정적 멤버 변수 초기화

@@ -1,4 +1,6 @@
 #include "UKPathTestActor.h"
+
+#include "DrawDebugHelpers.h"
 #include "UKPathFindingSubsystem.h"
 #include "UKWaypoint.h"
 
