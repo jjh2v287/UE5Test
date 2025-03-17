@@ -61,11 +61,17 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     // 디버그 드로잉
     if (bDrawDebug)
     {
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + CurrentVelocity, FColor::Black, false, -1, 0, 3.0f);
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + SeparationForce, FColor::Yellow, false, -1, 0, 3.0f);
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + PredictiveAvoidanceForce, FColor::Magenta, false, -1, 0, 3.0f);
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + SteerForce, FColor::Cyan, false, -1, 0, 3.0f);
-        DrawDebugSphere(GetWorld(), GetActorLocation(), AgentRadius, 12, FColor::Green, false, -1, 0, 1.0f);
+        FVector StartLoaction = GetActorLocation() + FVector(0,0, 50);
+        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + CurrentVelocity, 15, FColor::Black, false, -1, 0, 1.0f);
+        StartLoaction += FVector(0,0, 2);
+        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + SeparationForce, 15, FColor::Yellow, false, -1, 0, 1.0f);
+        StartLoaction += FVector(0,0, 4);
+        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + PredictiveAvoidanceForce, 15, FColor::Purple, false, -1, 0, 1.0f);
+        StartLoaction += FVector(0,0, 6);
+        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + SteerForce, 15, FColor::Red, false, -1, 0, 1.0f);
+        StartLoaction += FVector(0,0, 8);
+        DrawDebugDirectionalArrow(GetWorld(), StartLoaction, StartLoaction + SteeringForce, 15, FColor::Green, false, -1, 0, 1.0f);
+        DrawDebugSphere(GetWorld(), StartLoaction, AgentRadius, 12, FColor::Green, false, -1, 0, 1.0f);
     }
 }
 
