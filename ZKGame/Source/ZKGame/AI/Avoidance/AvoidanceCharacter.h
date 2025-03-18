@@ -38,6 +38,16 @@ public:
     FVector CalculateSteeringForce(float DeltaTime);
 
 protected:
+
+    // 회피 활성화 여부
+    UPROPERTY(EditAnywhere, Category = "AI|Steering")
+    bool bAvoidanceEnabled;
+
+    // 분리 활성화 여부
+    UPROPERTY(EditAnywhere, Category = "AI|Steering")
+    bool bSeparationEnabled;
+
+    
     // 이동 속성 (UCharacterMovementComponent의 속성을 활용하는 것이 좋지만, 호환성을 위해 유지)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
     float MaxSpeed = 300.0f;

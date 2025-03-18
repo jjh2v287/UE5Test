@@ -34,6 +34,16 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     FVector PredictiveAvoidanceForce = CalculatePredictiveAvoidanceForce(NearbyActors);
     FVector EnvironmentForce = CalculateEnvironmentAvoidanceForce();
     FVector SteerForce = CalculateSteeringForce(DeltaTime);
+
+    if (!bAvoidanceEnabled)
+    {
+        PredictiveAvoidanceForce = FVector::ZeroVector;
+    }
+
+    if (!bSeparationEnabled)
+    {
+        SeparationForce = FVector::ZeroVector;
+    }
     
     // 총 이동력 계산
     PreSteeringForce = SteeringForce;
@@ -297,7 +307,7 @@ FVector AAvoidanceCharacter::CalculateSteeringForce(float DeltaTime)
     float SteerStrength = 1.0f / 0.3f; // 반응 시간의 역수
     FVector SteerForce = (DesiredVelocity - GetCharacterMovement()->Velocity) * SteerStrength;
 
-    return SteerForce;
+    return DesiredVelocity;
 }
 
 void AAvoidanceCharacter::SetMoveTarget(const FVector& TargetLocation, const FVector& TargetForward)

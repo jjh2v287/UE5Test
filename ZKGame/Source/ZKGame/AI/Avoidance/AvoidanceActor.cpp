@@ -78,10 +78,14 @@ void AAvoidanceActor::Tick(float DeltaTime)
     // 디버그 드로잉
     if (bDrawDebug)
     {
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + CurrentVelocity, FColor::Black, false, -1, 0, 3.0f);
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + SeparationForce, FColor::Yellow, false, -1, 0, 3.0f);
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + PredictiveAvoidanceForce, FColor::Magenta, false, -1, 0, 3.0f);
-        DrawDebugLine(GetWorld(), GetActorLocation(), GetActorLocation() + SteerForce, FColor::Cyan, false, -1, 0, 3.0f);
+        FVector StartLocation = GetActorLocation() + FVector(0,0, 150);
+        DrawDebugLine(GetWorld(), StartLocation, StartLocation + CurrentVelocity, FColor::Black, false, -1, 0, 3.0f);
+        StartLocation += FVector(0,0, 2);
+        DrawDebugLine(GetWorld(), StartLocation, StartLocation + SeparationForce, FColor::Yellow, false, -1, 0, 3.0f);
+        StartLocation += FVector(0,0, 4);
+        DrawDebugLine(GetWorld(), StartLocation, StartLocation + PredictiveAvoidanceForce, FColor::Magenta, false, -1, 0, 3.0f);
+        StartLocation += FVector(0,0, 6);
+        DrawDebugLine(GetWorld(), StartLocation, StartLocation + SteerForce, FColor::Cyan, false, -1, 0, 3.0f);
         DrawDebugSphere(GetWorld(), GetActorLocation(), AgentRadius, 12, FColor::Green, false, -1, 0, 1.0f);
     }
 }
