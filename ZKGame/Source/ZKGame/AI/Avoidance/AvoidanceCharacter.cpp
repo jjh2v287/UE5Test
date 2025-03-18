@@ -36,7 +36,9 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     FVector SteerForce = CalculateSteeringForce(DeltaTime);
     
     // 총 이동력 계산
+    PreSteeringForce = SteeringForce;
     SteeringForce = SteerForce + SeparationForce + PredictiveAvoidanceForce + EnvironmentForce;
+    // SteeringForce = CurrentVelocity - FMath::Lerp(PreSteeringForce, SteeringForce, DeltaTime);
     
     // 최대 가속도로 제한
     if (SteeringForce.SizeSquared() > FMath::Square(MaxAcceleration))
@@ -49,7 +51,34 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     
     // 입력 벡터 계산 및 적용
     FVector InputVector = SteeringForce.GetSafeNormal(); // 방향만 추출
-    
+
+    // 방향 업데이트 (부드러운 회전)
+    if (CurrentVelocity.SizeSquared() > 1.0f)
+    {
+        FVector DesiredForward = CurrentVelocity.GetSafeNormal();
+        FVector CurrentForward = GetActorForwardVector();
+        
+        // 현재 Yaw 각도
+        float CurrentYaw = FMath::Atan2(CurrentForward.Y, CurrentForward.X);
+        
+        // 목표 Yaw 각도
+        float DesiredYaw = FMath::Atan2(DesiredForward.Y, DesiredForward.X);
+        
+        // 각도 차이 계산 (Wrap 처리)
+        float DeltaAngle = DesiredYaw - CurrentYaw;
+        if (DeltaAngle > PI) DeltaAngle -= PI * 2;
+        if (DeltaAngle < -PI) DeltaAngle += PI * 2;
+        
+        // 부드러운 각도 변화
+        float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
+        float NewYaw = CurrentYaw + DeltaAngle * SmoothingRate;
+        
+        // 회전 적용
+        FRotator NewRotation = FRotator(0, FMath::RadiansToDegrees(NewYaw), 0);
+        // InputVector = NewRotation.Vector();
+        // SetActorRotation(NewRotation);
+    }
+
     // 캐릭터 무브먼트를 통해 이동 적용
     GetCharacterMovement()->AddInputVector(InputVector);
     
