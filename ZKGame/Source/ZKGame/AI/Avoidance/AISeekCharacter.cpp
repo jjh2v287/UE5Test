@@ -156,7 +156,7 @@ void AAISeekCharacter::ExecuteSeekBehavior(float DeltaTime)
     float SteerStrength = 1.0f / 0.3f; // 반응 시간의 역수
     
     // 스티어링 힘 제한
-    SteeringForce = SteeringForce.GetClampedToMaxSize(MaxSteeringForce * MaxSpeed * SteerStrength);
+    SteeringForce = SteeringForce.GetClampedToMaxSize(MaxSteeringForce * MaxSpeed);
     
     // 스티어링 힘 제한
     float MaxForce = MaxSteeringForce * MaxSpeed;
@@ -198,5 +198,5 @@ void AAISeekCharacter::ExecuteSeekBehavior(float DeltaTime)
     FVector StartLocation = GetActorLocation() + FVector(0,0, 50);
     DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + GetVelocity(), 15, FColor::Black, false, -1, 0, 1.0f);
     StartLocation += FVector(0,0, 5);
-    DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + MovementInput, 15, FColor::Blue, false, -1, 0, 2.0f);
+    DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + SteeringForce, 15, FColor::Blue, false, -1, 0, 2.0f);
 }
