@@ -25,14 +25,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Waypoint")
 	TArray<AUKWaypoint*> PathPoints;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Waypoint")
-	TArray<AUKWaypointSpline*> SplinePaths;
-
-	void UpdateSplines();
-	void CreateSplinePath(AUKWaypoint* TargetPoint);
-	void ClearSplinePaths();
-	void UpdateConnectedSplines();
-
 	virtual bool ShouldTickIfViewportsOnly() const override
 	{
 		return true;
