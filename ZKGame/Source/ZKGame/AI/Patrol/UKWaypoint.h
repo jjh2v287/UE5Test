@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NavigationInvokerComponent.h"
 #include "UKWaypointSpline.h"
 #include "Components/SplineComponent.h"
 #include "GameFramework/Actor.h"
@@ -29,6 +30,10 @@ public:
 	{
 		return true;
 	};
+
+protected:
+	UPROPERTY(VisibleDefaultsOnly)
+	UNavigationInvokerComponent* InvokerComponent{nullptr};
 
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;

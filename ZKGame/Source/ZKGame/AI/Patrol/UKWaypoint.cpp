@@ -10,6 +10,8 @@ AUKWaypoint::AUKWaypoint(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
 {
     PrimaryActorTick.bCanEverTick = true;
+
+    InvokerComponent = CreateDefaultSubobject<UNavigationInvokerComponent>(TEXT("NavigationInvoker"));
 }
 
 void AUKWaypoint::BeginPlay()
