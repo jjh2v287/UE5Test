@@ -57,19 +57,9 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     // 현재 속도 업데이트 (참조용으로만 유지, AddInputVector가 실제 움직임을 결정)
     CurrentVelocity = GetCharacterMovement()->Velocity;
     
-    // 입력 벡터 계산 및 적용
-    // FVector InputVector = SteeringForce.GetSafeNormal(); // 방향만 추출
-    
-    // 입력 벡터 계산 및 적용
-    FVector InputVector = SteeringForce;
-    if (InputVector.Length() > MaxSpeed)
-    {
-        // InputVector = SteeringForce.GetSafeNormal() * MaxSpeed;
-    }
-
-    // 방향 업데이트 (부드러운 회전)
+    // 입력 벡터 계산 및 적용, 방향 업데이트 (부드러운 회전)
     float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
-    InputVector = FMath::Lerp(CurrentVelocity, InputVector, SmoothingRate);
+    FVector InputVector = FMath::Lerp(CurrentVelocity, SteeringForce, SmoothingRate);
 
     // 캐릭터 무브먼트를 통해 이동 적용
     GetCharacterMovement()->AddInputVector(InputVector);
