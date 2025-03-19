@@ -71,29 +71,6 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
     InputVector = FMath::Lerp(CurrentVelocity, InputVector, SmoothingRate);
 
-    // 방향 업데이트 (부드러운 회전) - 정밀한 제어를 위한 개선된 Lerp 방식
-    // if (CurrentVelocity.SizeSquared2D() > 1.0f)  // 유의미한 속도가 있을 때만 회전
-    // {
-    //     // 1. 현재 방향과 목표 방향을 정규화
-    //     FVector CurrentForward = CurrentVelocity.GetSafeNormal();
-    //     FVector DesiredForward = InputVector.GetSafeNormal();
-    //
-    //     // 2. 현재 방향에서 목표 방향으로의 회전을 quaternion으로 계산
-    //     // FindBetweenNormals는 자동으로 가장 짧은 회전 경로를 계산합니다
-    //     FQuat RotationDelta = FQuat::FindBetweenNormals(CurrentForward, DesiredForward);
-    //
-    //     // 3. 회전을 부드럽게 보간
-    //     float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
-    //     FQuat SmoothRotation = FQuat::Slerp(FQuat::Identity, RotationDelta, SmoothingRate);
-    //
-    //     // 4. 현재 방향에 보간된 회전을 적용
-    //     FVector NewDirection = SmoothRotation.RotateVector(CurrentForward);
-    //
-    //     // 5. 새 방향으로 입력 벡터 업데이트
-    //     float InputMagnitude = InputVector.Size();
-    //     InputVector = NewDirection * InputMagnitude;
-    // }
-
     // 캐릭터 무브먼트를 통해 이동 적용
     GetCharacterMovement()->AddInputVector(InputVector);
     
