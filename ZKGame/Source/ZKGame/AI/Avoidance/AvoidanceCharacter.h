@@ -93,7 +93,6 @@ protected:
     // 현재 상태
     FVector CurrentVelocity;
     FVector DesiredVelocity;
-    FVector PreSteeringForce;
     FVector SteeringForce;
     
     // 이동 타겟 정보

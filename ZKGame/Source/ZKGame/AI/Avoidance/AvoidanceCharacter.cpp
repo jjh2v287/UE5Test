@@ -28,7 +28,7 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     // 근처 액터 찾기
     TArray<AAvoidanceCharacter*> NearbyActors;
     FindNearbyActors(NearbyActors, ObstacleDetectionDistance);
-    
+
     // 회피력 계산
     FVector SeparationForce = CalculateSeparationForce(NearbyActors);
     FVector PredictiveAvoidanceForce = CalculatePredictiveAvoidanceForce(NearbyActors);
@@ -46,10 +46,8 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     }
     
     // 총 이동력 계산
-    PreSteeringForce = SteeringForce;
     SteeringForce = SteerForce + SeparationForce + PredictiveAvoidanceForce + EnvironmentForce;
-    // SteeringForce = CurrentVelocity - FMath::Lerp(PreSteeringForce, SteeringForce, DeltaTime);
-    
+
     // 최대 가속도로 제한
     if (SteeringForce.SizeSquared() > FMath::Square(MaxAcceleration))
     {
@@ -60,42 +58,44 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
     CurrentVelocity = GetCharacterMovement()->Velocity;
     
     // 입력 벡터 계산 및 적용
-    FVector InputVector = SteeringForce.GetSafeNormal(); // 방향만 추출
+    // FVector InputVector = SteeringForce.GetSafeNormal(); // 방향만 추출
+    
+    // 입력 벡터 계산 및 적용
+    FVector InputVector = SteeringForce;
+    if (InputVector.Length() > MaxSpeed)
+    {
+        // InputVector = SteeringForce.GetSafeNormal() * MaxSpeed;
+    }
 
     // 방향 업데이트 (부드러운 회전)
-    if (CurrentVelocity.SizeSquared() > 1.0f)
-    {
-        FVector DesiredForward = CurrentVelocity.GetSafeNormal();
-        FVector CurrentForward = GetActorForwardVector();
-        
-        // 현재 Yaw 각도
-        float CurrentYaw = FMath::Atan2(CurrentForward.Y, CurrentForward.X);
-        
-        // 목표 Yaw 각도
-        float DesiredYaw = FMath::Atan2(DesiredForward.Y, DesiredForward.X);
-        
-        // 각도 차이 계산 (Wrap 처리)
-        float DeltaAngle = DesiredYaw - CurrentYaw;
-        if (DeltaAngle > PI) DeltaAngle -= PI * 2;
-        if (DeltaAngle < -PI) DeltaAngle += PI * 2;
-        
-        // 부드러운 각도 변화
-        float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
-        float NewYaw = CurrentYaw + DeltaAngle * SmoothingRate;
-        
-        // 회전 적용
-        FRotator NewRotation = FRotator(0, FMath::RadiansToDegrees(NewYaw), 0);
-        // InputVector = NewRotation.Vector();
-        // SetActorRotation(NewRotation);
-    }
+    float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
+    InputVector = FMath::Lerp(CurrentVelocity, InputVector, SmoothingRate);
+
+    // 방향 업데이트 (부드러운 회전) - 정밀한 제어를 위한 개선된 Lerp 방식
+    // if (CurrentVelocity.SizeSquared2D() > 1.0f)  // 유의미한 속도가 있을 때만 회전
+    // {
+    //     // 1. 현재 방향과 목표 방향을 정규화
+    //     FVector CurrentForward = CurrentVelocity.GetSafeNormal();
+    //     FVector DesiredForward = InputVector.GetSafeNormal();
+    //
+    //     // 2. 현재 방향에서 목표 방향으로의 회전을 quaternion으로 계산
+    //     // FindBetweenNormals는 자동으로 가장 짧은 회전 경로를 계산합니다
+    //     FQuat RotationDelta = FQuat::FindBetweenNormals(CurrentForward, DesiredForward);
+    //
+    //     // 3. 회전을 부드럽게 보간
+    //     float SmoothingRate = DeltaTime / FMath::Max(OrientationSmoothingTime, 0.01f);
+    //     FQuat SmoothRotation = FQuat::Slerp(FQuat::Identity, RotationDelta, SmoothingRate);
+    //
+    //     // 4. 현재 방향에 보간된 회전을 적용
+    //     FVector NewDirection = SmoothRotation.RotateVector(CurrentForward);
+    //
+    //     // 5. 새 방향으로 입력 벡터 업데이트
+    //     float InputMagnitude = InputVector.Size();
+    //     InputVector = NewDirection * InputMagnitude;
+    // }
 
     // 캐릭터 무브먼트를 통해 이동 적용
     GetCharacterMovement()->AddInputVector(InputVector);
-    
-    // MaxWalkSpeed 조정 (속도 제한)
-    GetCharacterMovement()->MaxWalkSpeed = DesiredSpeed;
-    
-    // 방향 처리는 CharacterMovementComponent의 bOrientRotationToMovement가 처리
     
     // 디버그 드로잉
     if (bDrawDebug)
@@ -110,7 +110,11 @@ void AAvoidanceCharacter::Tick(float DeltaTime)
         DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + SteerForce, 15, FColor::Red, false, -1, 0, 1.0f);
         StartLocation += FVector(0,0, 8);
         DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + SteeringForce, 15, FColor::Green, false, -1, 0, 1.0f);
+        StartLocation += FVector(0,0, 10);
+        DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + InputVector, 15, FColor::Magenta, false, -1, 0, 1.0f);
+
         DrawDebugSphere(GetWorld(), StartLocation, AgentRadius, 12, FColor::Green, false, -1, 0, 1.0f);
+        DrawDebugSphere(GetWorld(), MoveTargetLocation, AgentRadius, 12, FColor::Red, false, -1, 0, 1.0f);
     }
 }
 
@@ -302,12 +306,13 @@ FVector AAvoidanceCharacter::CalculateSteeringForce(float DeltaTime)
         // 속도 제한 업데이트
         GetCharacterMovement()->MaxWalkSpeed = DesiredSpeed * SpeedFactor;
     }
-    
+
+    // 현재 속도와 원하는 속도의 차이가 스티어링 힘
     // 조향력 계산 (목표 속도와 현재 속도의 차이)
     float SteerStrength = 1.0f / 0.3f; // 반응 시간의 역수
     FVector SteerForce = (DesiredVelocity - GetCharacterMovement()->Velocity) * SteerStrength;
 
-    return DesiredVelocity;
+    return SteerForce;
 }
 
 void AAvoidanceCharacter::SetMoveTarget(const FVector& TargetLocation, const FVector& TargetForward)
