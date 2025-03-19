@@ -39,6 +39,9 @@ void AAISeekCharacter::BeginPlay()
 void AAISeekCharacter::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
+    FVector CurrentLocationd =RootComponent->GetComponentLocation();
+    FVector CurrentLocation = GetActorLocation();
     
     // 이동 중이면 Seek 동작 실행
     if (bIsMoving && !HasReachedTarget())
@@ -174,7 +177,20 @@ void AAISeekCharacter::ExecuteSeekBehavior(float DeltaTime)
     }
 
     // 캐릭터 무브먼트에 입력 적용
-    GetCharacterMovement()->AddInputVector(MovementInput);
+    // GetCharacterMovement()->AddInputVector(MovementInput);
+
+    // void UCharacterMovementComponent::PhysWalking(
+    // void UCharacterMovementComponent::MoveAlongFloor(
+    // bool UMovementComponent::SafeMoveUpdatedComponent(
+    // FORCEINLINE_DEBUGGABLE bool UMovementComponent::MoveUpdatedComponent(
+    // bool UMovementComponent::MoveUpdatedComponentImpl(
+    // FORCEINLINE_DEBUGGABLE bool USceneComponent::MoveComponent(
+    // bool UPrimitiveComponent::MoveComponentImpl(
+    
+    // void UCharacterMovementComponent::CalcVelocity(
+    // bool UCharacterMovementComponent::ApplyRequestedMove(
+    GetCharacterMovement()->RequestDirectMove(SteeringForce, false);
+    // GetCharacterMovement()->RequestDirectMove(MovementInput, true)
 
     FVector StartLocation = GetActorLocation() + FVector(0,0, 50);
     DrawDebugDirectionalArrow(GetWorld(), StartLocation, StartLocation + GetVelocity(), 15, FColor::Black, false, -1, 0, 1.0f);
