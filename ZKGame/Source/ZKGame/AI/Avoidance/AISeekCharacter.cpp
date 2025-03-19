@@ -186,6 +186,9 @@ void AAISeekCharacter::ExecuteSeekBehavior(float DeltaTime)
     // bool UMovementComponent::MoveUpdatedComponentImpl(
     // FORCEINLINE_DEBUGGABLE bool USceneComponent::MoveComponent(
     // bool UPrimitiveComponent::MoveComponentImpl(
+    // bool USceneComponent::InternalSetWorldLocationAndRotation(
+    // SetRelativeLocation_Direct(NewLocation);
+    // SetRelativeRotation_Direct(NewRelativeRotation);
     
     // void UCharacterMovementComponent::CalcVelocity(
     // bool UCharacterMovementComponent::ApplyRequestedMove(
