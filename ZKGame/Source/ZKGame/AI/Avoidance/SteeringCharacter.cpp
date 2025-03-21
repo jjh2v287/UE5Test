@@ -31,10 +31,10 @@ void ASteeringCharacter::BeginPlay()
         CharMovement->bUseControllerDesiredRotation = false;
         CharMovement->MaxWalkSpeed = MaxSpeed;
 
-        CharMovement->GravityScale = 0.0f;
-        CharMovement->BrakingFrictionFactor = 0.0f;
-        CharMovement->GroundFriction = 0.0f;
-        CharMovement->BrakingDecelerationWalking = 0.0f;
+        // CharMovement->GravityScale = 0.0f;
+        // CharMovement->BrakingFrictionFactor = 0.0f;
+        // CharMovement->GroundFriction = 0.0f;
+        // CharMovement->BrakingDecelerationWalking = 0.0f;
 
         /*
         * CharMovement->GravityScale = 0.0f;
@@ -86,6 +86,7 @@ void ASteeringCharacter::Tick(float DeltaTime)
     {
         NesSteeringForce = FMath::Lerp(GetVelocity(), SteeringForce, DeltaTime);
         GetCharacterMovement()->RequestDirectMove(NesSteeringForce, false);
+        GetCharacterMovement()->Velocity = NesSteeringForce;
     }
 
     FVector StartLocation = GetActorLocation() + FVector(0,0, 50);
@@ -288,6 +289,7 @@ FVector ASteeringCharacter::CalculateSteeringForce(float DeltaTime)
         
         // 현재 속도
         FVector CurrentVelocity = GetVelocity();
+        UE_LOG(LogTemp,Warning, TEXT("%f"), CurrentVelocity.Length());
         CurrentVelocity.Z = 0.0f;
         
         // Steering = 희망속도 - 현재속도
