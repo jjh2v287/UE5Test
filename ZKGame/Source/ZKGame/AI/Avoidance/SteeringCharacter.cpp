@@ -87,6 +87,8 @@ void ASteeringCharacter::Tick(float DeltaTime)
         NesSteeringForce = FMath::Lerp(GetVelocity(), SteeringForce, DeltaTime);
         GetCharacterMovement()->RequestDirectMove(NesSteeringForce, false);
         GetCharacterMovement()->Velocity = NesSteeringForce;
+        // GetCharacterMovement()->Velocity += NesSteeringForce * DeltaTime;
+        // GetCharacterMovement()->RequestDirectMove(GetCharacterMovement()->Velocity + (NesSteeringForce * DeltaTime), false);
     }
 
     FVector StartLocation = GetActorLocation() + FVector(0,0, 50);
