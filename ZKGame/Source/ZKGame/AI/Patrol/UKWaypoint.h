@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "NavigationInvokerComponent.h"
-#include "UKWaypointSpline.h"
 #include "Components/SplineComponent.h"
 #include "GameFramework/Actor.h"
 #include "UKWaypoint.generated.h"

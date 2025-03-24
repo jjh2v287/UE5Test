@@ -6,7 +6,7 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "GraphAStar.h"
 #include "UKWaypoint.h"
-#include "UKPathFindingSubsystem.generated.h"
+#include "UKNavigationManager.generated.h"
 
 /**
  * FWaypointGraph
@@ -101,14 +101,13 @@ struct FWaypointFilter
  * 길찾기 서브시스템
  */
 UCLASS()
-class ZKGAME_API UUKPathFindingSubsystem : public UWorldSubsystem
+class ZKGAME_API UUKNavigationManager : public UWorldSubsystem
 {
     GENERATED_BODY()
 
 public:
     // 싱글톤 접근자
-    static UUKPathFindingSubsystem* Get(const UWorld* World);
-    static UUKPathFindingSubsystem* Get();
+    static UUKNavigationManager* Get(){ return Instance;};
     
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -116,7 +115,6 @@ public:
     // 웨이포인트 관련 함수들
     void RegisterWaypoint(AUKWaypoint* Waypoint);
     void UnregisterWaypoint(AUKWaypoint* Waypoint);
-    void ClearWaypoints();
     void AllRegisterWaypoint();
     
     // 길찾기 관련 함수들
@@ -125,11 +123,7 @@ public:
 
 private:
     // 싱글톤 인스턴스
-    static UUKPathFindingSubsystem* Instance;
+    static UUKNavigationManager* Instance;
 
-    UPROPERTY(Transient)
-    TArray<AUKWaypoint*> WaypointRegistry;
     FWaypointGraph PathGraph;
-    
-    void RebuildGraph();
 };

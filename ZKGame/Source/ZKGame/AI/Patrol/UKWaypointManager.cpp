@@ -2,7 +2,6 @@
 
 #include "UKWaypointManager.h"
 #include "GraphAStar.h"
-#include "UKPathFindingSubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
 AUKWaypointManager* AUKWaypointManager::SingletonInstance = nullptr;

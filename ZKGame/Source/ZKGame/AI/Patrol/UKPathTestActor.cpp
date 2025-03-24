@@ -1,8 +1,10 @@
 #include "UKPathTestActor.h"
 
 #include "DrawDebugHelpers.h"
-#include "UKPathFindingSubsystem.h"
+#include "UKNavigationManager.h"
 #include "UKWaypoint.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKPathTestActor)
 
 AUKPathTestActor::AUKPathTestActor()
 {
@@ -27,23 +29,17 @@ void AUKPathTestActor::Tick(float DeltaTime)
 void AUKPathTestActor::UpdatePathVisualization()
 {
     UWorld* World = GetWorld();
-    if (!UUKPathFindingSubsystem::Get(World))
-    {
-        return;
-    }
-    
     if (!EndActor)
     {
         return;
     }
 
     // 서브시스템 참조 가져오기
-    UUKPathFindingSubsystem* PathFindingSubsystem = GetWorld()->GetSubsystem<UUKPathFindingSubsystem>();
-    PathFindingSubsystem->AllRegisterWaypoint();
+    UUKNavigationManager::Get()->AllRegisterWaypoint();
 
     // 시작점과 끝점에서 가장 가까운 웨이포인트 찾기
-    AUKWaypoint* StartWaypoint = PathFindingSubsystem->FindNearestWaypoint(GetActorLocation());
-    AUKWaypoint* EndWaypoint = PathFindingSubsystem->FindNearestWaypoint(EndActor->GetActorLocation());
+    AUKWaypoint* StartWaypoint = UUKNavigationManager::Get()->FindNearestWaypoint(GetActorLocation());
+    AUKWaypoint* EndWaypoint = UUKNavigationManager::Get()->FindNearestWaypoint(EndActor->GetActorLocation());
 
     if (!StartWaypoint || !EndWaypoint)
     {
@@ -76,7 +72,7 @@ void AUKPathTestActor::UpdatePathVisualization()
     );
 
     // 경로 찾기
-    TArray<AUKWaypoint*> Path = PathFindingSubsystem->FindPath(StartWaypoint, EndWaypoint);
+    TArray<AUKWaypoint*> Path = UUKNavigationManager::Get()->FindPath(StartWaypoint, EndWaypoint);
     
     // 시작점부터 첫 웨이포인트까지
     if (Path.Num() > 0)
