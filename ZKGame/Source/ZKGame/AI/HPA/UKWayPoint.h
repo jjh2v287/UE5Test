@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NavigationInvokerComponent.h"
 #include "GameFramework/Actor.h"
 #include "UKWayPoint.generated.h"
 

@@ -1,11 +1,12 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-#include "UKWaypoint.h"
+#include "UKWayPoint.h"
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
 #include "NavigationInvokerComponent.h"
+#include "UKHPAManager.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(UKWaypoint)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKWayPoint)
 
 AUKWayPoint::AUKWayPoint(const FObjectInitializer& ObjectInitializer)
     : Super(ObjectInitializer)
@@ -18,7 +19,7 @@ AUKWayPoint::AUKWayPoint(const FObjectInitializer& ObjectInitializer)
 void AUKWayPoint::BeginPlay()
 {
     Super::BeginPlay();
-    if (UUKNavigationManager* PathFindingSubsystem = GetWorld()->GetSubsystem<UUKNavigationManager>())
+    if (UUKHPAManager* PathFindingSubsystem = GetWorld()->GetSubsystem<UUKHPAManager>())
     {
         PathFindingSubsystem->RegisterWaypoint(this);
     }
@@ -81,7 +82,7 @@ void AUKWayPoint::DrawDebugLines()
     const FVector StartLocation = GetActorLocation();
     
     // 이전 경로 표시 (왼쪽으로 오프셋)
-    for (const AUKWaypoint* Point : PathPoints)
+    for (const AUKWayPoint* Point : PathPoints)
     {
         if (Point)
         {
