@@ -1,11 +1,12 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "NavigationInvokerComponent.h"
 #include "GameFramework/Actor.h"
-#include "UKWayPoint.generated.h"
+#include "UKWayPoint.generated.h" // .h 파일 이름 확인
+
+// 전방 선언 (필요 시)
+class UUKHPAManager; // .cpp 파일에서 include 하므로 여기서는 전방선언 가능
 
 UCLASS()
 class ZKGAME_API AUKWayPoint : public AActor
@@ -15,9 +16,7 @@ public:
 	AUKWayPoint(const FObjectInitializer& ObjectInitializer);
     
 	virtual void BeginPlay() override;
-
 	virtual void Destroyed() override;
-
 	virtual void Tick(float DeltaTime) override;
 
 	/**
@@ -25,17 +24,14 @@ public:
 	* 레벨 디자인 타임에 설정하거나, 자동 클러스터링 알고리즘으로 할당할 수 있습니다.
 	* -1 또는 INVALID_CLUSTER_ID는 할당되지 않음을 의미할 수 있습니다.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HPA")
-	int32 ClusterID = -1; // 클러스터 ID 추가
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HPA", meta = (DisplayName = "HPA Cluster ID")) // DisplayName 추가
+	int32 ClusterID = -1;
 	
 	// 연결된 웨이포인트들의 정보
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Waypoint")
 	TArray<AUKWayPoint*> PathPoints;
 
-	virtual bool ShouldTickIfViewportsOnly() const override
-	{
-		return true;
-	};
+	virtual bool ShouldTickIfViewportsOnly() const override { return true; };
 
 protected:
 	UPROPERTY(VisibleDefaultsOnly)
