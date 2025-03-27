@@ -1,4 +1,6 @@
-﻿#include "UKHPAManager.h"
+﻿// Copyright Kong Studios, Inc. All Rights Reserved.
+
+#include "UKHPAManager.h"
 #include "UKWayPoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
@@ -54,7 +56,7 @@ void UUKHPAManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 				{
 					AllWaypoints.Swap(IndexToRemove, AllWaypoints.Num() - 1);
 					// 이동된 요소의 인덱스 업데이트
-					AUKWayPoint* SwappedWP = AllWaypoints[IndexToRemove].Get(); // Swap 후 해당 인덱스
+					AUKWayPoint* SwappedWP = AllWaypoints[IndexToRemove].Get();
 					if (SwappedWP)
 					{
 						// 기존 맵 항목 제거 후 새로 추가 (혹시 모를 중복 방지)
@@ -65,7 +67,9 @@ void UUKHPAManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 				// 마지막 요소 제거 (실제로는 Swap 후 마지막이 된 원래 요소를 제거)
 				AllWaypoints.Pop(EAllowShrinking::No);
 			}
-			AbstractGraph.bIsBuilt = false; // 웨이포인트 제거 시 계층 구조 무효화
+
+			// 웨이포인트 제거 시 계층 구조 무효화
+			AbstractGraph.bIsBuilt = false;
 		}
 	}
 }

@@ -1,4 +1,6 @@
-﻿#include "UKWayPoint.h"
+﻿// Copyright Kong Studios, Inc. All Rights Reserved.
+
+#include "UKWayPoint.h"
 #include "DrawDebugHelpers.h"
 #include "EngineUtils.h"
 #include "NavigationInvokerComponent.h"
@@ -49,25 +51,6 @@ void AUKWayPoint::Tick(float DeltaTime)
 }
 
 #if WITH_EDITOR
-void AUKWayPoint::PostEditMove(bool bFinished)
-{
-    Super::PostEditMove(bFinished);
-    // HPA 매니저에게 변경 알림 (선택적: 에디터 변경 시 계층 구조 자동 업데이트)
-    // if (bFinished && UUKHPAManager::Get()) { UUKHPAManager::Get()->NotifyWayPointChanged(this); }
-
-    // 기존 로직 유지 (스플라인 업데이트 등)
-    if(GetWorld())
-    {
-        for (AUKWayPoint* OtherPoint : TActorRange<AUKWayPoint>(GetWorld()))
-        {
-            if (OtherPoint && OtherPoint != this && OtherPoint->PathPoints.Contains(this))
-            {
-                // OtherPoint->UpdateConnectedSplines();
-            }
-        }
-    }
-}
-
 void AUKWayPoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -90,13 +73,6 @@ void AUKWayPoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
                     NextPoint->PostEditChange();
                 }
             }
-            // HPA 매니저에게 변경 알림 (선택적)
-            // if (UUKHPAManager::Get()) { UUKHPAManager::Get()->NotifyWayPointChanged(this); }
-        }
-        // ClusterID 변경 시 알림 (선택적)
-        else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUKWayPoint, ClusterID))
-        {
-             // if (UUKHPAManager::Get()) { UUKHPAManager::Get()->NotifyWayPointChanged(this); }
         }
     }
 }

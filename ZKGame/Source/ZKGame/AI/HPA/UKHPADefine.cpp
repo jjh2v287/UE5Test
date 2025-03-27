@@ -1,8 +1,6 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKHPADefine.h"
-
-// --- HPA용 A* 내부 그래프/필터 구현 ---
 
 // FWayPointAStarGraph
 int32 FWayPointAStarGraph::GetNeighbourCount(FNodeRef NodeRef) const

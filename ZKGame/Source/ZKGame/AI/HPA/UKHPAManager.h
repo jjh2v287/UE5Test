@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿// Copyright Kong Studios, Inc. All Rights Reserved.
+#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
@@ -7,11 +8,7 @@
 #include "UKWayPoint.h"
 #include "UKHPAManager.generated.h"
 
-// --- HPA 데이터 구조체 정의 ---
-
-// 전방 선언
 class AUKWayPoint;
-
 
 UCLASS()
 class ZKGAME_API UUKHPAManager : public UWorldSubsystem
@@ -20,7 +17,7 @@ class ZKGAME_API UUKHPAManager : public UWorldSubsystem
 
 public:
     // 싱글톤 접근자
-    static UUKHPAManager* Get() { return Instance; } // 기존 Get() 유지
+    static UUKHPAManager* Get() { return Instance; }
 
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -43,20 +40,20 @@ public:
     int32 GetClusterIDFromLocation(const FVector& Location) const;
 
     // --- 디버그 ---
-    void DrawDebugHPA(float Duration = 0.f) const; // 디버그 드로잉 함수 (const 추가)
-
-    // 에디터 변경 알림 (선택적)
-    // void NotifyWayPointChanged(AUKWayPoint* ChangedWaypoint);
+    void DrawDebugHPA(float Duration = 0.f) const;
 
 private:
     // 싱글톤 인스턴스
     static UUKHPAManager* Instance;
-
-    // --- 데이터 ---
+    
     // 모든 등록된 HPA 웨이포인트 목록 (기존 PathGraph.WayPoints 대신 사용 또는 동기화)
+    UPROPERTY(Transient)
     TArray<TWeakObjectPtr<AUKWayPoint>> AllWaypoints;
+
     // 웨이포인트 포인터에서 AllWaypoints 배열의 인덱스로 빠르게 매핑
+    UPROPERTY(Transient)
     TMap<AUKWayPoint*, int32> WaypointToIndexMap;
+    
     // 빌드된 계층 구조 (추상 그래프)
     FHPAAbstractGraph AbstractGraph;
 

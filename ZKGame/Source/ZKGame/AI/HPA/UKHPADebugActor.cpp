@@ -1,15 +1,17 @@
-﻿#include "UKHPADebugActor.h" // 헤더 이름 확인
+﻿// Copyright Kong Studios, Inc. All Rights Reserved.
+
+#include "UKHPADebugActor.h"
 #include "DrawDebugHelpers.h"
-#include "UKHPAManager.h" // 매니저 헤더 포함
-#include "UKWayPoint.h"   // 웨이포인트 헤더 포함
+#include "UKHPAManager.h"
+#include "UKWayPoint.h"
 #include "Engine/World.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPADebugActor) // 헤더 이름 확인
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPADebugActor)
 
-AUKHPADebugActor::AUKHPADebugActor() // 생성자 이름 확인
+AUKHPADebugActor::AUKHPADebugActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bStartWithTickEnabled = true; // Tick 활성화 확인
+	PrimaryActorTick.bStartWithTickEnabled = true;
 }
 
 void AUKHPADebugActor::BeginPlay()
@@ -37,7 +39,7 @@ void AUKHPADebugActor::UpdatePathVisualization()
 	}
 
 	// HPA 서브시스템 참조 가져오기
-	UUKHPAManager* HPAManager = UUKHPAManager::Get(); // 싱글톤 Get() 사용
+	UUKHPAManager* HPAManager = UUKHPAManager::Get();
 	if (!HPAManager)
 	{
 		LastFoundPath.Empty();
@@ -77,7 +79,7 @@ void AUKHPADebugActor::UpdatePathVisualization()
 	if (LastFoundPath.Num() > 0)
 	{
 		// 시작점 -> 첫 웨이포인트
-		if (LastFoundPath[0].Get()) // TObjectPtr 유효성 검사
+		if (LastFoundPath[0].Get())
 		{
 			DrawDebugDirectionalArrow(World, StartLoc, LastFoundPath[0]->GetActorLocation(), DebugArrowSize, DebugPathColor, false, DebugDrawDuration, 0, DebugPathThickness);
 		}
