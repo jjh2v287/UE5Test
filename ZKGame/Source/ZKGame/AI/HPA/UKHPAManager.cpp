@@ -589,8 +589,9 @@ bool UUKHPAManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int
 			}
 			else if (CurrentOriginWP == ExitCandidateWP)
 			{
-				// 시작점과 출구가 같으면 비용 0
-				CurrentPathCost = 0.f;
+				// 시작점과 출구가 같으면 비용 0 및 초기 빌드시 Cost
+				// CurrentPathCost = 0.f;
+				CurrentPathCost = CandidateEntrance.Cost;
 			}
 
 
