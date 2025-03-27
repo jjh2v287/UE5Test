@@ -1,11 +1,10 @@
-﻿#include "UKHPAManager.h" // 헤더 이름 확인
+﻿#include "UKHPAManager.h"
 #include "UKWayPoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPAManager) // 헤더 이름 확인
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPAManager)
 
-// 정적 멤버 변수 초기화
 UUKHPAManager* UUKHPAManager::Instance = nullptr;
 
 void UUKHPAManager::Initialize(FSubsystemCollectionBase& Collection)
@@ -31,7 +30,8 @@ void UUKHPAManager::RegisterWaypoint(AUKWayPoint* Waypoint)
 	{
 		AllWaypoints.Add(Waypoint);
 		WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
-		AbstractGraph.bIsBuilt = false; // 웨이포인트 추가 시 계층 구조 무효화
+		// 웨이포인트 추가 시 계층 구조 무효화
+		AbstractGraph.bIsBuilt = false;
 	}
 }
 
@@ -76,7 +76,7 @@ void UUKHPAManager::AllRegisterWaypoint()
 	// 1. 기존 정보 클리어
 	AllWaypoints.Empty();
 	WaypointToIndexMap.Empty();
-	AbstractGraph.Clear(); // 계층 구조도 초기화
+	AbstractGraph.Clear();
 
 	// 2. 월드에서 모든 AUKWayPoint 액터 찾기
 	UWorld* World = GetWorld();
@@ -89,7 +89,7 @@ void UUKHPAManager::AllRegisterWaypoint()
 	UGameplayStatics::GetAllActorsOfClass(World, AUKWayPoint::StaticClass(), FoundWaypoints);
 
 	// 3. 찾은 액터를 캐스팅하여 등록
-	AllWaypoints.Reserve(FoundWaypoints.Num()); // 메모리 미리 할당
+	AllWaypoints.Reserve(FoundWaypoints.Num());
 	for (AActor* Actor : FoundWaypoints)
 	{
 		if (AUKWayPoint* Waypoint = Cast<AUKWayPoint>(Actor))
@@ -104,7 +104,7 @@ void UUKHPAManager::AllRegisterWaypoint()
 	}
 
 	// 4. 계층 구조 빌드 (선택적 - 여기서 바로 빌드할지 결정)
-	BuildHierarchy(true); // 강제 리빌드
+	BuildHierarchy(true);
 }
 
 
@@ -146,7 +146,7 @@ void UUKHPAManager::BuildHierarchy(bool bForceRebuild)
 	for (auto& ClusterPair : AbstractGraph.Clusters)
 	{
 		const int32 CurrentClusterID = ClusterPair.Key;
-		FHPACluster& CurrentCluster = ClusterPair.Value; // 직접 수정 위해 레퍼런스 사용
+		FHPACluster& CurrentCluster = ClusterPair.Value;
 
 		for (const auto& WeakWP : CurrentCluster.Waypoints)
 		{
@@ -367,7 +367,8 @@ bool UUKHPAManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* EndWP, i
 
 	if (Result == EGraphAStarResult::SearchSuccess)
 	{
-		OutPathIndices.Insert(StartIndex, 0); // 시작 노드 인덱스 추가
+		// 시작 노드 인덱스 추가
+		OutPathIndices.Insert(StartIndex, 0);
 		return true;
 	}
 
@@ -391,13 +392,13 @@ bool UUKHPAManager::FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, 
 	FGraphAStarDefaultNode<FClusterAStarGraph> StartNode(StartClusterID);
 	FGraphAStarDefaultNode<FClusterAStarGraph> EndNode(EndClusterID);
 
-	TArray<int32> PathClusterIDs_Internal; // A* 결과 (시작 노드 미포함)
-	EGraphAStarResult Result = Pathfinder.FindPath(StartNode, EndNode, Filter, PathClusterIDs_Internal);
+	TArray<int32> PathClusterIDs; // A* 결과 (시작 노드 미포함)
+	EGraphAStarResult Result = Pathfinder.FindPath(StartNode, EndNode, Filter, PathClusterIDs);
 
 	if (Result == EGraphAStarResult::SearchSuccess)
 	{
 		OutClusterPath.Add(StartClusterID);
-		OutClusterPath.Append(PathClusterIDs_Internal);
+		OutClusterPath.Append(PathClusterIDs);
 		return true;
 	}
 	
@@ -412,7 +413,8 @@ TArray<AUKWayPoint*> UUKHPAManager::StitchPath(const FVector& StartLocation, con
 		return FinalPath;
 	}
 
-	AUKWayPoint* CurrentOriginWP = StartWP; // 현재 세그먼트 탐색 시작 웨이포인트
+	// 현재 세그먼트 탐색 시작 웨이포인트
+	AUKWayPoint* CurrentOriginWP = StartWP;
 
 	// 클러스터 경로 순회 (마지막 클러스터 전까지)
 	for (int32 i = 0; i < ClusterPath.Num() - 1; ++i)
@@ -422,17 +424,18 @@ TArray<AUKWayPoint*> UUKHPAManager::StitchPath(const FVector& StartLocation, con
 
 
 		FHPAEntrance BestEntrance;
-		TArray<int32> BestPathIndices_Internal;
+		TArray<int32> BestPathIndices;
 		// 현재 클러스터(CurrentClusterID) 내에서, CurrentOriginWP 부터 시작하여
 		// 다음 클러스터(NextClusterID)로 가는 가장 비용이 적은 입구와 경로 찾기
-		if (!FindBestEntranceToNeighbor(CurrentOriginWP, NextClusterID, BestEntrance, BestPathIndices_Internal))
+		if (!FindBestEntranceToNeighbor(CurrentOriginWP, NextClusterID, BestEntrance, BestPathIndices))
 		{
+			// 경로 찾기 실패
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Failed to find path segment within Cluster %d towards Cluster %d"), CurrentClusterID, NextClusterID);
-			return {}; // 경로 찾기 실패
+			return {};
 		}
 
 		// 찾은 경로 세그먼트를 최종 경로에 추가 (중복 제외)
-		TArray<AUKWayPoint*> PathSegment = ConvertIndicesToWaypoints(BestPathIndices_Internal);
+		TArray<AUKWayPoint*> PathSegment = ConvertIndicesToWaypoints(BestPathIndices);
 		if (!PathSegment.IsEmpty())
 		{
 			int32 StartIdx = 0; //(FinalPath.IsEmpty()) ? 0 : 1; // 첫 세그먼트 아니면 시작점 제외
@@ -443,8 +446,9 @@ TArray<AUKWayPoint*> UUKHPAManager::StitchPath(const FVector& StartLocation, con
 		}
 		else
 		{
+			// 비정상 경로
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Empty path segment found for Cluster %d -> %d."), CurrentClusterID, NextClusterID);
-			return {}; // 비정상 경로
+			return {};
 		}
 
 		// 다음 루프를 위해 현재 웨이포인트 업데이트 (다음 클러스터의 진입점으로)
@@ -486,15 +490,16 @@ TArray<AUKWayPoint*> UUKHPAManager::StitchPath(const FVector& StartLocation, con
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("StitchPath: Empty final path segment found for Cluster %d."), LastClusterID);
 				// 경로가 아예 없는게 아니라면 여기서 실패 처리할 필요는 없을 수 있음
+				UE_LOG(LogTemp, Warning, TEXT("StitchPath: Empty final path segment found for Cluster %d."), LastClusterID);
 			}
 		}
 	}
 	else
 	{
+		// 최종 경로 찾기 실패
 		UE_LOG(LogTemp, Error, TEXT("StitchPath: Failed to find final path segment within Cluster %d."), LastClusterID);
-		return {}; // 최종 경로 찾기 실패
+		return {}; 
 	}
 
 	return FinalPath;
@@ -525,25 +530,6 @@ TArray<AUKWayPoint*> UUKHPAManager::ConvertIndicesToWaypoints(const TArray<int32
 		}
 	}
 	return Waypoints;
-}
-
-// 두 클러스터 사이의 입구 중 하나 반환 (간단 버전)
-bool UUKHPAManager::FindEntranceBetweenClusters(int32 FromClusterID, int32 ToClusterID, FHPAEntrance& OutEntrance) const
-{
-	const FHPACluster* FromCluster = AbstractGraph.Clusters.Find(FromClusterID);
-	if (!FromCluster)
-	{
-		return false;
-	}
-
-	const TArray<FHPAEntrance>* Entrances = FromCluster->Entrances.Find(ToClusterID);
-	if (Entrances && !Entrances->IsEmpty())
-	{
-		// TODO: 더 나은 선택 로직? (예: 거리 기반)
-		OutEntrance = (*Entrances)[0]; // 일단 첫 번째 입구 반환
-		return true;
-	}
-	return false;
 }
 
 // 현재 WP에서 시작하여 이웃 클러스터로 가는 최적 입구 및 경로 찾기
@@ -579,18 +565,18 @@ bool UUKHPAManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int
 			continue;
 		}
 
-		TArray<int32> PathIndices_Candidate;
+		TArray<int32> PathIndicesCandidate;
 		// LowLevel 탐색: CurrentOriginWP -> ExitCandidateWP (모두 CurrentClusterID 내)
-		if (FindPathLowLevel(CurrentOriginWP, ExitCandidateWP, CurrentClusterID, PathIndices_Candidate))
+		if (FindPathLowLevel(CurrentOriginWP, ExitCandidateWP, CurrentClusterID, PathIndicesCandidate))
 		{
 			// 경로 비용 계산 (간단: 거리 합)
 			float CurrentPathCost = 0.f;
-			if (PathIndices_Candidate.Num() > 1)
+			if (PathIndicesCandidate.Num() > 1)
 			{
-				for (int k = 0; k < PathIndices_Candidate.Num() - 1; ++k)
+				for (int k = 0; k < PathIndicesCandidate.Num() - 1; ++k)
 				{
-					AUKWayPoint* P1 = AllWaypoints[PathIndices_Candidate[k]].Get();
-					AUKWayPoint* P2 = AllWaypoints[PathIndices_Candidate[k + 1]].Get();
+					AUKWayPoint* P1 = AllWaypoints[PathIndicesCandidate[k]].Get();
+					AUKWayPoint* P2 = AllWaypoints[PathIndicesCandidate[k + 1]].Get();
 					if (P1 && P2)
 					{
 						CurrentPathCost += FVector::Dist(P1->GetActorLocation(), P2->GetActorLocation());
@@ -608,8 +594,9 @@ bool UUKHPAManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int
 			if (CurrentPathCost < MinPathCost)
 			{
 				MinPathCost = CurrentPathCost;
-				OutBestPathIndices = PathIndices_Candidate;
-				OutBestEntrance = CandidateEntrance; // 가장 좋았던 입구 정보 저장
+				OutBestPathIndices = PathIndicesCandidate;
+				// 가장 좋았던 입구 정보 저장
+				OutBestEntrance = CandidateEntrance;
 				bFoundPath = true;
 			}
 		}
