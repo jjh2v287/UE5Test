@@ -39,7 +39,7 @@ void AUKHPADebugActor::UpdatePathVisualization()
 	}
 
 	// HPA 서브시스템 참조 가져오기
-	UUKHPAManager* HPAManager = UUKHPAManager::Get();
+	UUKHPAManager* HPAManager = World->GetSubsystem<UUKHPAManager>();
 	if (!HPAManager)
 	{
 		LastFoundPath.Empty();
