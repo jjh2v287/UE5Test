@@ -46,12 +46,6 @@ void AUKWayPoint::Destroyed()
 void AUKWayPoint::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-#if WITH_EDITOR
-    if (GetWorld() && !GetWorld()->IsGameWorld()) // 에디터 월드에서만 Tick에서 그리기
-    {
-        DrawDebugLines();
-    }
-#endif
 }
 
 #if WITH_EDITOR
@@ -103,41 +97,6 @@ void AUKWayPoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
         else if (PropertyName == GET_MEMBER_NAME_CHECKED(AUKWayPoint, ClusterID))
         {
              // if (UUKHPAManager::Get()) { UUKHPAManager::Get()->NotifyWayPointChanged(this); }
-        }
-    }
-}
-
-void AUKWayPoint::DrawDebugLines()
-{
-    const FVector StartLocation = GetActorLocation();
-    const UWorld* World = GetWorld();
-    if (!World) return;
-
-    // 연결된 경로 표시 (기존 보라색 화살표)
-    for (const AUKWayPoint* Point : PathPoints)
-    {
-        if (Point)
-        {
-            // 양방향 연결 시 겹치지 않게 오프셋 적용
-            bool bIsMutual = Point->PathPoints.Contains(this);
-            FVector Direction = (Point->GetActorLocation() - StartLocation).GetSafeNormal();
-            FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
-            float LineOffset = bIsMutual ? 10.0f : 0.0f; // 양방향일 때만 오프셋
-
-            FVector OffsetStart = StartLocation + RightVector * LineOffset;
-            FVector OffsetEnd = Point->GetActorLocation() + RightVector * LineOffset;
-
-            DrawDebugDirectionalArrow(
-                World,
-                OffsetStart,
-                OffsetEnd,
-                50.0f, // 크기 줄임
-                FColor::Purple,
-                false,
-                -1.0f, // 지속 시간 (Tick에서 호출되므로 0 또는 -1)
-                0, // Depth Priority
-                1.5f // 두께
-            );
         }
     }
 }

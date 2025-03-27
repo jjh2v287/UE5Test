@@ -24,7 +24,7 @@ public:
 	* 레벨 디자인 타임에 설정하거나, 자동 클러스터링 알고리즘으로 할당할 수 있습니다.
 	* -1 또는 INVALID_CLUSTER_ID는 할당되지 않음을 의미할 수 있습니다.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HPA", meta = (DisplayName = "HPA Cluster ID")) // DisplayName 추가
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Waypoint", meta = (DisplayName = "HPA Cluster ID")) // DisplayName 추가
 	int32 ClusterID = -1;
 	
 	// 연결된 웨이포인트들의 정보
@@ -40,6 +40,5 @@ protected:
 #if WITH_EDITOR
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	void DrawDebugLines();
 #endif
 };
