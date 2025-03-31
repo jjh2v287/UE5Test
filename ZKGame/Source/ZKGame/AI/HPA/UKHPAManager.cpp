@@ -4,6 +4,7 @@
 #include "UKWayPoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "Components/TextRenderComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPAManager)
 
@@ -26,52 +27,117 @@ void UUKHPAManager::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UUKHPAManager::RegisterWaypoint(AUKWayPoint* Waypoint)
+FWayPointHandle UUKHPAManager::RegisterWaypoint(AUKWayPoint* Waypoint)
 {
-	if (IsValid(Waypoint) && !WaypointToIndexMap.Contains(Waypoint))
+	if (!IsValid(Waypoint))
 	{
-		AllWaypoints.Add(Waypoint);
-		WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
-		// 웨이포인트 추가 시 계층 구조 무효화
-		AbstractGraph.bIsBuilt = false;
+		return FWayPointHandle::Invalid;
+		
 	}
+
+	if (WaypointToIndexMap.Contains(Waypoint))
+	{
+		return Waypoint->GetWayPointHandle();
+		
+	}
+	
+	AllWaypoints.Add(Waypoint);
+	WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
+	// 웨이포인트 추가 시 계층 구조 무효화
+	AbstractGraph.bIsBuilt = false;
+
+	//----------- HashGrid -----------
+	if (RuntimeWayPoints.Contains(Waypoint->GetWayPointHandle()))
+	{
+		return Waypoint->GetWayPointHandle();
+	}
+
+    // 새 핸들 생성
+    FWayPointHandle NewHandle = GenerateNewHandle();
+    if (!NewHandle.IsValid())
+    {
+        return FWayPointHandle::Invalid;
+    }
+
+    // 런타임 데이터 생성 및 맵에 추가
+    FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
+
+    // 경계 상자 및 트랜스폼 계산/저장
+    RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
+	RuntimeData.Transform = Waypoint->GetActorTransform();
+
+
+    // 공간 그리드에 추가
+    FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetMutablePtr<FWayPointHashGridEntryData>();
+    if (GridEntryData)
+    {
+        GridEntryData->CellLoc = WaypointGrid.Add(NewHandle, RuntimeData.Bounds);
+    }
+    else
+    {
+        // 등록 실패 처리: 맵에서 제거 등
+        RuntimeWayPoints.Remove(NewHandle);
+        return FWayPointHandle::Invalid;
+    }
+
+    return NewHandle;
 }
 
-void UUKHPAManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
+bool UUKHPAManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 {
-	if (IsValid(Waypoint))
+	if (!IsValid(Waypoint))
 	{
-		int32* IndexPtr = WaypointToIndexMap.Find(Waypoint);
-		if (IndexPtr)
-		{
-			int32 IndexToRemove = *IndexPtr;
-			
-			// 맵에서 먼저 제거
-			WaypointToIndexMap.Remove(Waypoint);
-
-			if (AllWaypoints.IsValidIndex(IndexToRemove))
-			{
-				// 배열 끝 요소와 Swap 후 Pop (인덱스 재조정)
-				if (IndexToRemove < AllWaypoints.Num() - 1)
-				{
-					AllWaypoints.Swap(IndexToRemove, AllWaypoints.Num() - 1);
-					// 이동된 요소의 인덱스 업데이트
-					AUKWayPoint* SwappedWP = AllWaypoints[IndexToRemove].Get();
-					if (SwappedWP)
-					{
-						// 기존 맵 항목 제거 후 새로 추가 (혹시 모를 중복 방지)
-						WaypointToIndexMap.Remove(SwappedWP);
-						WaypointToIndexMap.Add(SwappedWP, IndexToRemove);
-					}
-				}
-				// 마지막 요소 제거 (실제로는 Swap 후 마지막이 된 원래 요소를 제거)
-				AllWaypoints.Pop(EAllowShrinking::No);
-			}
-
-			// 웨이포인트 제거 시 계층 구조 무효화
-			AbstractGraph.bIsBuilt = false;
-		}
+		return false;
 	}
+	
+	int32* IndexPtr = WaypointToIndexMap.Find(Waypoint);
+	if (IndexPtr)
+	{
+		int32 IndexToRemove = *IndexPtr;
+		
+		// 맵에서 먼저 제거
+		WaypointToIndexMap.Remove(Waypoint);
+
+		if (AllWaypoints.IsValidIndex(IndexToRemove))
+		{
+			// 배열 끝 요소와 Swap 후 Pop (인덱스 재조정)
+			if (IndexToRemove < AllWaypoints.Num() - 1)
+			{
+				AllWaypoints.Swap(IndexToRemove, AllWaypoints.Num() - 1);
+				// 이동된 요소의 인덱스 업데이트
+				AUKWayPoint* SwappedWP = AllWaypoints[IndexToRemove].Get();
+				if (SwappedWP)
+				{
+					// 기존 맵 항목 제거 후 새로 추가 (혹시 모를 중복 방지)
+					WaypointToIndexMap.Remove(SwappedWP);
+					WaypointToIndexMap.Add(SwappedWP, IndexToRemove);
+				}
+			}
+			// 마지막 요소 제거 (실제로는 Swap 후 마지막이 된 원래 요소를 제거)
+			AllWaypoints.Pop(EAllowShrinking::No);
+		}
+
+		// 웨이포인트 제거 시 계층 구조 무효화
+		AbstractGraph.bIsBuilt = false;
+	}
+
+	//----------- HashGrid -----------
+	FWayPointRuntimeData RuntimeData;
+	if (RuntimeWayPoints.RemoveAndCopyValue(Waypoint->GetWayPointHandle(), RuntimeData))
+	{
+		// 공간 그리드에서 제거
+		const FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetPtr<FWayPointHashGridEntryData>();
+		if (GridEntryData)
+		{
+			WaypointGrid.Remove(Waypoint->GetWayPointHandle(), GridEntryData->CellLoc);
+		}
+		else
+		{
+		}
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -104,6 +170,42 @@ void UUKHPAManager::AllRegisterWaypoint()
 				AllWaypoints.Add(Waypoint);
 				WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
 			}
+
+			//----------- HashGrid -----------
+			if (RuntimeWayPoints.Contains(Waypoint->GetWayPointHandle()))
+			{
+				continue;
+			}
+
+			// 새 핸들 생성
+			FWayPointHandle NewHandle = GenerateNewHandle();
+			if (!NewHandle.IsValid())
+			{
+				continue;
+			}
+
+			// 런타임 데이터 생성 및 맵에 추가
+			FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
+
+			// 경계 상자 및 트랜스폼 계산/저장
+			RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
+			RuntimeData.Transform = Waypoint->GetActorTransform();
+
+
+			// 공간 그리드에 추가
+			FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetMutablePtr<FWayPointHashGridEntryData>();
+			if (GridEntryData)
+			{
+				GridEntryData->CellLoc = WaypointGrid.Add(NewHandle, RuntimeData.Bounds);
+			}
+			else
+			{
+				// 등록 실패 처리: 맵에서 제거 등
+				RuntimeWayPoints.Remove(NewHandle);
+				continue;
+			}
+
+			Waypoint->SetWayPointHandle(NewHandle);
 		}
 	}
 
@@ -230,8 +332,18 @@ TArray<AUKWayPoint*> UUKHPAManager::FindPath(const FVector& StartLocation, const
 
 
 	// 1. 시작/끝점 근처 웨이포인트 찾기
-	AUKWayPoint* StartWP = FindNearestWaypoint(StartLocation);
-	AUKWayPoint* EndWP = FindNearestWaypoint(EndLocation);
+	AUKWayPoint* StartWP = FindNearestWayPointinRange(StartLocation);
+	AUKWayPoint* EndWP = FindNearestWayPointinRange(EndLocation);
+
+	if (!StartWP)
+	{
+		StartWP = FindNearestWaypoint(StartLocation);
+	}
+
+	if (!EndWP)
+	{
+		EndWP = FindNearestWaypoint(EndLocation);
+	}
 
 	if (!StartWP || !EndWP)
 	{
@@ -325,12 +437,67 @@ AUKWayPoint* UUKHPAManager::FindNearestWaypoint(const FVector& Location, int32 P
 	return NearestWaypoint;
 }
 
+AUKWayPoint* UUKHPAManager::FindNearestWayPointinRange(const FVector& Location, const float Range /*= 1000.0f*/) const
+{
+	AUKWayPoint* NearestWaypoint = nullptr;
+
+	FVector SearchExtent(Range);
+	FBox QueryBox = FBox(Location - SearchExtent, Location + SearchExtent);
+
+	// 그리드 쿼리
+	TArray<FWayPointHandle> FoundHandlesInGrid;
+	WaypointGrid.QuerySmall(QueryBox, FoundHandlesInGrid);
+
+	// 그리드 결과 검증 (런타임 데이터 존재 및 활성화 여부 등 추가 필터링)
+	float MinRange = Range;
+	for (const FWayPointHandle& Handle : FoundHandlesInGrid)
+	{
+		const FWayPointRuntimeData* RuntimeData = RuntimeWayPoints.Find(Handle);
+		if (RuntimeData && RuntimeData->WayPointObject.IsValid())
+		{
+			const float Dist = FVector::Dist2D(Location, RuntimeData->Transform.GetLocation());
+			if (Dist < MinRange)
+			{
+				MinRange = Dist;
+				NearestWaypoint = RuntimeData->WayPointObject.Get();
+			}
+		}
+	}
+
+	return NearestWaypoint;
+}
+
+void UUKHPAManager::FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const
+{
+	OutWayPointHandles.Reset();
+
+	FVector SearchExtent(Range);
+	FBox QueryBox = FBox(Location - SearchExtent, Location + SearchExtent);
+
+	// 그리드 쿼리
+	TArray<FWayPointHandle> FoundHandlesInGrid;
+	WaypointGrid.QuerySmall(QueryBox, FoundHandlesInGrid);
+
+	// 그리드 결과 검증 (런타임 데이터 존재 및 활성화 여부 등 추가 필터링)
+	for (const FWayPointHandle& Handle : FoundHandlesInGrid)
+	{
+		const FWayPointRuntimeData* RuntimeData = RuntimeWayPoints.Find(Handle);
+		if (RuntimeData && RuntimeData->WayPointObject.IsValid())
+		{
+			// 쿼리 박스와 실제 경계 상자가 겹치는지 최종 확인 (그리드는 셀 기반이므로)
+			if (RuntimeData->Bounds.Intersect(QueryBox))
+			{
+				OutWayPointHandles.Add(Handle);
+			}
+		}
+	}
+}
+
 int32 UUKHPAManager::GetClusterIDFromLocation(const FVector& Location) const
 {
 	AUKWayPoint* NearestWP = FindNearestWaypoint(Location);
 	return NearestWP ? NearestWP->ClusterID : INDEX_NONE;
 }
-
 
 bool UUKHPAManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* EndWP, int32 ClusterID, TArray<int32>& OutPathIndices)
 {
@@ -642,8 +809,14 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 			}
 
 			DrawDebugBox(World, WP->GetActorLocation(), FVector(15.f,15.f,15.f), CurrentColor, false, Duration, 0, 1.f);
-			DrawDebugString(World, WP->GetActorLocation() + FVector(0, 0, 30), FString::Printf(TEXT("C:%d"), Cluster.ClusterID), nullptr, CurrentColor, Duration, false, 2);
-
+			FString DebugText = FString::Printf(TEXT("C:%d"), Cluster.ClusterID);
+			DrawDebugString(World, WP->GetActorLocation() + FVector(0, 0, 30), DebugText, nullptr, CurrentColor, Duration, false, 2);
+			if (UTextRenderComponent* TextComp = WP->GetComponentByClass<UTextRenderComponent>())
+			{
+				TextComp->SetText(FText::FromString(DebugText));
+				TextComp->TextRenderColor = CurrentColor;
+			}
+			
 			for (AUKWayPoint* NeighborWP : WP->PathPoints)
 			{
 				if (NeighborWP && NeighborWP->ClusterID == Cluster.ClusterID)
@@ -682,5 +855,31 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 		// 클러스터 중심점
 		// DrawDebugSphere(World, Cluster.CenterLocation, 25.f, 8, FColor::Black, false, Duration, 0, 3.f);
 	}
+
+	const TSet<FWayPointHashGrid2D::FCell>& AllCells = WaypointGrid.GetCells();
+	for (auto It(AllCells.CreateConstIterator()); It; ++It)
+	{
+		FBox CellBounds = WaypointGrid.CalcCellBounds(FWayPointHashGrid2D::FCellLocation(It->X, It->Y, It->Level));
+		DrawDebugBox(World, CellBounds.GetCenter(), CellBounds.GetExtent(), GColorList.GetFColorByIndex(It->Level), false, Duration);
+	}
 #endif
+}
+
+FWayPointHandle UUKHPAManager::GenerateNewHandle()
+{
+	// 단순 증가 방식 예시 (FSmartObjectHandleFactory::CreateHandleForDynamicObject 모방)
+	// 실제로는 FSmartObjectHandleFactory::CreateHandleForComponent처럼 경로 해싱 권장
+	return FWayPointHandle(NextHandleID++);
+}
+
+FBox UUKHPAManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
+{
+	if (!IsValid(WayPoint))
+	{
+		return FBox(ForceInit);
+	}
+
+	const FVector Location = WayPoint->GetActorLocation();
+	const FVector Extent(50.0f); // 예시 크기
+	return FBox(Location - Extent, Location + Extent);
 }

@@ -1,6 +1,30 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKHPADefine.h"
+#include "UKWayPoint.h"
+
+const FWayPointHandle FWayPointHandle::Invalid = FWayPointHandle(0);
+
+// FHPACluster
+void FHPACluster::CalculateCenter()
+{
+    if (Waypoints.IsEmpty())
+    {
+        CenterLocation = FVector::ZeroVector; return;
+    }
+        
+    FVector SumPos = FVector::ZeroVector;
+    int32 ValidCount = 0;
+    for (const auto& WeakWP : Waypoints)
+    {
+        if (AUKWayPoint* WP = WeakWP.Get())
+        {
+            SumPos += WP->GetActorLocation();
+            ValidCount++;
+        }
+    }
+    CenterLocation = (ValidCount > 0) ? SumPos / ValidCount : FVector::ZeroVector;
+}
 
 // FWayPointAStarGraph
 int32 FWayPointAStarGraph::GetNeighbourCount(FNodeRef NodeRef) const

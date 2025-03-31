@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "NavigationInvokerComponent.h"
+#include "UKHPADefine.h"
 #include "GameFramework/Actor.h"
 #include "UKWayPoint.generated.h"
 
@@ -34,9 +35,21 @@ public:
 
 	virtual bool ShouldTickIfViewportsOnly() const override { return true; };
 
+	FWayPointHandle GetWayPointHandle() const
+	{
+		return WayPointHandle;
+	}
+
+	void SetWayPointHandle(FWayPointHandle Handle)
+	{
+		WayPointHandle = Handle;
+	}
+	
 protected:
 	UPROPERTY(VisibleDefaultsOnly)
 	UNavigationInvokerComponent* InvokerComponent{nullptr};
+
+	FWayPointHandle WayPointHandle;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

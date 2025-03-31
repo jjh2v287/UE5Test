@@ -25,7 +25,7 @@ void AUKWayPoint::BeginPlay()
         // HPA 매니저 서브시스템 가져오기
         if (UUKHPAManager* HPAManager = World->GetSubsystem<UUKHPAManager>())
         {
-            HPAManager->RegisterWaypoint(this);
+           WayPointHandle = HPAManager->RegisterWaypoint(this);
         }
     }
 }

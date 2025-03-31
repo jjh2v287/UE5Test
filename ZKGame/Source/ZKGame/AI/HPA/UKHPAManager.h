@@ -23,8 +23,8 @@ public:
     virtual void Deinitialize() override;
 
     // --- 웨이포인트 관리 ---
-    void RegisterWaypoint(AUKWayPoint* Waypoint);
-    void UnregisterWaypoint(AUKWayPoint* Waypoint);
+    FWayPointHandle RegisterWaypoint(AUKWayPoint* Waypoint);
+    bool UnregisterWaypoint(AUKWayPoint* Waypoint);
     void AllRegisterWaypoint(); // 모든 웨이포인트 강제 재등록 및 맵 업데이트
 
     // --- HPA 계층 구조 빌드 ---
@@ -37,6 +37,13 @@ public:
 
     // --- 유틸리티 ---
     AUKWayPoint* FindNearestWaypoint(const FVector& Location, int32 PreferredClusterID = INDEX_NONE) const;
+
+    UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Range"))
+    AUKWayPoint* FindNearestWayPointinRange(const FVector& Location, const float Range = 1000.0f) const;
+    
+    UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Box"))
+    void FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const;
+    
     int32 GetClusterIDFromLocation(const FVector& Location) const;
 
     // --- 디버그 ---
@@ -45,6 +52,22 @@ public:
 private:
     // 싱글톤 인스턴스
     static UUKHPAManager* Instance;
+
+    // 등록된 웨이포인트 관리 맵 (핸들 -> 런타임 데이터)
+    UPROPERTY(Transient)
+    TMap<FWayPointHandle, FWayPointRuntimeData> RuntimeWayPoints;
+
+    // 공간 해시 그리드 인스턴스
+    FWayPointHashGrid2D WaypointGrid;
+
+    // 고유 핸들 ID 생성을 위한 카운터
+    uint64 NextHandleID = 1;
+
+    // 고유 핸들 생성 함수 (내부용)
+    FWayPointHandle GenerateNewHandle();
+
+    // 웨이포인트 경계 상자 계산 함수 (내부용)
+    FBox CalculateWayPointBounds(AUKWayPoint* WayPoint) const;
     
     // 모든 등록된 HPA 웨이포인트 목록 (기존 PathGraph.WayPoints 대신 사용 또는 동기화)
     UPROPERTY(Transient)

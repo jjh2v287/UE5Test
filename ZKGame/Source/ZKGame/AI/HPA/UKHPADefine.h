@@ -4,7 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GraphAStar.h"
-#include "UKWayPoint.h"
+#include "UObject/ObjectMacros.h"
+#include "Math/Box.h"
+#include "HierarchicalHashGrid2D.h"
+#include "StructUtils/InstancedStruct.h"
+#include "UKHPADefine.generated.h"
+
+class AUKWayPoint;
 
 struct ZKGAME_API FHPAEntrance
 {
@@ -33,25 +39,7 @@ struct ZKGAME_API FHPACluster
     FHPACluster() = default;
     explicit FHPACluster(int32 InID) : ClusterID(InID) {}
 
-    void CalculateCenter()
-    {
-        if (Waypoints.IsEmpty())
-        {
-            CenterLocation = FVector::ZeroVector; return;
-        }
-        
-        FVector SumPos = FVector::ZeroVector;
-        int32 ValidCount = 0;
-        for (const auto& WeakWP : Waypoints)
-        {
-            if (AUKWayPoint* WP = WeakWP.Get())
-            {
-                SumPos += WP->GetActorLocation();
-                ValidCount++;
-            }
-        }
-        CenterLocation = (ValidCount > 0) ? SumPos / ValidCount : FVector::ZeroVector;
-    }
+    void CalculateCenter();
 };
 
 struct ZKGAME_API FHPAAbstractGraph
@@ -152,3 +140,102 @@ struct FClusterFilter
     bool IsTraversalAllowed(FGraphAStarDefaultNode<FClusterAStarGraph> NodeA, FGraphAStarDefaultNode<FClusterAStarGraph> NodeB) const;
     bool WantsPartialSolution() const { return false; }
 };
+
+#pragma region WayPoint HashGrid
+// 1. WayPoint 핸들 정의 (FSmartObjectHandle 모방)
+USTRUCT(BlueprintType)
+struct FWayPointHandle
+{
+    GENERATED_BODY()
+public:
+    FWayPointHandle() : ID(0) {}
+
+    bool IsValid() const { return ID != 0; }
+    void Invalidate() { ID = 0; }
+
+    friend FString LexToString(const FWayPointHandle Handle)
+    {
+        return FString::Printf(TEXT("WayPoint_0x%016llX"), Handle.ID);
+    }
+
+    bool operator==(const FWayPointHandle Other) const { return ID == Other.ID; }
+    bool operator!=(const FWayPointHandle Other) const { return !(*this == Other); }
+    bool operator<(const FWayPointHandle Other) const { return ID < Other.ID; }
+
+    friend uint32 GetTypeHash(const FWayPointHandle Handle)
+    {
+        return CityHash32(reinterpret_cast<const char*>(&Handle.ID), sizeof Handle.ID);
+    }
+
+private:
+    // 서브시스템만 ID를 설정할 수 있도록 함
+    friend class UUKHPAManager;
+
+    explicit FWayPointHandle(const uint64 InID) : ID(InID) {}
+    
+    UPROPERTY(VisibleAnywhere, Category = WayPoint)
+    uint64 ID;
+
+public:
+    static const FWayPointHandle Invalid;
+};
+
+// THierarchicalHashGrid2D 타입 정의 (FSmartObjectHashGrid2D 모방)
+// 템플릿 파라미터는 필요에 따라 조절 (CellSize=2, Density=4는 예시)
+using FWayPointHashGrid2D = THierarchicalHashGrid2D<2, 4, FWayPointHandle>;
+
+// 2. 공간 분할 데이터 정의 (FSmartObjectSpatialEntryData 모방)
+USTRUCT()
+struct FWayPointSpatialEntryData
+{
+    GENERATED_BODY()
+    virtual ~FWayPointSpatialEntryData() = default; // 가상 소멸자 추가 권장
+};
+
+// 3. 해시 그리드용 공간 분할 데이터 (FSmartObjectHashGridEntryData 모방)
+USTRUCT()
+struct FWayPointHashGridEntryData : public FWayPointSpatialEntryData
+{
+    GENERATED_BODY()
+
+    FWayPointHashGrid2D::FCellLocation CellLoc; // 그리드 셀 위치 저장
+};
+
+// 4. WayPoint 런타임 데이터 정의 (FSmartObjectRuntime 모방)
+USTRUCT()
+struct FWayPointRuntimeData
+{
+    GENERATED_BODY()
+
+public:
+    FWayPointRuntimeData() = default;
+
+    explicit FWayPointRuntimeData(AUKWayPoint* InWayPoint, const FWayPointHandle InHandle)
+        : WayPointObject(InWayPoint)
+        , Handle(InHandle)
+    {
+        // 해시 그리드용 공간 데이터로 초기화
+        SpatialEntryData.InitializeAs<FWayPointHashGridEntryData>();
+    }
+
+    // 웨이포인트 오브젝트 포인터 (WeakObjectPtr 권장)
+    UPROPERTY(VisibleAnywhere, Category = WayPoint)
+    TWeakObjectPtr<AUKWayPoint> WayPointObject;
+
+    // 고유 핸들
+    UPROPERTY(VisibleAnywhere, Category = WayPoint)
+    FWayPointHandle Handle;
+
+    // 웨이포인트의 월드 트랜스폼 (등록 시 업데이트)
+    UPROPERTY(VisibleAnywhere, Category = WayPoint)
+    FTransform Transform;
+
+    // 웨이포인트의 경계 상자 (등록 시 업데이트)
+    UPROPERTY(VisibleAnywhere, Category = WayPoint)
+    FBox Bounds;
+
+    // 공간 분할 데이터 (FSmartObjectRuntime의 SpatialEntryData 모방)
+    UPROPERTY()
+    FInstancedStruct SpatialEntryData;
+};
+#pragma endregion WayPoint HashGrid
