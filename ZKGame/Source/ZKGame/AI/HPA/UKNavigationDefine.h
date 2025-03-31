@@ -8,7 +8,7 @@
 #include "Math/Box.h"
 #include "HierarchicalHashGrid2D.h"
 #include "StructUtils/InstancedStruct.h"
-#include "UKHPADefine.generated.h"
+#include "UKNavigationDefine.generated.h"
 
 class AUKWayPoint;
 
@@ -35,6 +35,7 @@ struct ZKGAME_API FHPACluster
     TMap<int32, TArray<FHPAEntrance>> Entrances;
     
     FVector CenterLocation = FVector::ZeroVector;
+    FVector Expansion = FVector::ZeroVector;
 
     FHPACluster() = default;
     explicit FHPACluster(int32 InID) : ClusterID(InID) {}
@@ -169,7 +170,7 @@ public:
 
 private:
     // 서브시스템만 ID를 설정할 수 있도록 함
-    friend class UUKHPAManager;
+    friend class UUKNavigationManager;
 
     explicit FWayPointHandle(const uint64 InID) : ID(InID) {}
     

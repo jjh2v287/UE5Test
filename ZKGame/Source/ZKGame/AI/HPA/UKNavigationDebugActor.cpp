@@ -1,25 +1,25 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
-#include "UKHPADebugActor.h"
+#include "UKNavigationDebugActor.h"
 #include "DrawDebugHelpers.h"
-#include "UKHPAManager.h"
+#include "UKNavigationManager.h"
 #include "UKWayPoint.h"
 #include "Engine/World.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPADebugActor)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKNavigationDebugActor)
 
-AUKHPADebugActor::AUKHPADebugActor()
+AUKNavigationDebugActor::AUKNavigationDebugActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 }
 
-void AUKHPADebugActor::BeginPlay()
+void AUKNavigationDebugActor::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-void AUKHPADebugActor::Tick(float DeltaTime)
+void AUKNavigationDebugActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
@@ -29,7 +29,7 @@ void AUKHPADebugActor::Tick(float DeltaTime)
 #endif
 }
 
-void AUKHPADebugActor::UpdatePathVisualization()
+void AUKNavigationDebugActor::UpdatePathVisualization()
 {
 	UWorld* World = GetWorld();
 	if (!World || !EndActor)
@@ -39,7 +39,7 @@ void AUKHPADebugActor::UpdatePathVisualization()
 	}
 
 	// HPA 서브시스템 참조 가져오기
-	UUKHPAManager* HPAManager = World->GetSubsystem<UUKHPAManager>();
+	UUKNavigationManager* HPAManager = World->GetSubsystem<UUKNavigationManager>();
 	if (!HPAManager)
 	{
 		LastFoundPath.Empty();

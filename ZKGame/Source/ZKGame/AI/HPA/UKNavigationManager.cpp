@@ -1,16 +1,16 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
-#include "UKHPAManager.h"
+#include "UKNavigationManager.h"
 #include "UKWayPoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 #include "Components/TextRenderComponent.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(UKHPAManager)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(UKNavigationManager)
 
-UUKHPAManager* UUKHPAManager::Instance = nullptr;
+UUKNavigationManager* UUKNavigationManager::Instance = nullptr;
 
-void UUKHPAManager::Initialize(FSubsystemCollectionBase& Collection)
+void UUKNavigationManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Instance = this;
@@ -18,7 +18,7 @@ void UUKHPAManager::Initialize(FSubsystemCollectionBase& Collection)
 	// BuildHierarchy();
 }
 
-void UUKHPAManager::Deinitialize()
+void UUKNavigationManager::Deinitialize()
 {
 	AllWaypoints.Empty();
 	WaypointToIndexMap.Empty();
@@ -27,7 +27,7 @@ void UUKHPAManager::Deinitialize()
 	Super::Deinitialize();
 }
 
-FWayPointHandle UUKHPAManager::RegisterWaypoint(AUKWayPoint* Waypoint)
+FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
 {
 	if (!IsValid(Waypoint))
 	{
@@ -83,7 +83,7 @@ FWayPointHandle UUKHPAManager::RegisterWaypoint(AUKWayPoint* Waypoint)
     return NewHandle;
 }
 
-bool UUKHPAManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
+bool UUKNavigationManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 {
 	if (!IsValid(Waypoint))
 	{
@@ -141,7 +141,7 @@ bool UUKHPAManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 }
 
 
-void UUKHPAManager::AllRegisterWaypoint()
+void UUKNavigationManager::AllRegisterWaypoint()
 {
 	// 1. 기존 정보 클리어
 	AllWaypoints.Empty();
@@ -214,7 +214,7 @@ void UUKHPAManager::AllRegisterWaypoint()
 }
 
 
-void UUKHPAManager::BuildHierarchy(bool bForceRebuild)
+void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 {
 	if (AbstractGraph.bIsBuilt && !bForceRebuild)
 	{
@@ -306,12 +306,9 @@ void UUKHPAManager::BuildHierarchy(bool bForceRebuild)
 	}
 
 	AbstractGraph.bIsBuilt = true;
-
-	// 디버그 드로잉 (옵션)
-	DrawDebugHPA();
 }
 
-TArray<AUKWayPoint*> UUKHPAManager::FindPath(const FVector& StartLocation, const FVector& EndLocation)
+TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation, const FVector& EndLocation)
 {
 	// 0. 계층 구조 빌드 확인
 	if (!AbstractGraph.bIsBuilt)
@@ -334,16 +331,6 @@ TArray<AUKWayPoint*> UUKHPAManager::FindPath(const FVector& StartLocation, const
 	// 1. 시작/끝점 근처 웨이포인트 찾기
 	AUKWayPoint* StartWP = FindNearestWayPointinRange(StartLocation);
 	AUKWayPoint* EndWP = FindNearestWayPointinRange(EndLocation);
-
-	if (!StartWP)
-	{
-		StartWP = FindNearestWaypoint(StartLocation);
-	}
-
-	if (!EndWP)
-	{
-		EndWP = FindNearestWaypoint(EndLocation);
-	}
 
 	if (!StartWP || !EndWP)
 	{
@@ -391,7 +378,7 @@ TArray<AUKWayPoint*> UUKHPAManager::FindPath(const FVector& StartLocation, const
 	}
 }
 
-AUKWayPoint* UUKHPAManager::FindNearestWaypoint(const FVector& Location, int32 PreferredClusterID) const
+AUKWayPoint* UUKNavigationManager::FindNearestWaypoint(const FVector& Location, int32 PreferredClusterID) const
 {
 	AUKWayPoint* NearestWaypoint = nullptr;
 	float MinDistSq = TNumericLimits<float>::Max();
@@ -437,7 +424,7 @@ AUKWayPoint* UUKHPAManager::FindNearestWaypoint(const FVector& Location, int32 P
 	return NearestWaypoint;
 }
 
-AUKWayPoint* UUKHPAManager::FindNearestWayPointinRange(const FVector& Location, const float Range /*= 1000.0f*/) const
+AUKWayPoint* UUKNavigationManager::FindNearestWayPointinRange(const FVector& Location, const float Range /*= 1000.0f*/) const
 {
 	AUKWayPoint* NearestWaypoint = nullptr;
 
@@ -467,7 +454,7 @@ AUKWayPoint* UUKHPAManager::FindNearestWayPointinRange(const FVector& Location, 
 	return NearestWaypoint;
 }
 
-void UUKHPAManager::FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const
+void UUKNavigationManager::FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const
 {
 	OutWayPointHandles.Reset();
 
@@ -493,13 +480,13 @@ void UUKHPAManager::FindWayPoints(const FVector Location, const float Range, TAr
 	}
 }
 
-int32 UUKHPAManager::GetClusterIDFromLocation(const FVector& Location) const
+int32 UUKNavigationManager::GetClusterIDFromLocation(const FVector& Location) const
 {
 	AUKWayPoint* NearestWP = FindNearestWaypoint(Location);
 	return NearestWP ? NearestWP->ClusterID : INDEX_NONE;
 }
 
-bool UUKHPAManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* EndWP, int32 ClusterID, TArray<int32>& OutPathIndices)
+bool UUKNavigationManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* EndWP, int32 ClusterID, TArray<int32>& OutPathIndices)
 {
 	OutPathIndices.Empty();
 	if (!StartWP || !EndWP || ClusterID == INDEX_NONE || !AbstractGraph.Clusters.Contains(ClusterID))
@@ -546,7 +533,7 @@ bool UUKHPAManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* EndWP, i
 	return false;
 }
 
-bool UUKHPAManager::FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath)
+bool UUKNavigationManager::FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath)
 {
 	OutClusterPath.Empty();
 	if (StartClusterID == INDEX_NONE || EndClusterID == INDEX_NONE || !AbstractGraph.Clusters.Contains(StartClusterID) || !AbstractGraph.Clusters.Contains(EndClusterID))
@@ -576,7 +563,7 @@ bool UUKHPAManager::FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, 
 	return false;
 }
 
-TArray<AUKWayPoint*> UUKHPAManager::StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWP, AUKWayPoint* EndWP, const TArray<int32>& ClusterPath) // ClusterPath: [StartCluster, C1, C2, ..., EndCluster]
+TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWP, AUKWayPoint* EndWP, const TArray<int32>& ClusterPath) // ClusterPath: [StartCluster, C1, C2, ..., EndCluster]
 {
 	TArray<AUKWayPoint*> FinalPath;
 	if (!StartWP || !EndWP || ClusterPath.Num() < 2)
@@ -677,7 +664,7 @@ TArray<AUKWayPoint*> UUKHPAManager::StitchPath(const FVector& StartLocation, con
 }
 
 
-TArray<AUKWayPoint*> UUKHPAManager::ConvertIndicesToWaypoints(const TArray<int32>& Indices) const
+TArray<AUKWayPoint*> UUKNavigationManager::ConvertIndicesToWaypoints(const TArray<int32>& Indices) const
 {
 	TArray<AUKWayPoint*> Waypoints;
 	Waypoints.Reserve(Indices.Num());
@@ -704,7 +691,7 @@ TArray<AUKWayPoint*> UUKHPAManager::ConvertIndicesToWaypoints(const TArray<int32
 }
 
 // 현재 WP에서 시작하여 이웃 클러스터로 가는 최적 입구 및 경로 찾기
-bool UUKHPAManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int32 NeighborClusterID, FHPAEntrance& OutBestEntrance, TArray<int32>& OutBestPathIndices)
+bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int32 NeighborClusterID, FHPAEntrance& OutBestEntrance, TArray<int32>& OutBestPathIndices)
 {
 	if (!CurrentOriginWP || NeighborClusterID == INDEX_NONE)
 	{
@@ -778,7 +765,7 @@ bool UUKHPAManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int
 }
 
 
-void UUKHPAManager::DrawDebugHPA(float Duration) const
+void UUKNavigationManager::DrawDebugHPA(float Duration) const
 {
 #if ENABLE_DRAW_DEBUG
 	UWorld* World = GetWorld();
@@ -852,10 +839,12 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 				}
 			}
 		}
+		
 		// 클러스터 중심점
-		// DrawDebugSphere(World, Cluster.CenterLocation, 25.f, 8, FColor::Black, false, Duration, SDPG_Foreground, 3.f);
+		DrawDebugBox(World, Cluster.CenterLocation, Cluster.Expansion, CurrentColor, false, Duration, SDPG_Foreground, 1.f);
 	}
 
+	// Hash Grid
 	const TSet<FWayPointHashGrid2D::FCell>& AllCells = WaypointGrid.GetCells();
 	for (auto It(AllCells.CreateConstIterator()); It; ++It)
 	{
@@ -865,14 +854,14 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 #endif
 }
 
-FWayPointHandle UUKHPAManager::GenerateNewHandle()
+FWayPointHandle UUKNavigationManager::GenerateNewHandle()
 {
 	// 단순 증가 방식 예시 (FSmartObjectHandleFactory::CreateHandleForDynamicObject 모방)
 	// 실제로는 FSmartObjectHandleFactory::CreateHandleForComponent처럼 경로 해싱 권장
 	return FWayPointHandle(NextHandleID++);
 }
 
-FBox UUKHPAManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
+FBox UUKNavigationManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
 {
 	if (!IsValid(WayPoint))
 	{

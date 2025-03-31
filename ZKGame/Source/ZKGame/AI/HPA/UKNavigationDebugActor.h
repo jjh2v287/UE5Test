@@ -3,10 +3,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "UKHPADebugActor.generated.h"
+#include "UKNavigationDebugActor.generated.h"
 
 // 전방 선언
-class UUKHPAManager;
+class UUKNavigationManager;
 class AUKWayPoint;
 
 /**
@@ -14,12 +14,12 @@ class AUKWayPoint;
  * 클러스터, 게이트웨이, 경로 등을 시각화
  */
 UCLASS()
-class ZKGAME_API AUKHPADebugActor : public AActor
+class ZKGAME_API AUKNavigationDebugActor : public AActor
 {
     GENERATED_BODY()
 
 public:
-    AUKHPADebugActor();
+    AUKNavigationDebugActor();
 
 protected:
     virtual void BeginPlay() override;

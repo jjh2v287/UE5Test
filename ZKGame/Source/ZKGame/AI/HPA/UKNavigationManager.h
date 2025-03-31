@@ -4,20 +4,20 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "GraphAStar.h"
-#include "UKHPADefine.h"
+#include "UKNavigationDefine.h"
 #include "UKWayPoint.h"
-#include "UKHPAManager.generated.h"
+#include "UKNavigationManager.generated.h"
 
 class AUKWayPoint;
 
 UCLASS()
-class ZKGAME_API UUKHPAManager : public UWorldSubsystem
+class ZKGAME_API UUKNavigationManager : public UWorldSubsystem
 {
     GENERATED_BODY()
 
 public:
     // 싱글톤 접근자
-    static UUKHPAManager* Get() { return Instance; }
+    static UUKNavigationManager* Get() { return Instance; }
 
     virtual void Initialize(FSubsystemCollectionBase& Collection) override;
     virtual void Deinitialize() override;
@@ -51,7 +51,7 @@ public:
 
 private:
     // 싱글톤 인스턴스
-    static UUKHPAManager* Instance;
+    static UUKNavigationManager* Instance;
 
     // 등록된 웨이포인트 관리 맵 (핸들 -> 런타임 데이터)
     UPROPERTY(Transient)

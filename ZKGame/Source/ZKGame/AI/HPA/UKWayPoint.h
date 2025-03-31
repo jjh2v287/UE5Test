@@ -3,12 +3,12 @@
 
 #include "CoreMinimal.h"
 #include "NavigationInvokerComponent.h"
-#include "UKHPADefine.h"
+#include "UKNavigationDefine.h"
 #include "GameFramework/Actor.h"
 #include "UKWayPoint.generated.h"
 
 
-class UUKHPAManager;
+class UUKNavigationManager;
 
 UCLASS()
 class ZKGAME_API AUKWayPoint : public AActor
