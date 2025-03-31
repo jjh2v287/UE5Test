@@ -18,14 +18,13 @@ AUKWayPoint::AUKWayPoint(const FObjectInitializer& ObjectInitializer)
 void AUKWayPoint::BeginPlay()
 {
     Super::BeginPlay();
-    // 월드가 유효하고 게임 월드인지 확인 (에디터 월드 제외 등)
+    
     UWorld* World = GetWorld();
     if (World && World->IsGameWorld())
     {
-        // HPA 매니저 서브시스템 가져오기
-        if (UUKNavigationManager* HPAManager = World->GetSubsystem<UUKNavigationManager>())
+        if (UUKNavigationManager* NavigationManage = World->GetSubsystem<UUKNavigationManager>())
         {
-           WayPointHandle = HPAManager->RegisterWaypoint(this);
+           WayPointHandle = NavigationManage->RegisterWaypoint(this);
         }
     }
 }
@@ -37,9 +36,9 @@ void AUKWayPoint::Destroyed()
      // 종료 시점에는 서브시스템이 먼저 해제될 수 있으므로 IsValid 확인
     if (World && World->IsGameWorld() && UUKNavigationManager::Get()) // Get()으로 싱글톤 유효성 확인
     {
-        if (UUKNavigationManager* HPAManager = World->GetSubsystem<UUKNavigationManager>())
+        if (UUKNavigationManager* NavigationManage = World->GetSubsystem<UUKNavigationManager>())
         {
-            HPAManager->UnregisterWaypoint(this);
+            NavigationManage->UnregisterWaypoint(this);
         }
     }
     Super::Destroyed();
