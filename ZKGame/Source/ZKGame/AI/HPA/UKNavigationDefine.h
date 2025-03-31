@@ -57,7 +57,7 @@ struct ZKGAME_API FHPAAbstractGraph
 
 // --- HPA용 A* 관련 구조체 ---
 // FWayPointAStarGraph: 클러스터 내부 탐색용
-struct FWayPointAStarGraph
+struct ZKGAME_API FWayPointAStarGraph
 {
     // 전체 웨이포인트 배열의 인덱스 사용
     typedef int32 FNodeRef;
@@ -94,7 +94,7 @@ struct FWayPointAStarGraph
 };
 
 // FWayPointFilter: 클러스터 내부 탐색 필터
-struct FWayPointFilter
+struct ZKGAME_API FWayPointFilter
 {
     const FWayPointAStarGraph& Graph;
 
@@ -109,7 +109,7 @@ struct FWayPointFilter
 
 
 // FClusterAStarGraph: 추상 클러스터 그래프 탐색용
-struct FClusterAStarGraph
+struct ZKGAME_API FClusterAStarGraph
 {
     // ClusterID를 노드 참조로 사용
     typedef int32 FNodeRef;
@@ -125,7 +125,7 @@ struct FClusterAStarGraph
 };
 
 // FClusterFilter: 추상 클러스터 그래프 탐색 필터
-struct FClusterFilter
+struct ZKGAME_API FClusterFilter
 {
     const FClusterAStarGraph& GraphRef;
 
@@ -145,7 +145,7 @@ struct FClusterFilter
 #pragma region WayPoint HashGrid
 // 1. WayPoint 핸들 정의 (FSmartObjectHandle 모방)
 USTRUCT(BlueprintType)
-struct FWayPointHandle
+struct ZKGAME_API FWayPointHandle
 {
     GENERATED_BODY()
 public:
@@ -187,7 +187,7 @@ using FWayPointHashGrid2D = THierarchicalHashGrid2D<2, 4, FWayPointHandle>;
 
 // 2. 공간 분할 데이터 정의 (FSmartObjectSpatialEntryData 모방)
 USTRUCT()
-struct FWayPointSpatialEntryData
+struct ZKGAME_API FWayPointSpatialEntryData
 {
     GENERATED_BODY()
     virtual ~FWayPointSpatialEntryData() = default; // 가상 소멸자 추가 권장
@@ -195,7 +195,7 @@ struct FWayPointSpatialEntryData
 
 // 3. 해시 그리드용 공간 분할 데이터 (FSmartObjectHashGridEntryData 모방)
 USTRUCT()
-struct FWayPointHashGridEntryData : public FWayPointSpatialEntryData
+struct ZKGAME_API FWayPointHashGridEntryData : public FWayPointSpatialEntryData
 {
     GENERATED_BODY()
 
@@ -204,7 +204,7 @@ struct FWayPointHashGridEntryData : public FWayPointSpatialEntryData
 
 // 4. WayPoint 런타임 데이터 정의 (FSmartObjectRuntime 모방)
 USTRUCT()
-struct FWayPointRuntimeData
+struct ZKGAME_API FWayPointRuntimeData
 {
     GENERATED_BODY()
 
