@@ -748,18 +748,17 @@ bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOrigin
 				CurrentPathCost = CandidateEntrance.Cost;
 			}
 
-			// h 비용: 이웃 웨이포인트에서 최종 목적지까지의 휴리스틱 비용
-			float HeuristicCost = 0.f;
+			float NeighborCost = 0.f;
 			AUKWayPoint* NeighborWP = CandidateEntrance.NeighborWaypoint.Get();
 			if (NeighborWP)
 			{
 				// 다음 클러스터의 진입점에서 최종 목적지까지의 직선 거리
-				HeuristicCost = FVector::Dist2D(NeighborWP->GetActorLocation(), CurrentOriginWP->GetActorLocation());
+				NeighborCost = FVector::Dist2D(NeighborWP->GetActorLocation(), CurrentOriginWP->GetActorLocation());
 			}
 
 			// f 비용: 총 예상 비용 (현재 비용 + 휴리스틱 비용)
 			// 휴리스틱 가중치를 0.8로 설정하여 과대평가 방지
-			float TotalEstimatedCost = CurrentPathCost + HeuristicCost * 0.8f;
+			float TotalEstimatedCost = CurrentPathCost + NeighborCost * 0.8f;
 
 			// 최적 경로 업데이트
 			if (TotalEstimatedCost < MinPathCost)
