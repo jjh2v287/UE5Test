@@ -808,7 +808,7 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 				continue;
 			}
 
-			DrawDebugBox(World, WP->GetActorLocation(), FVector(15.f,15.f,15.f), CurrentColor, false, Duration, 0, 1.f);
+			DrawDebugBox(World, WP->GetActorLocation(), FVector(15.f,15.f,15.f), CurrentColor, false, Duration, SDPG_Foreground, 1.f);
 			FString DebugText = FString::Printf(TEXT("C:%d"), Cluster.ClusterID);
 			DrawDebugString(World, WP->GetActorLocation() + FVector(0, 0, 30), DebugText, nullptr, CurrentColor, Duration, false, 2);
 			if (UTextRenderComponent* TextComp = WP->GetComponentByClass<UTextRenderComponent>())
@@ -828,7 +828,7 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 					FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
 					float LineOffset = bIsMutual ? 10.0f : 0.0f;
 
-					DrawDebugLine(World, WP->GetActorLocation() + RightVector * LineOffset, NeighborWP->GetActorLocation() + RightVector * LineOffset, CurrentColor, false, Duration, 0, 1.f);
+					DrawDebugLine(World, WP->GetActorLocation() + RightVector * LineOffset, NeighborWP->GetActorLocation() + RightVector * LineOffset, CurrentColor, false, Duration, SDPG_Foreground, 1.f);
 				}
 			}
 		}
@@ -848,19 +848,19 @@ void UUKHPAManager::DrawDebugHPA(float Duration) const
 					float LineOffset = 10.0f;
 					FVector StartLocation = NeighborWP->GetActorLocation() + RightVector * LineOffset;
 					FVector EndLocation = LocalWP->GetActorLocation() + RightVector * LineOffset;
-					DrawDebugLine(World, StartLocation, EndLocation, FColor::White, false, Duration, SDPG_Foreground, 1.f); // 굵게, 앞에 보이게
+					DrawDebugLine(World, StartLocation, EndLocation, FColor::White, false, Duration, SDPG_Foreground, 1.f);
 				}
 			}
 		}
 		// 클러스터 중심점
-		// DrawDebugSphere(World, Cluster.CenterLocation, 25.f, 8, FColor::Black, false, Duration, 0, 3.f);
+		// DrawDebugSphere(World, Cluster.CenterLocation, 25.f, 8, FColor::Black, false, Duration, SDPG_Foreground, 3.f);
 	}
 
 	const TSet<FWayPointHashGrid2D::FCell>& AllCells = WaypointGrid.GetCells();
 	for (auto It(AllCells.CreateConstIterator()); It; ++It)
 	{
 		FBox CellBounds = WaypointGrid.CalcCellBounds(FWayPointHashGrid2D::FCellLocation(It->X, It->Y, It->Level));
-		DrawDebugBox(World, CellBounds.GetCenter(), CellBounds.GetExtent(), GColorList.GetFColorByIndex(It->Level), false, Duration);
+		DrawDebugBox(World, CellBounds.GetCenter(), CellBounds.GetExtent(), GColorList.GetFColorByIndex(It->Level), false, Duration, SDPG_Foreground);
 	}
 #endif
 }

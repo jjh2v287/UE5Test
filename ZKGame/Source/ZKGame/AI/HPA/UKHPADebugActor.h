@@ -39,7 +39,7 @@ public:
     FColor DebugPathColor = FColor::Cyan;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug")
-    float DebugPathThickness = 3.0f;
+    float DebugPathThickness = 0.5f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug", meta = (DisplayName = "Draw HPA Structure"))
     bool bDrawHPAStructure = true;

@@ -71,17 +71,16 @@ void AUKHPADebugActor::UpdatePathVisualization()
 		if (WP) LastFoundPath.Add(WP);
 	}
 
-
 	// 경로 시각화
-	DrawDebugSphere(World, StartLoc, DebugSphereRadius, 16, DebugPathColor, false, DebugDrawDuration, 0, DebugPathThickness);
-	DrawDebugSphere(World, EndLoc, DebugSphereRadius, 16, DebugPathColor, false, DebugDrawDuration, 0, DebugPathThickness);
+	DrawDebugSphere(World, StartLoc, DebugSphereRadius, 24, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
+	DrawDebugSphere(World, EndLoc, DebugSphereRadius, 24, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
 
 	if (LastFoundPath.Num() > 0)
 	{
 		// 시작점 -> 첫 웨이포인트
 		if (LastFoundPath[0].Get())
 		{
-			DrawDebugDirectionalArrow(World, StartLoc, LastFoundPath[0]->GetActorLocation(), DebugArrowSize, DebugPathColor, false, DebugDrawDuration, 0, DebugPathThickness);
+			DrawDebugDirectionalArrow(World, StartLoc, LastFoundPath[0]->GetActorLocation(), DebugArrowSize, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
 		}
 
 		// 웨이포인트 간 경로
@@ -91,7 +90,7 @@ void AUKHPADebugActor::UpdatePathVisualization()
 			AUKWayPoint* NextWP = LastFoundPath[i + 1].Get();
 			if (CurrentWP && NextWP)
 			{
-				DrawDebugDirectionalArrow(World, CurrentWP->GetActorLocation(), NextWP->GetActorLocation(), DebugArrowSize, DebugPathColor, false, DebugDrawDuration, 0, DebugPathThickness);
+				DrawDebugDirectionalArrow(World, CurrentWP->GetActorLocation(), NextWP->GetActorLocation(), DebugArrowSize, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
 			}
 		}
 
@@ -99,12 +98,12 @@ void AUKHPADebugActor::UpdatePathVisualization()
 		AUKWayPoint* LastWP = LastFoundPath.Last().Get();
 		if (LastWP)
 		{
-			DrawDebugDirectionalArrow(World, LastWP->GetActorLocation(), EndLoc, DebugArrowSize, DebugPathColor, false, DebugDrawDuration, 0, DebugPathThickness);
+			DrawDebugDirectionalArrow(World, LastWP->GetActorLocation(), EndLoc, DebugArrowSize, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
 		}
 	}
 	else
 	{
 		// 경로 못 찾았을 때 시작->끝 직선 (빨간색) 표시 (옵션)
-		DrawDebugLine(World, StartLoc, EndLoc, FColor::Red, false, DebugDrawDuration, 0, DebugPathThickness * 0.5f);
+		DrawDebugLine(World, StartLoc, EndLoc, FColor::Red, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness * 0.5f);
 	}
 }
