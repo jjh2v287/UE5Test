@@ -55,45 +55,44 @@ struct ZKGAME_API FHPAAbstractGraph
     }
 };
 
-// --- HPA용 A* 관련 구조체 ---
-// FWayPointAStarGraph: 클러스터 내부 탐색용
+// --- A* related structure for HPA. For interior of the cluster ---
 struct ZKGAME_API FWayPointAStarGraph
 {
-    // 전체 웨이포인트 배열의 인덱스 사용
+    // Use of indexes of full Wey -point array
     typedef int32 FNodeRef;
 
-    // 전체 웨이포인트 배열 참조
+    // Refer to the entire way point array
     const TArray<TWeakObjectPtr<AUKWayPoint>>* AllWaypointsPtr = nullptr;
 
-    // 포인터 -> 인덱스 맵 참조
+    // Pointer-> See index maps
     const TMap<AUKWayPoint*, int32>* WaypointToIndexMapPtr = nullptr;
 
-    // 탐색 대상 클러스터 ID
+    // Cluster ID to be explored
     int32 CurrentClusterID = INDEX_NONE;
 
     FWayPointAStarGraph(const TArray<TWeakObjectPtr<AUKWayPoint>>& InAllWaypoints, const TMap<AUKWayPoint*, int32>& InIndexMap, int32 InClusterID)
         : AllWaypointsPtr(&InAllWaypoints), WaypointToIndexMapPtr(&InIndexMap), CurrentClusterID(InClusterID) {}
 
-    // 노드(웨이포인트) 인덱스의 유효성 검사
+    // Validate waypoint index
     bool IsValidRef(FNodeRef NodeRef) const
     {
         return AllWaypointsPtr && AllWaypointsPtr->IsValidIndex(NodeRef);
     }
 
-    // 특정 노드(웨이포인트) 인덱스에 해당하는 웨이포인트 객체 반환
+    // Return of the Way Point Object, which corresponds to a specific way point index
     AUKWayPoint* GetWaypoint(FNodeRef NodeRef) const
     {
         return IsValidRef(NodeRef) ? (*AllWaypointsPtr)[NodeRef].Get() : nullptr;
     }
 
-    // 특정 노드(웨이포인트) 인덱스에서 접근 가능한 이웃 노드 수 반환 (같은 클러스터 내)
+    // Returns to neighboring nodes accessible from certain Wei Point indexes (within the same cluster)
     int32 GetNeighbourCount(FNodeRef NodeRef) const;
 
-    // 특정 노드(웨이포인트) 인덱스의 NeighbourIndex번째 이웃 노드 인덱스 반환 (같은 클러스터 내)
+    // Returns the index of the Nth neighboring node of a given waypoint index (within the same cluster).
     FNodeRef GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const;
 };
 
-// FWayPointFilter: 클러스터 내부 탐색 필터
+// Cluster internal search filter
 struct ZKGAME_API FWayPointFilter
 {
     const FWayPointAStarGraph& Graph;
@@ -108,13 +107,13 @@ struct ZKGAME_API FWayPointFilter
 };
 
 
-// FClusterAStarGraph: 추상 클러스터 그래프 탐색용
+// Abstract cluster graph search
 struct ZKGAME_API FClusterAStarGraph
 {
-    // ClusterID를 노드 참조로 사용
+    // Use ClusterID as a reference to node
     typedef int32 FNodeRef;
 
-    // 추상 그래프 데이터 참조
+    // See Abstract Graph Data
     const FHPAAbstractGraph* AbstractGraphPtr = nullptr;
 
     FClusterAStarGraph(const FHPAAbstractGraph* InGraph) : AbstractGraphPtr(InGraph) {}
@@ -124,12 +123,12 @@ struct ZKGAME_API FClusterAStarGraph
     FNodeRef GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const;
 };
 
-// FClusterFilter: 추상 클러스터 그래프 탐색 필터
+// Abstract Cluster Graph Filter
 struct ZKGAME_API FClusterFilter
 {
     const FClusterAStarGraph& GraphRef;
 
-    // 비용 계산 등을 위해 원본 데이터 접근
+    // Source data access for cost calculation, etc.
     const FHPAAbstractGraph* AbstractGraphPtr;
 
     FClusterFilter(const FClusterAStarGraph& InGraphRef, const FHPAAbstractGraph* InAbstractGraph)
@@ -143,7 +142,7 @@ struct ZKGAME_API FClusterFilter
 };
 
 #pragma region WayPoint HashGrid
-// 1. WayPoint 핸들 정의 (FSmartObjectHandle 모방)
+// 1. WayPoint handle definition (fsmartobjectHandle imitation)
 USTRUCT(BlueprintType)
 struct ZKGAME_API FWayPointHandle
 {
@@ -169,7 +168,7 @@ public:
     }
 
 private:
-    // 서브시스템만 ID를 설정할 수 있도록 함
+    // Only the UUKNavigationManager can set the ID
     friend class UUKNavigationManager;
 
     explicit FWayPointHandle(const uint64 InID) : ID(InID) {}
@@ -181,28 +180,28 @@ public:
     static const FWayPointHandle Invalid;
 };
 
-// THierarchicalHashGrid2D 타입 정의 (FSmartObjectHashGrid2D 모방)
-// 템플릿 파라미터는 필요에 따라 조절 (CellSize=2, Density=4는 예시)
+// Thierarchicalhashgrid2d Type Definition (fsmartobjecthashgrid2d imitation)
 using FWayPointHashGrid2D = THierarchicalHashGrid2D<2, 4, FWayPointHandle>;
 
-// 2. 공간 분할 데이터 정의 (FSmartObjectSpatialEntryData 모방)
+// 2. Spatial split data definition (fsmartobjectSpatialEntryData imitation)
 USTRUCT()
 struct ZKGAME_API FWayPointSpatialEntryData
 {
     GENERATED_BODY()
-    virtual ~FWayPointSpatialEntryData() = default; // 가상 소멸자 추가 권장
+    virtual ~FWayPointSpatialEntryData() = default;
 };
 
-// 3. 해시 그리드용 공간 분할 데이터 (FSmartObjectHashGridEntryData 모방)
+// 3. Space split data for hash grid (fsmartobjecthashgridentrydata imitation)
 USTRUCT()
 struct ZKGAME_API FWayPointHashGridEntryData : public FWayPointSpatialEntryData
 {
     GENERATED_BODY()
 
-    FWayPointHashGrid2D::FCellLocation CellLoc; // 그리드 셀 위치 저장
+    // Grid cell location storage
+    FWayPointHashGrid2D::FCellLocation CellLoc;
 };
 
-// 4. WayPoint 런타임 데이터 정의 (FSmartObjectRuntime 모방)
+// 4. WayPoint Runtime Data Definition (FSMARTOBJECTRUNTIME imitation)
 USTRUCT()
 struct ZKGAME_API FWayPointRuntimeData
 {
@@ -215,27 +214,22 @@ public:
         : WayPointObject(InWayPoint)
         , Handle(InHandle)
     {
-        // 해시 그리드용 공간 데이터로 초기화
+        // Initialization with space data for hash grid
         SpatialEntryData.InitializeAs<FWayPointHashGridEntryData>();
     }
 
-    // 웨이포인트 오브젝트 포인터 (WeakObjectPtr 권장)
     UPROPERTY(VisibleAnywhere, Category = WayPoint)
     TWeakObjectPtr<AUKWayPoint> WayPointObject;
 
-    // 고유 핸들
     UPROPERTY(VisibleAnywhere, Category = WayPoint)
     FWayPointHandle Handle;
 
-    // 웨이포인트의 월드 트랜스폼 (등록 시 업데이트)
     UPROPERTY(VisibleAnywhere, Category = WayPoint)
     FTransform Transform;
 
-    // 웨이포인트의 경계 상자 (등록 시 업데이트)
     UPROPERTY(VisibleAnywhere, Category = WayPoint)
     FBox Bounds;
 
-    // 공간 분할 데이터 (FSmartObjectRuntime의 SpatialEntryData 모방)
     UPROPERTY()
     FInstancedStruct SpatialEntryData;
 };

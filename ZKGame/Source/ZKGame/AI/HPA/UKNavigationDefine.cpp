@@ -7,7 +7,6 @@
 
 const FWayPointHandle FWayPointHandle::Invalid = FWayPointHandle(0);
 
-// FHPACluster
 void FHPACluster::CalculateCenter()
 {
 	if (Waypoints.IsEmpty())
@@ -16,29 +15,26 @@ void FHPACluster::CalculateCenter()
 		return;
 	}
 
-	// 클러스터 경계 초기화
-	FBox ClusterBounds(EForceInit::ForceInit); // 비어있는 경계 박스로 초기화
+	// Cluster boundary Calculate
+	FBox ClusterBounds(EForceInit::ForceInit);
 	FVector MinBounds = FVector(FLT_MAX, FLT_MAX, FLT_MAX);
 	FVector MaxBounds = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX);
 	int32 ValidCount = 0;
-	for (const auto& WeakWP : Waypoints)
+	for (const TWeakObjectPtr<AUKWayPoint>& WeakWayPoint : Waypoints)
 	{
-		if (AUKWayPoint* WP = WeakWP.Get())
+		if (AUKWayPoint* WayPoint = WeakWayPoint.Get())
 		{
-			FVector WPLocation = WP->GetActorLocation();
+			FVector WayPointLocation = WayPoint->GetActorLocation();
 
-			// 최소값 업데이트
-			MinBounds.X = FMath::Min(MinBounds.X, WPLocation.X);
-			MinBounds.Y = FMath::Min(MinBounds.Y, WPLocation.Y);
-			MinBounds.Z = FMath::Min(MinBounds.Z, WPLocation.Z);
+			MinBounds.X = FMath::Min(MinBounds.X, WayPointLocation.X);
+			MinBounds.Y = FMath::Min(MinBounds.Y, WayPointLocation.Y);
+			MinBounds.Z = FMath::Min(MinBounds.Z, WayPointLocation.Z);
 
-			// 최대값 업데이트
-			MaxBounds.X = FMath::Max(MaxBounds.X, WPLocation.X);
-			MaxBounds.Y = FMath::Max(MaxBounds.Y, WPLocation.Y);
-			MaxBounds.Z = FMath::Max(MaxBounds.Z, WPLocation.Z);
+			MaxBounds.X = FMath::Max(MaxBounds.X, WayPointLocation.X);
+			MaxBounds.Y = FMath::Max(MaxBounds.Y, WayPointLocation.Y);
+			MaxBounds.Z = FMath::Max(MaxBounds.Z, WayPointLocation.Z);
 
-			// 현재 웨이포인트 위치를 경계에 추가
-			ClusterBounds += WPLocation;
+			ClusterBounds += WayPointLocation;
 			ValidCount++;
 		}
 	}
@@ -48,21 +44,19 @@ void FHPACluster::CalculateCenter()
 	CenterLocation = ClusterBounds.GetCenter();
 }
 
-// FWayPointAStarGraph
 int32 FWayPointAStarGraph::GetNeighbourCount(FNodeRef NodeRef) const
 {
-	AUKWayPoint* CurrentWP = GetWaypoint(NodeRef);
-	if (!CurrentWP || CurrentWP->ClusterID != CurrentClusterID)
+	AUKWayPoint* CurrentWayPoint = GetWaypoint(NodeRef);
+	if (!CurrentWayPoint || CurrentWayPoint->ClusterID != CurrentClusterID)
 	{
-		// 현재 클러스터 소속 확인
 		return 0;
 	}
 
 	int32 Count = 0;
-	for (AUKWayPoint* NeighborWP : CurrentWP->PathPoints)
+	for (AUKWayPoint* NeighborWayPoint : CurrentWayPoint->PathPoints)
 	{
-		// 이웃이 유효하고 같은 클러스터 내에 있어야 함
-		if (NeighborWP && NeighborWP->ClusterID == CurrentClusterID)
+		// Neighbors must be in the same cluster
+		if (NeighborWayPoint && NeighborWayPoint->ClusterID == CurrentClusterID)
 		{
 			Count++;
 		}
@@ -72,22 +66,22 @@ int32 FWayPointAStarGraph::GetNeighbourCount(FNodeRef NodeRef) const
 
 FWayPointAStarGraph::FNodeRef FWayPointAStarGraph::GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const
 {
-	AUKWayPoint* CurrentWP = GetWaypoint(NodeRef);
-	if (!CurrentWP || CurrentWP->ClusterID != CurrentClusterID)
+	AUKWayPoint* CurrentWayPoint = GetWaypoint(NodeRef);
+	if (!CurrentWayPoint || CurrentWayPoint->ClusterID != CurrentClusterID)
 	{
 		return INDEX_NONE;
 	}
 
 	int32 CurrentValidNeighborIndex = 0;
-	for (AUKWayPoint* NeighborWP : CurrentWP->PathPoints)
+	for (AUKWayPoint* NeighborWayPoint : CurrentWayPoint->PathPoints)
 	{
-		if (NeighborWP && NeighborWP->ClusterID == CurrentClusterID)
+		if (NeighborWayPoint && NeighborWayPoint->ClusterID == CurrentClusterID)
 		{
-			// 같은 클러스터 내 이웃만
+			// Only in the same cluster
 			if (CurrentValidNeighborIndex == NeighbourIndex)
 			{
-				// 해당 이웃의 전체 인덱스 반환
-				const int32* IndexPtr = WaypointToIndexMapPtr->Find(NeighborWP);
+				// Return to the entire index of the neighborhood
+				const int32* IndexPtr = WaypointToIndexMapPtr->Find(NeighborWayPoint);
 				return IndexPtr ? *IndexPtr : INDEX_NONE;
 			}
 			CurrentValidNeighborIndex++;
@@ -97,31 +91,29 @@ FWayPointAStarGraph::FNodeRef FWayPointAStarGraph::GetNeighbour(const FNodeRef& 
 	return INDEX_NONE;
 }
 
-// FWayPointFilter
 FVector::FReal FWayPointFilter::GetHeuristicCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const
 {
-	AUKWayPoint* StartWP = Graph.GetWaypoint(StartNode.NodeRef);
-	AUKWayPoint* EndWP = Graph.GetWaypoint(EndNode.NodeRef);
+	AUKWayPoint* StartWayPoint = Graph.GetWaypoint(StartNode.NodeRef);
+	AUKWayPoint* EndWayPoint = Graph.GetWaypoint(EndNode.NodeRef);
 	
-	return (StartWP && EndWP) ? FVector::Dist(StartWP->GetActorLocation(), EndWP->GetActorLocation()) : TNumericLimits<FVector::FReal>::Max();
+	return (StartWayPoint && EndWayPoint) ? FVector::Dist(StartWayPoint->GetActorLocation(), EndWayPoint->GetActorLocation()) : TNumericLimits<FVector::FReal>::Max();
 }
 
 FVector::FReal FWayPointFilter::GetTraversalCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const
 {
-	// 실제 이동 비용 (거리)
+	// Actual movement cost (distance)
 	return GetHeuristicCost(StartNode, EndNode);
 }
 
 bool FWayPointFilter::IsTraversalAllowed(FGraphAStarDefaultNode<FWayPointAStarGraph> NodeA, FGraphAStarDefaultNode<FWayPointAStarGraph> NodeB) const
 {
-	// GetNeighbour에서 이미 같은 클러스터인지 확인했으므로 기본적으로 허용
-	// 추가 조건(웨이포인트 비활성화 등)이 있다면 여기서 검사
-	AUKWayPoint* WPA = Graph.GetWaypoint(NodeA.NodeRef);
-	AUKWayPoint* WPB = Graph.GetWaypoint(NodeB.NodeRef);
-	return WPA != nullptr && WPB != nullptr; // 유효한 웨이포인트인지 최종 확인
+	AUKWayPoint* WayPointA = Graph.GetWaypoint(NodeA.NodeRef);
+	AUKWayPoint* WayPointB = Graph.GetWaypoint(NodeB.NodeRef);
+
+	// Check the final whether it is a valid way point
+	return WayPointA != nullptr && WayPointB != nullptr;
 }
 
-// FClusterAStarGraph
 bool FClusterAStarGraph::IsValidRef(FNodeRef NodeRef) const
 {
 	return AbstractGraphPtr && AbstractGraphPtr->Clusters.Contains(NodeRef);
@@ -135,7 +127,9 @@ int32 FClusterAStarGraph::GetNeighbourCount(FNodeRef NodeRef) const
 	}
 	
 	const FHPACluster* Cluster = AbstractGraphPtr->Clusters.Find(NodeRef);
-	return Cluster ? Cluster->Entrances.Num() : 0; // 각 이웃 클러스터 ID가 하나의 이웃 노드
+
+	// Each neighbor cluster ID is one neighbor node
+	return Cluster ? Cluster->Entrances.Num() : 0;
 }
 
 FClusterAStarGraph::FNodeRef FClusterAStarGraph::GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const
@@ -151,7 +145,6 @@ FClusterAStarGraph::FNodeRef FClusterAStarGraph::GetNeighbour(const FNodeRef& No
 		return INDEX_NONE;
 	}
 
-	// TMap 이터레이터로 NeighbourIndex번째 Key (이웃 클러스터 ID) 반환
 	TMap<int32, TArray<FHPAEntrance>>::TConstIterator It = Cluster->Entrances.CreateConstIterator();
 	int32 CurrentIndex = 0;
 	while (It)
@@ -167,7 +160,6 @@ FClusterAStarGraph::FNodeRef FClusterAStarGraph::GetNeighbour(const FNodeRef& No
 	return INDEX_NONE;
 }
 
-// FClusterFilter
 FVector::FReal FClusterFilter::GetHeuristicCost(FGraphAStarDefaultNode<FClusterAStarGraph> StartNode, FGraphAStarDefaultNode<FClusterAStarGraph> EndNode) const
 {
 	if (!AbstractGraphPtr)
@@ -178,7 +170,7 @@ FVector::FReal FClusterFilter::GetHeuristicCost(FGraphAStarDefaultNode<FClusterA
 	const FHPACluster* StartCluster = AbstractGraphPtr->Clusters.Find(StartNode.NodeRef);
 	const FHPACluster* EndCluster = AbstractGraphPtr->Clusters.Find(EndNode.NodeRef);
 	
-	// 클러스터 중심점 간의 거리 사용
+	// Using distance between cluster center points
 	return (StartCluster && EndCluster) ? FVector::Dist(StartCluster->CenterLocation, EndCluster->CenterLocation) : TNumericLimits<FVector::FReal>::Max();
 }
 
@@ -195,11 +187,12 @@ FVector::FReal FClusterFilter::GetTraversalCost(FGraphAStarDefaultNode<FClusterA
 		return TNumericLimits<FVector::FReal>::Max();
 	}
 
-	// StartCluster에서 EndNode.NodeRef (이웃 클러스터 ID)로 가는 입구 비용 중 최소값 사용 (간단 버전)
+	// The minimum value of the entrance cost to the startcluster to endNode.noderef (neighboring cluster ID) (simple version)
 	const TArray<FHPAEntrance>* EntrancesToNeighbor = StartCluster->Entrances.Find(EndNode.NodeRef);
 	if (!EntrancesToNeighbor || EntrancesToNeighbor->IsEmpty())
 	{
-		return TNumericLimits<FVector::FReal>::Max(); // 실제로는 연결된 이웃이므로 발생하면 안됨
+		// It is actually a connected neighbor, so it should not occur
+		return TNumericLimits<FVector::FReal>::Max();
 	}
 
 	float MinCost = TNumericLimits<float>::Max();
@@ -207,13 +200,12 @@ FVector::FReal FClusterFilter::GetTraversalCost(FGraphAStarDefaultNode<FClusterA
 	{
 		MinCost = FMath::Min(MinCost, Entrance.Cost);
 	}
-	// 더 정확한 비용 계산 (클러스터 내부 이동 고려 - 전처리 필요)
-
+	
+	// More accurate cost calculations (considering the inner movement of cluster -pretreatment)
 	return MinCost;
 }
 
 bool FClusterFilter::IsTraversalAllowed(FGraphAStarDefaultNode<FClusterAStarGraph> NodeA, FGraphAStarDefaultNode<FClusterAStarGraph> NodeB) const
 {
-	// GetNeighbour에서 유효한 연결만 반환하므로 항상 true
 	return AbstractGraphPtr && AbstractGraphPtr->Clusters.Contains(NodeA.NodeRef) && AbstractGraphPtr->Clusters. Contains(NodeB.NodeRef);
 }

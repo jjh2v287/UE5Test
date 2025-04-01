@@ -31,16 +31,15 @@ void AUKWayPoint::BeginPlay()
 
 void AUKWayPoint::Destroyed()
 {
-    // 월드가 유효하고 게임 월드인지 확인
-    UWorld* World = GetWorld();
-     // 종료 시점에는 서브시스템이 먼저 해제될 수 있으므로 IsValid 확인
-    if (World && World->IsGameWorld() && UUKNavigationManager::Get()) // Get()으로 싱글톤 유효성 확인
+    const UWorld* World = GetWorld();
+    if (World && World->IsGameWorld() && UUKNavigationManager::Get())
     {
         if (UUKNavigationManager* NavigationManage = World->GetSubsystem<UUKNavigationManager>())
         {
             NavigationManage->UnregisterWaypoint(this);
         }
     }
+    
     Super::Destroyed();
 }
 
@@ -58,17 +57,14 @@ void AUKWayPoint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
     {
         const FName PropertyName = PropertyChangedEvent.Property->GetFName();
 
-        // PathPoints 변경 시 양방향 연결 자동 추가 로직
         if (PropertyName == GET_MEMBER_NAME_CHECKED(AUKWayPoint, PathPoints))
         {
             for (AUKWayPoint* NextPoint : PathPoints)
             {
                 if (NextPoint && !NextPoint->PathPoints.Contains(this))
                 {
-                    // 직접 수정 시 무한 루프 방지 필요할 수 있음 (Modify 사용 등)
-                    NextPoint->Modify(); // 변경 기록
+                    NextPoint->Modify();
                     NextPoint->PathPoints.Add(this);
-                    // 에디터에서 변경 사항 즉시 반영 알림
                     NextPoint->PostEditChange();
                 }
             }

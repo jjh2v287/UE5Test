@@ -5,14 +5,9 @@
 #include "GameFramework/Actor.h"
 #include "UKNavigationDebugActor.generated.h"
 
-// 전방 선언
 class UUKNavigationManager;
 class AUKWayPoint;
 
-/**
- * HPA* 디버깅용 액터
- * 클러스터, 게이트웨이, 경로 등을 시각화
- */
 UCLASS()
 class ZKGAME_API AUKNavigationDebugActor : public AActor
 {
@@ -52,7 +47,6 @@ public:
 private:
     void UpdatePathVisualization();
 
-    // 경로 시각화를 위해 마지막 경로 저장 (선택적)
     UPROPERTY(Transient)
     TArray<TObjectPtr<AUKWayPoint>> LastFoundPath;
 };

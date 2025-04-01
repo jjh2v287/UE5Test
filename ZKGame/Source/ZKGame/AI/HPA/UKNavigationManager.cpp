@@ -14,7 +14,7 @@ void UUKNavigationManager::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 	Instance = this;
-	// 게임 시작 시 자동 빌드 고려
+	// Consider automatic build at the start of the game
 	// BuildHierarchy();
 }
 
@@ -40,10 +40,11 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
 		return Waypoint->GetWayPointHandle();
 		
 	}
-	
+
+	//----------- HPA -----------
 	AllWaypoints.Add(Waypoint);
 	WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
-	// 웨이포인트 추가 시 계층 구조 무효화
+	// Invalidation of the hierarchy when adding weightpoints
 	AbstractGraph.bIsBuilt = false;
 
 	//----------- HashGrid -----------
@@ -52,22 +53,22 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
 		return Waypoint->GetWayPointHandle();
 	}
 
-    // 새 핸들 생성
+    // Create a new handle
     FWayPointHandle NewHandle = GenerateNewHandle();
     if (!NewHandle.IsValid())
     {
         return FWayPointHandle::Invalid;
     }
 
-    // 런타임 데이터 생성 및 맵에 추가
+    // Creating and adding to the runtime data to the map
     FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
 
-    // 경계 상자 및 트랜스폼 계산/저장
+    // Boundary box and transform calculation/storage
     RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
 	RuntimeData.Transform = Waypoint->GetActorTransform();
 
 
-    // 공간 그리드에 추가
+    // Add to the Hash grid
     FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetMutablePtr<FWayPointHashGridEntryData>();
     if (GridEntryData)
     {
@@ -75,7 +76,7 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
     }
     else
     {
-        // 등록 실패 처리: 맵에서 제거 등
+        // Registration failure processing: removal from the map, etc.
         RuntimeWayPoints.Remove(NewHandle);
         return FWayPointHandle::Invalid;
     }
@@ -89,35 +90,30 @@ bool UUKNavigationManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 	{
 		return false;
 	}
-	
+
+	//----------- HPA -----------
 	int32* IndexPtr = WaypointToIndexMap.Find(Waypoint);
 	if (IndexPtr)
 	{
 		int32 IndexToRemove = *IndexPtr;
 		
-		// 맵에서 먼저 제거
 		WaypointToIndexMap.Remove(Waypoint);
 
 		if (AllWaypoints.IsValidIndex(IndexToRemove))
 		{
-			// 배열 끝 요소와 Swap 후 Pop (인덱스 재조정)
 			if (IndexToRemove < AllWaypoints.Num() - 1)
 			{
 				AllWaypoints.Swap(IndexToRemove, AllWaypoints.Num() - 1);
-				// 이동된 요소의 인덱스 업데이트
-				AUKWayPoint* SwappedWP = AllWaypoints[IndexToRemove].Get();
-				if (SwappedWP)
+				AUKWayPoint* SwappedWayPoint = AllWaypoints[IndexToRemove].Get();
+				if (SwappedWayPoint)
 				{
-					// 기존 맵 항목 제거 후 새로 추가 (혹시 모를 중복 방지)
-					WaypointToIndexMap.Remove(SwappedWP);
-					WaypointToIndexMap.Add(SwappedWP, IndexToRemove);
+					WaypointToIndexMap.Remove(SwappedWayPoint);
+					WaypointToIndexMap.Add(SwappedWayPoint, IndexToRemove);
 				}
 			}
-			// 마지막 요소 제거 (실제로는 Swap 후 마지막이 된 원래 요소를 제거)
 			AllWaypoints.Pop(EAllowShrinking::No);
 		}
 
-		// 웨이포인트 제거 시 계층 구조 무효화
 		AbstractGraph.bIsBuilt = false;
 	}
 
@@ -125,7 +121,6 @@ bool UUKNavigationManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 	FWayPointRuntimeData RuntimeData;
 	if (RuntimeWayPoints.RemoveAndCopyValue(Waypoint->GetWayPointHandle(), RuntimeData))
 	{
-		// 공간 그리드에서 제거
 		const FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetPtr<FWayPointHashGridEntryData>();
 		if (GridEntryData)
 		{
@@ -143,12 +138,12 @@ bool UUKNavigationManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 
 void UUKNavigationManager::AllRegisterWaypoint()
 {
-	// 1. 기존 정보 클리어
+	// 1. Existing information clear
 	AllWaypoints.Empty();
 	WaypointToIndexMap.Empty();
 	AbstractGraph.Clear();
 
-	// 2. 월드에서 모든 AUKWayPoint 액터 찾기
+	// 2. Find all AUKWayPoint actors in the world
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -158,13 +153,13 @@ void UUKNavigationManager::AllRegisterWaypoint()
 	TArray<AActor*> FoundWaypoints;
 	UGameplayStatics::GetAllActorsOfClass(World, AUKWayPoint::StaticClass(), FoundWaypoints);
 
-	// 3. 찾은 액터를 캐스팅하여 등록
+	// 3. Register the found actor
 	AllWaypoints.Reserve(FoundWaypoints.Num());
 	for (AActor* Actor : FoundWaypoints)
 	{
 		if (AUKWayPoint* Waypoint = Cast<AUKWayPoint>(Actor))
 		{
-			// RegisterWaypoint 내부 로직 직접 수행 (중복 호출 방지)
+			//----------- HPA -----------
 			if (IsValid(Waypoint) && !WaypointToIndexMap.Contains(Waypoint))
 			{
 				AllWaypoints.Add(Waypoint);
@@ -177,22 +172,22 @@ void UUKNavigationManager::AllRegisterWaypoint()
 				continue;
 			}
 
-			// 새 핸들 생성
+			// Create a new handle
 			FWayPointHandle NewHandle = GenerateNewHandle();
 			if (!NewHandle.IsValid())
 			{
 				continue;
 			}
 
-			// 런타임 데이터 생성 및 맵에 추가
+			// Creating and adding to the runtime data to the map
 			FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
 
-			// 경계 상자 및 트랜스폼 계산/저장
+			// Boundary box and transform calculation/storage
 			RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
 			RuntimeData.Transform = Waypoint->GetActorTransform();
 
 
-			// 공간 그리드에 추가
+			// Add to grid
 			FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetMutablePtr<FWayPointHashGridEntryData>();
 			if (GridEntryData)
 			{
@@ -200,7 +195,7 @@ void UUKNavigationManager::AllRegisterWaypoint()
 			}
 			else
 			{
-				// 등록 실패 처리: 맵에서 제거 등
+				// Registration failure processing: removal from the map, etc.
 				RuntimeWayPoints.Remove(NewHandle);
 				continue;
 			}
@@ -209,7 +204,7 @@ void UUKNavigationManager::AllRegisterWaypoint()
 		}
 	}
 
-	// 4. 계층 구조 빌드 (선택적 - 여기서 바로 빌드할지 결정)
+	// 4. Hierarchical structure build (optional -decision to build right here)
 	BuildHierarchy(true);
 }
 
@@ -224,66 +219,65 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 
 	AbstractGraph.Clear();
 
-	// 1. 클러스터 생성 및 웨이포인트 할당
+	// 1. Cluster creation and way point assignment
 	for (int32 i = 0; i < AllWaypoints.Num(); ++i)
 	{
-		AUKWayPoint* WP = AllWaypoints[i].Get();
-		if (!WP)
+		AUKWayPoint* WayPoint = AllWaypoints[i].Get();
+		if (!WayPoint)
 		{
 			continue;
 		}
 		
-		if (WP->ClusterID == INDEX_NONE)
+		if (WayPoint->ClusterID == INDEX_NONE)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Waypoint %s has invalid ClusterID. Skipping."), *WP->GetName());
+			UE_LOG(LogTemp, Warning, TEXT("Waypoint %s has invalid ClusterID. Skipping."), *WayPoint->GetName());
 			continue;
 		}
 
-		FHPACluster& Cluster = AbstractGraph.Clusters.FindOrAdd(WP->ClusterID);
+		FHPACluster& Cluster = AbstractGraph.Clusters.FindOrAdd(WayPoint->ClusterID);
 		if (Cluster.ClusterID == INDEX_NONE)
 		{
-			// 새로 추가된 경우 ID 설정
-			Cluster.ClusterID = WP->ClusterID;
+			// If the newly added ID setting
+			Cluster.ClusterID = WayPoint->ClusterID;
 		}
-		Cluster.Waypoints.Add(WP);
+		Cluster.Waypoints.Add(WayPoint);
 	}
 
-	// 2. 클러스터 간 입구(Entrance) 식별
+	// 2. Identification of Entrance between clusters
 	for (auto& ClusterPair : AbstractGraph.Clusters)
 	{
 		const int32 CurrentClusterID = ClusterPair.Key;
 		FHPACluster& CurrentCluster = ClusterPair.Value;
 
-		for (const auto& WeakWP : CurrentCluster.Waypoints)
+		for (const auto& WeakWayPoint : CurrentCluster.Waypoints)
 		{
-			AUKWayPoint* LocalWP = WeakWP.Get();
-			if (!LocalWP)
+			AUKWayPoint* LocalWayPoint = WeakWayPoint.Get();
+			if (!LocalWayPoint)
 			{
 				continue;
 			}
 
-			for (AUKWayPoint* NeighborWP : LocalWP->PathPoints)
+			for (AUKWayPoint* NeighborWayPoint : LocalWayPoint->PathPoints)
 			{
-				// 직접 연결된 이웃 확인
-				if (!NeighborWP)
+				if (!NeighborWayPoint)
 				{
 					continue;
 				}
 
-				// 이웃이 유효하고 다른 클러스터에 속하는지 확인
-				if (NeighborWP->ClusterID != INDEX_NONE && NeighborWP->ClusterID != CurrentClusterID)
+				// Make sure your neighbors are valid and belong to other clusters
+				if (NeighborWayPoint->ClusterID != INDEX_NONE && NeighborWayPoint->ClusterID != CurrentClusterID)
 				{
 					// 입구 발견
-					int32 NeighborClusterID = NeighborWP->ClusterID;
-					float Cost = FVector::Dist(LocalWP->GetActorLocation(), NeighborWP->GetActorLocation());
+					int32 NeighborClusterID = NeighborWayPoint->ClusterID;
+					float Cost = FVector::Dist(LocalWayPoint->GetActorLocation(), NeighborWayPoint->GetActorLocation());
 
-					// 현재 클러스터의 Entrances 맵에 추가
+					// Add to the current cluster's enttranceS map
 					TArray<FHPAEntrance>& EntrancesList = CurrentCluster.Entrances.FindOrAdd(NeighborClusterID);
-					// 중복 입구 방지 (선택적) - 동일한 LocalWP, NeighborWP 쌍이 이미 있는지 확인
+					// Duplicate entrance prevention (optional) -Checks that the same localwp, neighborwp pairs are already available
 					bool bAlreadyExists = false;
 					for (const auto& ExistingEntrance : EntrancesList)
 					{
-						if (ExistingEntrance.LocalWaypoint == LocalWP && ExistingEntrance.NeighborWaypoint == NeighborWP)
+						if (ExistingEntrance.LocalWaypoint == LocalWayPoint && ExistingEntrance.NeighborWaypoint == NeighborWayPoint)
 						{
 							bAlreadyExists = true;
 							break;
@@ -292,14 +286,14 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 					
 					if (!bAlreadyExists)
 					{
-						EntrancesList.Emplace(LocalWP, NeighborWP, NeighborClusterID, Cost);
+						EntrancesList.Emplace(LocalWayPoint, NeighborWayPoint, NeighborClusterID, Cost);
 					}
 				}
 			}
 		}
 	}
 
-	// 3. 클러스터 중심 계산
+	// 3. Cluster -centered calculation
 	for (auto& Pair : AbstractGraph.Clusters)
 	{
 		Pair.Value.CalculateCenter();
@@ -310,7 +304,7 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 
 TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation, const FVector& EndLocation)
 {
-	// 0. 계층 구조 빌드 확인
+	// 0. Check the hierarchy structure build
 	if (!AbstractGraph.bIsBuilt)
 	{
 		BuildHierarchy(true);
@@ -328,31 +322,31 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 	}
 
 
-	// 1. 시작/끝점 근처 웨이포인트 찾기
-	AUKWayPoint* StartWP = FindNearestWayPointinRange(StartLocation);
-	AUKWayPoint* EndWP = FindNearestWayPointinRange(EndLocation);
+	// 1. Find a way point near the start/endpoint
+	AUKWayPoint* StartWayPoint = FindNearestWayPointinRange(StartLocation);
+	AUKWayPoint* EndWayPoint = FindNearestWayPointinRange(EndLocation);
 
-	if (!StartWP || !EndWP)
+	if (!StartWayPoint || !EndWayPoint)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Could not find nearest waypoints for start or end location."));
 		return {};
 	}
 
-	int32 StartClusterID = StartWP->ClusterID;
-	int32 EndClusterID = EndWP->ClusterID;
+	int32 StartClusterID = StartWayPoint->ClusterID;
+	int32 EndClusterID = EndWayPoint->ClusterID;
 	if (StartClusterID == INDEX_NONE || EndClusterID == INDEX_NONE)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Start or End Waypoint has invalid ClusterID."));
 		return {};
 	}
 
-	// 2. 같은 클러스터 내 경로 탐색
+	// 2. Search for paths in the same cluster
 	if (StartClusterID == EndClusterID)
 	{
 		TArray<int32> PathIndices;
-		if (FindPathLowLevel(StartWP, EndWP, StartClusterID, PathIndices))
+		if (FindPathLowLevel(StartWayPoint, EndWayPoint, StartClusterID, PathIndices))
 		{
-			// 시작점 -> 첫 WP, 마지막 WP -> 끝점 연결은 시각화 부분에서 처리
+			// Starting point-> First WayPoint, last wp-> end point connection is processed in the visualization part
 			return ConvertIndicesToWaypoints(PathIndices);
 		}
 		else
@@ -361,14 +355,14 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 			return {};
 		}
 	}
-	// 3. 다른 클러스터 간 경로 탐색
+	// 3. Search for path between other clusters
 	else
 	{
 		TArray<int32> ClusterPathIDs;
 		if (FindPathHighLevel(StartClusterID, EndClusterID, ClusterPathIDs))
 		{
-			// 경로 스티칭
-			return StitchPath(StartLocation, EndLocation, StartWP, EndWP, ClusterPathIDs);
+			// Path Stitching
+			return StitchPath(StartLocation, EndLocation, StartWayPoint, EndWayPoint, ClusterPathIDs);
 		}
 		else
 		{
@@ -384,38 +378,38 @@ AUKWayPoint* UUKNavigationManager::FindNearestWaypoint(const FVector& Location, 
 	float MinDistSq = TNumericLimits<float>::Max();
 	bool bFoundInPreferred = false;
 
-	// 1. 선호 클러스터 내에서 먼저 탐색 (PreferredClusterID가 유효할 경우)
+	// 1. Search first within the preferred cluster (if the preferredclusterID is valid)
 	if (PreferredClusterID != INDEX_NONE && AbstractGraph.Clusters.Contains(PreferredClusterID))
 	{
 		const FHPACluster& PreferredCluster = AbstractGraph.Clusters[PreferredClusterID];
-		for (const auto& WeakWP : PreferredCluster.Waypoints)
+		for (const auto& WeakWayPoint : PreferredCluster.Waypoints)
 		{
-			if (AUKWayPoint* WP = WeakWP.Get())
+			if (AUKWayPoint* WayPoint = WeakWayPoint.Get())
 			{
-				float DistSq = FVector::DistSquared(Location, WP->GetActorLocation());
+				float DistSq = FVector::DistSquared(Location, WayPoint->GetActorLocation());
 				if (DistSq < MinDistSq)
 				{
 					MinDistSq = DistSq;
-					NearestWaypoint = WP;
+					NearestWaypoint = WayPoint;
 					bFoundInPreferred = true;
 				}
 			}
 		}
 	}
 
-	// 2. 선호 클러스터에서 못 찾았거나, 선호 ID가 없었으면 전체 웨이포인트 탐색
+	// 2. If you haven't found it in your preferred cluster, or if you didn't have a preferred ID,
 	if (!bFoundInPreferred)
 	{
-		MinDistSq = TNumericLimits<float>::Max(); // 최소 거리 초기화
-		for (const auto& WeakWP : AllWaypoints)
+		MinDistSq = TNumericLimits<float>::Max();
+		for (const auto& WeakWayPoint : AllWaypoints)
 		{
-			if (AUKWayPoint* WP = WeakWP.Get())
+			if (AUKWayPoint* WayPoint = WeakWayPoint.Get())
 			{
-				float DistSq = FVector::DistSquared(Location, WP->GetActorLocation());
+				float DistSq = FVector::DistSquared(Location, WayPoint->GetActorLocation());
 				if (DistSq < MinDistSq)
 				{
 					MinDistSq = DistSq;
-					NearestWaypoint = WP;
+					NearestWaypoint = WayPoint;
 				}
 			}
 		}
@@ -431,11 +425,11 @@ AUKWayPoint* UUKNavigationManager::FindNearestWayPointinRange(const FVector& Loc
 	FVector SearchExtent(Range);
 	FBox QueryBox = FBox(Location - SearchExtent, Location + SearchExtent);
 
-	// 그리드 쿼리
+	// Grid query
 	TArray<FWayPointHandle> FoundHandlesInGrid;
 	WaypointGrid.QuerySmall(QueryBox, FoundHandlesInGrid);
 
-	// 그리드 결과 검증 (런타임 데이터 존재 및 활성화 여부 등 추가 필터링)
+	// Grid results verification (further filtering, such as the existence and activation of runtime data)
 	float MinRange = Range;
 	for (const FWayPointHandle& Handle : FoundHandlesInGrid)
 	{
@@ -461,17 +455,17 @@ void UUKNavigationManager::FindWayPoints(const FVector Location, const float Ran
 	FVector SearchExtent(Range);
 	FBox QueryBox = FBox(Location - SearchExtent, Location + SearchExtent);
 
-	// 그리드 쿼리
+	// Grid query
 	TArray<FWayPointHandle> FoundHandlesInGrid;
 	WaypointGrid.QuerySmall(QueryBox, FoundHandlesInGrid);
 
-	// 그리드 결과 검증 (런타임 데이터 존재 및 활성화 여부 등 추가 필터링)
+	// Grid results verification (further filtering, such as the existence and activation of runtime data)
 	for (const FWayPointHandle& Handle : FoundHandlesInGrid)
 	{
 		const FWayPointRuntimeData* RuntimeData = RuntimeWayPoints.Find(Handle);
 		if (RuntimeData && RuntimeData->WayPointObject.IsValid())
 		{
-			// 쿼리 박스와 실제 경계 상자가 겹치는지 최종 확인 (그리드는 셀 기반이므로)
+			// The final confirmation of the overlap between the query box and the actual border box (because the grid is based on a cell)
 			if (RuntimeData->Bounds.Intersect(QueryBox))
 			{
 				OutWayPointHandles.Add(Handle);
@@ -482,41 +476,41 @@ void UUKNavigationManager::FindWayPoints(const FVector Location, const float Ran
 
 int32 UUKNavigationManager::GetClusterIDFromLocation(const FVector& Location) const
 {
-	AUKWayPoint* NearestWP = FindNearestWaypoint(Location);
-	return NearestWP ? NearestWP->ClusterID : INDEX_NONE;
+	AUKWayPoint* NearestWayPoint = FindNearestWaypoint(Location);
+	return NearestWayPoint ? NearestWayPoint->ClusterID : INDEX_NONE;
 }
 
-bool UUKNavigationManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* EndWP, int32 ClusterID, TArray<int32>& OutPathIndices)
+bool UUKNavigationManager::FindPathLowLevel(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, int32 ClusterID, TArray<int32>& OutPathIndices)
 {
 	OutPathIndices.Empty();
-	if (!StartWP || !EndWP || ClusterID == INDEX_NONE || !AbstractGraph.Clusters.Contains(ClusterID))
+	if (!StartWayPoint || !EndWayPoint || ClusterID == INDEX_NONE || !AbstractGraph.Clusters.Contains(ClusterID))
 	{
 		return false;
 	}
 	
-	if (StartWP->ClusterID != ClusterID || EndWP->ClusterID != ClusterID)
+	if (StartWayPoint->ClusterID != ClusterID || EndWayPoint->ClusterID != ClusterID)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("FindPath_LowLevel: StartWP(%d) or EndWP(%d) not in target Cluster(%d)."), StartWP->ClusterID, EndWP->ClusterID, ClusterID);
+		UE_LOG(LogTemp, Warning, TEXT("FindPath_LowLevel: StartWayPoint(%d) or EndWayPoint(%d) not in target Cluster(%d)."), StartWayPoint->ClusterID, EndWayPoint->ClusterID, ClusterID);
 		return false;
 	}
 
-	// A* 그래프 및 필터 생성
+	// A* Graph and filter creation
 	FWayPointAStarGraph Graph(AllWaypoints, WaypointToIndexMap, ClusterID);
 	FWayPointFilter Filter(Graph);
 
-	// 시작/끝 노드 인덱스 찾기
-	const int32* StartIndexPtr = WaypointToIndexMap.Find(StartWP);
-	const int32* EndIndexPtr = WaypointToIndexMap.Find(EndWP);
+	// Find Start/End Node Index
+	const int32* StartIndexPtr = WaypointToIndexMap.Find(StartWayPoint);
+	const int32* EndIndexPtr = WaypointToIndexMap.Find(EndWayPoint);
 
 	if (!StartIndexPtr || !EndIndexPtr)
 	{
-		UE_LOG(LogTemp, Error, TEXT("FindPath_LowLevel: Could not find index for StartWP or EndWP."));
+		UE_LOG(LogTemp, Error, TEXT("FindPath_LowLevel: Could not find index for StartWayPoint or EndWayPoint."));
 		return false;
 	}
 	int32 StartIndex = *StartIndexPtr;
 	int32 EndIndex = *EndIndexPtr;
 
-	// A* 탐색 실행
+	// A* Search execution
 	FGraphAStar<FWayPointAStarGraph> Pathfinder(Graph);
 	FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode(StartIndex);
 	FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode(EndIndex);
@@ -525,7 +519,7 @@ bool UUKNavigationManager::FindPathLowLevel(AUKWayPoint* StartWP, AUKWayPoint* E
 
 	if (Result == EGraphAStarResult::SearchSuccess)
 	{
-		// 시작 노드 인덱스 추가
+		// Start node index added
 		OutPathIndices.Insert(StartIndex, 0);
 		return true;
 	}
@@ -541,16 +535,17 @@ bool UUKNavigationManager::FindPathHighLevel(int32 StartClusterID, int32 EndClus
 		return false;
 	}
 
-	// A* 그래프 및 필터 생성
+	// A* Graph and filter creation
 	FClusterAStarGraph Graph(&AbstractGraph);
 	FClusterFilter Filter(Graph, &AbstractGraph);
 
-	// A* 탐색 실행
+	// A* Search execution
 	FGraphAStar<FClusterAStarGraph> Pathfinder(Graph);
 	FGraphAStarDefaultNode<FClusterAStarGraph> StartNode(StartClusterID);
 	FGraphAStarDefaultNode<FClusterAStarGraph> EndNode(EndClusterID);
 
-	TArray<int32> PathClusterIDs; // A* 결과 (시작 노드 미포함)
+	// A* Results (non -starting node)
+	TArray<int32> PathClusterIDs;
 	EGraphAStarResult Result = Pathfinder.FindPath(StartNode, EndNode, Filter, PathClusterIDs);
 
 	if (Result == EGraphAStarResult::SearchSuccess)
@@ -563,18 +558,18 @@ bool UUKNavigationManager::FindPathHighLevel(int32 StartClusterID, int32 EndClus
 	return false;
 }
 
-TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWP, AUKWayPoint* EndWP, const TArray<int32>& ClusterPath) // ClusterPath: [StartCluster, C1, C2, ..., EndCluster]
+TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath) // ClusterPath: [StartCluster, C1, C2, ..., EndCluster]
 {
 	TArray<AUKWayPoint*> FinalPath;
-	if (!StartWP || !EndWP || ClusterPath.Num() < 2)
+	if (!StartWayPoint || !EndWayPoint || ClusterPath.Num() < 2)
 	{
 		return FinalPath;
 	}
 
-	// 현재 세그먼트 탐색 시작 웨이포인트
-	AUKWayPoint* CurrentOriginWP = StartWP;
+	// Current segment exploration start Wei Point
+	AUKWayPoint* CurrentOriginWayPoint = StartWayPoint;
 
-	// 클러스터 경로 순회 (마지막 클러스터 전까지)
+	// Cluster path circuit (before the last cluster)
 	for (int32 i = 0; i < ClusterPath.Num() - 1; ++i)
 	{
 		int32 CurrentClusterID = ClusterPath[i];
@@ -583,20 +578,18 @@ TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocati
 
 		FHPAEntrance BestEntrance;
 		TArray<int32> BestPathIndices;
-		// 현재 클러스터(CurrentClusterID) 내에서, CurrentOriginWP 부터 시작하여
-		// 다음 클러스터(NextClusterID)로 가는 가장 비용이 적은 입구와 경로 찾기
-		if (!FindBestEntranceToNeighbor(CurrentOriginWP, NextClusterID, BestEntrance, BestPathIndices))
+		// Within the current currency (currentClusterId), starting with a current custoriginwp and finding the most expensive entrance and path to the next cluster (NextClusterId)
+		if (!FindBestEntranceToNeighbor(CurrentOriginWayPoint, NextClusterID, BestEntrance, BestPathIndices))
 		{
-			// 경로 찾기 실패
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Failed to find path segment within Cluster %d towards Cluster %d"), CurrentClusterID, NextClusterID);
 			return {};
 		}
 
-		// 찾은 경로 세그먼트를 최종 경로에 추가 (중복 제외)
+		// Add found path segments to final path (excluding duplicates)
 		TArray<AUKWayPoint*> PathSegment = ConvertIndicesToWaypoints(BestPathIndices);
 		if (!PathSegment.IsEmpty())
 		{
-			int32 StartIdx = 0; //(FinalPath.IsEmpty()) ? 0 : 1; // 첫 세그먼트 아니면 시작점 제외
+			int32 StartIdx = 0; //(FinalPath.IsEmpty()) ? 0 : 1;
 			for (int32 k = StartIdx; k < PathSegment.Num(); ++k)
 			{
 				FinalPath.Add(PathSegment[k]);
@@ -604,33 +597,31 @@ TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocati
 		}
 		else
 		{
-			// 비정상 경로
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Empty path segment found for Cluster %d -> %d."), CurrentClusterID, NextClusterID);
 			return {};
 		}
 
-		// 다음 루프를 위해 현재 웨이포인트 업데이트 (다음 클러스터의 진입점으로)
-		CurrentOriginWP = BestEntrance.NeighborWaypoint.Get();
-		if (!CurrentOriginWP)
+		// Update current waypoint for next loop (as entry point to next cluster)
+		CurrentOriginWayPoint = BestEntrance.NeighborWaypoint.Get();
+		if (!CurrentOriginWayPoint)
 		{
-			// 다음 시작점이 유효하지 않으면 실패
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Invalid next origin waypoint after cluster %d."), CurrentClusterID);
 			return {};
 		}
 	}
 
-	// 마지막 클러스터 내부 경로 탐색 (CurrentOriginWP -> EndWP)
+	// Last cluster internal path search (CurrentOriginWayPoint -> EndWayPoint)
 	int32 LastClusterID = ClusterPath.Last();
 	TArray<int32> LastPathIndices;
-	if (FindPathLowLevel(CurrentOriginWP, EndWP, LastClusterID, LastPathIndices))
+	if (FindPathLowLevel(CurrentOriginWayPoint, EndWayPoint, LastClusterID, LastPathIndices))
 	{
 		TArray<AUKWayPoint*> LastPathSegment = ConvertIndicesToWaypoints(LastPathIndices);
 		if (!LastPathSegment.IsEmpty())
 		{
-			int32 StartIdx = 0; //(FinalPath.IsEmpty() && LastPathSegment[0] == StartWP) ? 0 : 1; // 첫 세그먼트 아니면 시작점 제외
+			int32 StartIdx = 0; //(FinalPath.IsEmpty() && LastPathSegment[0] == StartWayPoint) ? 0 : 1;
 			if (FinalPath.Num() > 0 && FinalPath.Last() == LastPathSegment[0])
 			{
-				StartIdx = 1; // 더 확실한 중복 체크
+				StartIdx = 1;
 			}
 
 			for (int32 k = StartIdx; k < LastPathSegment.Num(); ++k)
@@ -640,22 +631,19 @@ TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocati
 		}
 		else
 		{
-			// 마지막 경로가 비어있는 경우 (예: 시작과 끝 WP가 같음)
-			if (CurrentOriginWP == EndWP && FinalPath.Last() != EndWP)
+			// If the last path is empty (e.g. start and end WayPoint are the same)
+			if (CurrentOriginWayPoint == EndWayPoint && FinalPath.Last() != EndWayPoint)
 			{
-				// 마지막 WP가 아직 추가 안됐으면 추가
-				FinalPath.Add(EndWP);
+				FinalPath.Add(EndWayPoint);
 			}
 			else
 			{
-				// 경로가 아예 없는게 아니라면 여기서 실패 처리할 필요는 없을 수 있음
 				UE_LOG(LogTemp, Warning, TEXT("StitchPath: Empty final path segment found for Cluster %d."), LastClusterID);
 			}
 		}
 	}
 	else
 	{
-		// 최종 경로 찾기 실패
 		UE_LOG(LogTemp, Error, TEXT("StitchPath: Failed to find final path segment within Cluster %d."), LastClusterID);
 		return {}; 
 	}
@@ -672,10 +660,10 @@ TArray<AUKWayPoint*> UUKNavigationManager::ConvertIndicesToWaypoints(const TArra
 	{
 		if (AllWaypoints.IsValidIndex(Index))
 		{
-			AUKWayPoint* WP = AllWaypoints[Index].Get();
-			if (WP)
+			AUKWayPoint* WayPoint = AllWaypoints[Index].Get();
+			if (WayPoint)
 			{
-				Waypoints.Add(WP);
+				Waypoints.Add(WayPoint);
 			}
 			else
 			{
@@ -690,15 +678,15 @@ TArray<AUKWayPoint*> UUKNavigationManager::ConvertIndicesToWaypoints(const TArra
 	return Waypoints;
 }
 
-// 현재 WP에서 시작하여 이웃 클러스터로 가는 최적 입구 및 경로 찾기
-bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWP, int32 NeighborClusterID, FHPAEntrance& OutBestEntrance, TArray<int32>& OutBestPathIndices)
+bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWayPoint, int32 NeighborClusterID, FHPAEntrance& OutBestEntrance, TArray<int32>& OutBestPathIndices)
 {
-	if (!CurrentOriginWP || NeighborClusterID == INDEX_NONE)
+	// Finding the optimal entrance and path to a neighboring cluster starting from the current WayPoint.
+	if (!CurrentOriginWayPoint || NeighborClusterID == INDEX_NONE)
 	{
 		return false;
 	}
 
-	int32 CurrentClusterID = CurrentOriginWP->ClusterID;
+	int32 CurrentClusterID = CurrentOriginWayPoint->ClusterID;
 	const FHPACluster* CurrentClusterData = AbstractGraph.Clusters.Find(CurrentClusterID);
 	if (!CurrentClusterData)
 	{
@@ -714,20 +702,20 @@ bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOrigin
 	float MinPathCost = TNumericLimits<float>::Max();
 	bool bFoundPath = false;
 
-	// 모든 출구 후보에 대해 LowLevel 경로 탐색
+	// LowLevel path search for all exit candidates
 	for (const FHPAEntrance& CandidateEntrance : *EntrancesToNext)
 	{
-		AUKWayPoint* ExitCandidateWP = CandidateEntrance.LocalWaypoint.Get();
-		if (!ExitCandidateWP)
+		AUKWayPoint* ExitCandidateWayPoint = CandidateEntrance.LocalWaypoint.Get();
+		if (!ExitCandidateWayPoint)
 		{
 			continue;
 		}
 
 		TArray<int32> PathIndicesCandidate;
-		// LowLevel 탐색: CurrentOriginWP -> ExitCandidateWP (모두 CurrentClusterID 내)
-		if (FindPathLowLevel(CurrentOriginWP, ExitCandidateWP, CurrentClusterID, PathIndicesCandidate))
+		// LowLevel Navigation: CurrentOriginWayPoint -> ExitCandidateWayPoint (all within CurrentClusterID)
+		if (FindPathLowLevel(CurrentOriginWayPoint, ExitCandidateWayPoint, CurrentClusterID, PathIndicesCandidate))
 		{
-			// 경로 비용 계산 (간단: 거리 합)
+			// Calculating path cost (simple: sum of distances)
 			float CurrentPathCost = 0.f;
 			if (PathIndicesCandidate.Num() > 1)
 			{
@@ -741,38 +729,36 @@ bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOrigin
 					}
 				}
 			}
-			else if (CurrentOriginWP == ExitCandidateWP)
+			else if (CurrentOriginWayPoint == ExitCandidateWayPoint)
 			{
-				// 시작점과 출구가 같으면 비용 0 및 초기 빌드시 Cost
+				// Cost 0 if starting point and exit are the same and Cost in initial build
 				// CurrentPathCost = 0.f;
 				CurrentPathCost = CandidateEntrance.Cost;
 			}
 
 			float NeighborCost = 0.f;
-			AUKWayPoint* NeighborWP = CandidateEntrance.NeighborWaypoint.Get();
-			if (NeighborWP)
+			AUKWayPoint* NeighborWayPoint = CandidateEntrance.NeighborWaypoint.Get();
+			if (NeighborWayPoint)
 			{
-				// 다음 클러스터의 진입점에서 최종 목적지까지의 직선 거리
-				NeighborCost = FVector::Dist2D(NeighborWP->GetActorLocation(), CurrentOriginWP->GetActorLocation());
+				NeighborCost = FVector::Dist2D(NeighborWayPoint->GetActorLocation(), CurrentOriginWayPoint->GetActorLocation());
 			}
 
-			// f 비용: 총 예상 비용 (현재 비용 + 휴리스틱 비용)
-			// 휴리스틱 가중치를 0.8로 설정하여 과대평가 방지
 			float TotalEstimatedCost = CurrentPathCost + NeighborCost * 0.8f;
 
-			// 최적 경로 업데이트
+			// Optimal route update
 			if (TotalEstimatedCost < MinPathCost)
 			{
 				MinPathCost = CurrentPathCost;
 				OutBestPathIndices = PathIndicesCandidate;
-				// 가장 좋았던 입구 정보 저장
+				// Save the best entrance information
 				OutBestEntrance = CandidateEntrance;
 				bFoundPath = true;
 			}
 		}
 	}
 
-	return bFoundPath; // 하나라도 경로를 찾았으면 true
+	// true if at least one path was found
+	return bFoundPath;
 }
 
 
@@ -797,61 +783,56 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 		FColor CurrentColor = ClusterColors[ColorIndex % ClusterColors.Num()];
 		ColorIndex++;
 
-		// 클러스터 내 웨이포인트 및 연결 그리기
-		for (const auto& WeakWP : Cluster.Waypoints)
+		for (const auto& WeakWayPoint : Cluster.Waypoints)
 		{
-			AUKWayPoint* WP = WeakWP.Get();
-			if (!WP)
+			AUKWayPoint* WayPoint = WeakWayPoint.Get();
+			if (!WayPoint)
 			{
 				continue;
 			}
 
-			DrawDebugBox(World, WP->GetActorLocation(), FVector(15.f,15.f,15.f), CurrentColor, false, Duration, SDPG_Foreground, 1.f);
+			DrawDebugBox(World, WayPoint->GetActorLocation(), FVector(15.f,15.f,15.f), CurrentColor, false, Duration, SDPG_Foreground, 1.f);
 			FString DebugText = FString::Printf(TEXT("C:%d"), Cluster.ClusterID);
-			DrawDebugString(World, WP->GetActorLocation() + FVector(0, 0, 30), DebugText, nullptr, CurrentColor, Duration, false, 2);
-			if (UTextRenderComponent* TextComp = WP->GetComponentByClass<UTextRenderComponent>())
+			DrawDebugString(World, WayPoint->GetActorLocation() + FVector(0, 0, 30), DebugText, nullptr, CurrentColor, Duration, false, 2);
+			if (UTextRenderComponent* TextComp = WayPoint->GetComponentByClass<UTextRenderComponent>())
 			{
 				TextComp->SetText(FText::FromString(DebugText));
 				TextComp->TextRenderColor = CurrentColor;
 			}
 			
-			for (AUKWayPoint* NeighborWP : WP->PathPoints)
+			for (AUKWayPoint* NeighborWayPoint : WayPoint->PathPoints)
 			{
-				if (NeighborWP && NeighborWP->ClusterID == Cluster.ClusterID)
+				if (NeighborWayPoint && NeighborWayPoint->ClusterID == Cluster.ClusterID)
 				{
-					// 같은 클러스터 내 연결
-					// 양방향 시 오프셋
-					bool bIsMutual = NeighborWP->PathPoints.Contains(WP);
-					FVector Direction = (NeighborWP->GetActorLocation() - WP->GetActorLocation()).GetSafeNormal();
+					bool bIsMutual = NeighborWayPoint->PathPoints.Contains(WayPoint);
+					FVector Direction = (NeighborWayPoint->GetActorLocation() - WayPoint->GetActorLocation()).GetSafeNormal();
 					FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
 					float LineOffset = bIsMutual ? 10.0f : 0.0f;
 
-					DrawDebugLine(World, WP->GetActorLocation() + RightVector * LineOffset, NeighborWP->GetActorLocation() + RightVector * LineOffset, CurrentColor, false, Duration, SDPG_Foreground, 1.f);
+					DrawDebugLine(World, WayPoint->GetActorLocation() + RightVector * LineOffset, NeighborWayPoint->GetActorLocation() + RightVector * LineOffset, CurrentColor, false, Duration, SDPG_Foreground, 1.f);
 				}
 			}
 		}
 
-		// 클러스터 간 입구 그리기 (굵은 흰색 선)
 		for (const auto& EntrancePair : Cluster.Entrances)
 		{
 			const TArray<FHPAEntrance>& EntrancesList = EntrancePair.Value;
 			for (const FHPAEntrance& Entrance : EntrancesList)
 			{
-				AUKWayPoint* LocalWP = Entrance.LocalWaypoint.Get();
-				AUKWayPoint* NeighborWP = Entrance.NeighborWaypoint.Get();
-				if (LocalWP && NeighborWP)
+				AUKWayPoint* LocalWayPoint = Entrance.LocalWaypoint.Get();
+				AUKWayPoint* NeighborWayPoint = Entrance.NeighborWaypoint.Get();
+				if (LocalWayPoint && NeighborWayPoint)
 				{
-					FVector Direction = (NeighborWP->GetActorLocation() - LocalWP->GetActorLocation()).GetSafeNormal();
+					FVector Direction = (NeighborWayPoint->GetActorLocation() - LocalWayPoint->GetActorLocation()).GetSafeNormal();
 					FVector RightVector = FVector::CrossProduct(Direction, FVector::UpVector).GetSafeNormal();
 					float LineOffset = 10.0f;
-					FVector StartLocation = NeighborWP->GetActorLocation() + RightVector * LineOffset;
-					FVector EndLocation = LocalWP->GetActorLocation() + RightVector * LineOffset;
+					FVector StartLocation = NeighborWayPoint->GetActorLocation() + RightVector * LineOffset;
+					FVector EndLocation = LocalWayPoint->GetActorLocation() + RightVector * LineOffset;
 					DrawDebugLine(World, StartLocation, EndLocation, FColor::White, false, Duration, SDPG_Foreground, 1.f);
 				}
 			}
 		}
 		
-		// 클러스터 중심점
 		DrawDebugBox(World, Cluster.CenterLocation, Cluster.Expansion, CurrentColor, false, Duration, SDPG_Foreground, 1.f);
 	}
 
@@ -867,8 +848,8 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 
 FWayPointHandle UUKNavigationManager::GenerateNewHandle()
 {
-	// 단순 증가 방식 예시 (FSmartObjectHandleFactory::CreateHandleForDynamicObject 모방)
-	// 실제로는 FSmartObjectHandleFactory::CreateHandleForComponent처럼 경로 해싱 권장
+	// Simple incremental example (mimicking FSmartObjectHandleFactory::CreateHandleForDynamicObject)
+	// In practice, path hashing is recommended, like FSmartObjectHandleFactory::CreateHandleForComponent
 	return FWayPointHandle(NextHandleID++);
 }
 
@@ -880,6 +861,6 @@ FBox UUKNavigationManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
 	}
 
 	const FVector Location = WayPoint->GetActorLocation();
-	const FVector Extent(50.0f); // 예시 크기
+	const FVector Extent(50.0f);
 	return FBox(Location - Extent, Location + Extent);
 }
