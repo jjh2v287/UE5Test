@@ -44,6 +44,60 @@ void FHPACluster::CalculateCenter()
 	CenterLocation = ClusterBounds.GetCenter();
 }
 
+#pragma region Test
+int32 FWayPointGraph::GetNeighbourCount(FNodeRef NodeRef) const
+{
+	if (!IsValidRef(NodeRef))
+	{
+		return 0;
+	}
+	return Waypoints[NodeRef]->PathPoints.Num();
+}
+
+FWayPointGraph::FNodeRef FWayPointGraph::GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const
+{
+	if (!IsValidRef(NodeRef))
+	{
+		return INDEX_NONE;
+	}
+	AUKWayPoint* CurrentWP = Waypoints[NodeRef].Get();
+	if (!CurrentWP || !CurrentWP->PathPoints.IsValidIndex(NeighbourIndex))
+	{
+		return INDEX_NONE;
+	}
+	AUKWayPoint* NeighborWP = CurrentWP->PathPoints[NeighbourIndex];
+	return Waypoints.IndexOfByKey(NeighborWP);
+}
+
+FVector::FReal FWayPointFilter::GetHeuristicCost(const FGraphAStarDefaultNode<FWayPointGraph>& StartNode, const FGraphAStarDefaultNode<FWayPointGraph>& EndNode) const
+{
+	// 실제 거리 기반 휴리스틱 사용
+	const AUKWayPoint* StartWP = Graph->Waypoints[StartNode.NodeRef].Get();
+	const AUKWayPoint* EndWP = Graph->Waypoints[EndNode.NodeRef].Get();
+        
+	if (!IsValid(StartWP) || !IsValid(EndWP))
+	{
+		return MAX_flt;
+	}
+        
+	return FVector::Dist(StartWP->GetActorLocation(), EndWP->GetActorLocation());
+}
+
+FVector::FReal FWayPointFilter::GetTraversalCost(const FGraphAStarDefaultNode<FWayPointGraph>& StartNode, const FGraphAStarDefaultNode<FWayPointGraph>& EndNode) const
+{ 
+	const AUKWayPoint* StartWP = Graph->Waypoints[StartNode.NodeRef].Get();
+	const AUKWayPoint* EndWP = Graph->Waypoints[EndNode.NodeRef].Get();
+        
+	if (!IsValid(StartWP) || !IsValid(EndWP))
+	{
+		return MAX_flt;
+	}
+        
+	return FVector::Dist(StartWP->GetActorLocation(), EndWP->GetActorLocation());
+}
+
+#pragma endregion Test
+
 int32 FWayPointAStarGraph::GetNeighbourCount(FNodeRef NodeRef) const
 {
 	AUKWayPoint* CurrentWayPoint = GetWaypoint(NodeRef);
@@ -91,7 +145,7 @@ FWayPointAStarGraph::FNodeRef FWayPointAStarGraph::GetNeighbour(const FNodeRef& 
 	return INDEX_NONE;
 }
 
-FVector::FReal FWayPointFilter::GetHeuristicCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const
+FVector::FReal FWayPointAStarFilter::GetHeuristicCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const
 {
 	AUKWayPoint* StartWayPoint = Graph.GetWaypoint(StartNode.NodeRef);
 	AUKWayPoint* EndWayPoint = Graph.GetWaypoint(EndNode.NodeRef);
@@ -99,13 +153,13 @@ FVector::FReal FWayPointFilter::GetHeuristicCost(FGraphAStarDefaultNode<FWayPoin
 	return (StartWayPoint && EndWayPoint) ? FVector::Dist(StartWayPoint->GetActorLocation(), EndWayPoint->GetActorLocation()) : TNumericLimits<FVector::FReal>::Max();
 }
 
-FVector::FReal FWayPointFilter::GetTraversalCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const
+FVector::FReal FWayPointAStarFilter::GetTraversalCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const
 {
 	// Actual movement cost (distance)
 	return GetHeuristicCost(StartNode, EndNode);
 }
 
-bool FWayPointFilter::IsTraversalAllowed(FGraphAStarDefaultNode<FWayPointAStarGraph> NodeA, FGraphAStarDefaultNode<FWayPointAStarGraph> NodeB) const
+bool FWayPointAStarFilter::IsTraversalAllowed(FGraphAStarDefaultNode<FWayPointAStarGraph> NodeA, FGraphAStarDefaultNode<FWayPointAStarGraph> NodeB) const
 {
 	AUKWayPoint* WayPointA = Graph.GetWaypoint(NodeA.NodeRef);
 	AUKWayPoint* WayPointB = Graph.GetWaypoint(NodeB.NodeRef);

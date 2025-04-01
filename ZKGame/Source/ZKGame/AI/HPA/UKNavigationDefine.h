@@ -55,6 +55,47 @@ struct ZKGAME_API FHPAAbstractGraph
     }
 };
 
+#pragma region Test
+struct ZKGAME_API FWayPointGraph
+{
+    typedef int32 FNodeRef;
+    TArray<TWeakObjectPtr<AUKWayPoint>> Waypoints;
+
+    bool IsValidRef(FNodeRef NodeRef) const
+    {
+        return Waypoints.IsValidIndex(NodeRef);
+    }
+
+    int32 GetNeighbourCount(FNodeRef NodeRef) const;
+    FNodeRef GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const;
+};
+
+/**
+ * A* 알고리즘용 필터 구조체
+ */
+struct ZKGAME_API FWayPointFilter
+{
+    FVector::FReal GetHeuristicScale() const { return 1.0f; }
+    
+    // 휴리스틱 비용 (현재는 유클리드 거리 사용)
+    FVector::FReal GetHeuristicCost(const FGraphAStarDefaultNode<FWayPointGraph>& StartNode, const FGraphAStarDefaultNode<FWayPointGraph>& EndNode) const;
+
+    FVector::FReal GetTraversalCost(const FGraphAStarDefaultNode<FWayPointGraph>& StartNode, const FGraphAStarDefaultNode<FWayPointGraph>& EndNode) const;
+
+    bool IsTraversalAllowed(int32 StartNodeRef, int32 EndNodeRef) const 
+    { 
+        return true; 
+    }
+
+    bool WantsPartialSolution() const { return false; }
+    
+    uint32 GetMaxSearchNodes() const { return INT_MAX; }
+    FVector::FReal GetCostLimit() const { return TNumericLimits<FVector::FReal>::Max(); }
+
+    const FWayPointGraph* Graph;
+};
+#pragma endregion Test
+
 // --- A* related structure for HPA. For interior of the cluster ---
 struct ZKGAME_API FWayPointAStarGraph
 {
@@ -93,11 +134,11 @@ struct ZKGAME_API FWayPointAStarGraph
 };
 
 // Cluster internal search filter
-struct ZKGAME_API FWayPointFilter
+struct ZKGAME_API FWayPointAStarFilter
 {
     const FWayPointAStarGraph& Graph;
 
-    FWayPointFilter(const FWayPointAStarGraph& InGraph) : Graph(InGraph) {}
+    FWayPointAStarFilter(const FWayPointAStarGraph& InGraph) : Graph(InGraph) {}
 
     FVector::FReal GetHeuristicScale() const { return 1.0f; }
     FVector::FReal GetHeuristicCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const;

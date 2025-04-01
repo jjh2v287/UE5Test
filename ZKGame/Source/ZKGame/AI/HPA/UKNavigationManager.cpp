@@ -361,7 +361,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 		if (FindPathHighLevel(StartClusterID, EndClusterID, ClusterPathIDs))
 		{
 			// Path Stitching
-			return StitchPath(StartLocation, EndLocation, StartWayPoint, EndWayPoint, ClusterPathIDs);
+			return FindPathInCluster(StartWayPoint, EndWayPoint, ClusterPathIDs);
 		}
 		else
 		{
@@ -495,7 +495,7 @@ bool UUKNavigationManager::FindPathLowLevel(AUKWayPoint* StartWayPoint, AUKWayPo
 
 	// A* Graph and filter creation
 	FWayPointAStarGraph Graph(AllWaypoints, WaypointToIndexMap, ClusterID);
-	FWayPointFilter Filter(Graph);
+	FWayPointAStarFilter Filter(Graph);
 
 	// Find Start/End Node Index
 	const int32* StartIndexPtr = WaypointToIndexMap.Find(StartWayPoint);
@@ -650,6 +650,62 @@ TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocati
 	return FinalPath;
 }
 
+TArray<AUKWayPoint*> UUKNavigationManager::FindPathInCluster(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath)
+{
+	TArray<AUKWayPoint*> FinalPath;
+	if (!StartWayPoint || !EndWayPoint || ClusterPath.Num() < 2)
+	{
+		return FinalPath;
+	}
+
+	FWayPointGraph PathGraph;
+	for (int32 i = 0; i < ClusterPath.Num(); ++i)
+	{
+		const int32 CurrentClusterID = ClusterPath[i];
+		const FHPACluster* CurrentClusterData = AbstractGraph.Clusters.Find(CurrentClusterID);
+		if (!CurrentClusterData)
+		{
+			continue;
+		}
+
+		PathGraph.Waypoints.Append(CurrentClusterData->Waypoints);
+	}
+
+	// Finding the indices of start and end waypoints in a graph
+	int32 StartIndex = PathGraph.Waypoints.IndexOfByKey(StartWayPoint);
+	int32 EndIndex = PathGraph.Waypoints.IndexOfByKey(EndWayPoint);
+    
+	if (StartIndex == INDEX_NONE || EndIndex == INDEX_NONE)
+	{
+		return FinalPath;
+	}
+
+	// A* Create a node
+	FGraphAStarDefaultNode<FWayPointGraph> StartNode(StartIndex);
+	FGraphAStarDefaultNode<FWayPointGraph> EndNode(EndIndex);
+
+	// Filter settings
+	FWayPointFilter QueryFilter;
+	QueryFilter.Graph = &PathGraph;
+
+	// A* Running the algorithm
+	TArray<int32> OutPath;
+	FGraphAStar<FWayPointGraph> Pathfinder(PathGraph);
+	EGraphAStarResult Result = Pathfinder.FindPath(StartNode, EndNode, QueryFilter, OutPath);
+
+	if (Result == SearchSuccess)
+	{
+		FinalPath.Emplace(StartWayPoint);
+		for (int32 Index : OutPath)
+		{
+			if (PathGraph.Waypoints.IsValidIndex(Index))
+			{
+				FinalPath.Add(PathGraph.Waypoints[Index].Get());
+			}
+		}
+	}
+	return FinalPath;
+}
 
 TArray<AUKWayPoint*> UUKNavigationManager::ConvertIndicesToWaypoints(const TArray<int32>& Indices) const
 {
@@ -704,7 +760,8 @@ bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOrigin
 	// LowLevel path search for all exit candidates
 	for (const FHPAEntrance& CandidateEntrance : *EntrancesToNext)
 	{
-		AUKWayPoint* ExitCandidateWayPoint = CandidateEntrance.LocalWaypoint.Get();
+		// AUKWayPoint* ExitCandidateWayPoint = CandidateEntrance.LocalWaypoint.Get();
+		AUKWayPoint* ExitCandidateWayPoint = CandidateEntrance.NeighborWaypoint.Get();
 		if (!ExitCandidateWayPoint)
 		{
 			continue;
@@ -747,7 +804,22 @@ bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOrigin
 			// Optimal route update
 			if (TotalEstimatedCost <= MinPathCost)
 			{
-				MinPathCost = CurrentPathCost;
+				MinPathCost = TotalEstimatedCost;
+				OutBestPathIndices = PathIndicesCandidate;
+				// Save the best entrance information
+				OutBestEntrance = CandidateEntrance;
+				bFoundPath = true;
+			}
+		}
+		else
+		{
+			float NeighborCost = FVector::Dist2D(CurrentOriginWayPoint->GetActorLocation(), ExitCandidateWayPoint->GetActorLocation());
+			float TotalEstimatedCost = NeighborCost * 0.8f;
+
+			// Optimal route update
+			if (TotalEstimatedCost <= MinPathCost)
+			{
+				MinPathCost = TotalEstimatedCost;
 				OutBestPathIndices = PathIndicesCandidate;
 				// Save the best entrance information
 				OutBestEntrance = CandidateEntrance;
