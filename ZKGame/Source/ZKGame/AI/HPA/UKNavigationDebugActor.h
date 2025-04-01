@@ -25,7 +25,7 @@ public:
     AActor* EndActor;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug")
-    float DebugSphereRadius = 30.0f;
+    float DebugSphereRadius = 10.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug")
     float DebugArrowSize = 30.0f;
@@ -34,13 +34,13 @@ public:
     FColor DebugPathColor = FColor::Cyan;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug")
-    float DebugPathThickness = 0.5f;
+    float DebugPathThickness = 1.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug", meta = (DisplayName = "Draw HPA Structure"))
     bool bDrawHPAStructure = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug", meta = (DisplayName = "Debug Draw Duration (0=Tick)"))
-    float DebugDrawDuration = 0.f;
+    float DebugDrawDuration = 0.0f;
 
     virtual bool ShouldTickIfViewportsOnly() const override { return true; }
 

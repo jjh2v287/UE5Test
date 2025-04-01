@@ -578,7 +578,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocati
 		FHPAEntrance BestEntrance;
 		TArray<int32> BestPathIndices;
 		// Within the current currency (currentClusterId), starting with a current WayPoint and finding the most expensive entrance and path to the next cluster (NextClusterId)
-		if (!FindBestEntranceToNeighbor(CurrentOriginWayPoint, NextClusterID, BestEntrance, BestPathIndices))
+		if (!FindBestEntranceToNeighbor(CurrentOriginWayPoint, EndWayPoint, NextClusterID, BestEntrance, BestPathIndices))
 		{
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Failed to find path segment within Cluster %d towards Cluster %d"), CurrentClusterID, NextClusterID);
 			return {};
@@ -677,7 +677,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::ConvertIndicesToWaypoints(const TArra
 	return Waypoints;
 }
 
-bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWayPoint, int32 NeighborClusterID, FHPAEntrance& OutBestEntrance, TArray<int32>& OutBestPathIndices)
+bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOriginWayPoint, AUKWayPoint* GoalWayPoint, int32 NeighborClusterID, FHPAEntrance& OutBestEntrance, TArray<int32>& OutBestPathIndices)
 {
 	// Finding the optimal entrance and path to a neighboring cluster starting from the current WayPoint.
 	if (!CurrentOriginWayPoint || NeighborClusterID == INDEX_NONE)
@@ -731,21 +731,21 @@ bool UUKNavigationManager::FindBestEntranceToNeighbor(AUKWayPoint* CurrentOrigin
 			else if (CurrentOriginWayPoint == ExitCandidateWayPoint)
 			{
 				// Cost 0 if starting point and exit are the same and Cost in initial build
-				// CurrentPathCost = 0.f;
-				CurrentPathCost = CandidateEntrance.Cost;
+				CurrentPathCost = 0.f;
+				// CurrentPathCost = CandidateEntrance.Cost;
 			}
 
 			float NeighborCost = 0.f;
 			AUKWayPoint* NeighborWayPoint = CandidateEntrance.NeighborWaypoint.Get();
 			if (NeighborWayPoint)
 			{
-				NeighborCost = FVector::Dist2D(NeighborWayPoint->GetActorLocation(), CurrentOriginWayPoint->GetActorLocation());
+				NeighborCost = FVector::Dist2D(NeighborWayPoint->GetActorLocation(), GoalWayPoint->GetActorLocation());
 			}
 
 			float TotalEstimatedCost = CurrentPathCost + NeighborCost * 0.8f;
 
 			// Optimal route update
-			if (TotalEstimatedCost < MinPathCost)
+			if (TotalEstimatedCost <= MinPathCost)
 			{
 				MinPathCost = CurrentPathCost;
 				OutBestPathIndices = PathIndicesCandidate;
@@ -832,7 +832,7 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 			}
 		}
 		
-		DrawDebugBox(World, Cluster.CenterLocation, Cluster.Expansion, CurrentColor, false, Duration, SDPG_Foreground, 1.f);
+		DrawDebugBox(World, Cluster.CenterLocation, Cluster.Expansion, CurrentColor, false, Duration, SDPG_Foreground, 0.2f);
 	}
 
 	// Hash Grid

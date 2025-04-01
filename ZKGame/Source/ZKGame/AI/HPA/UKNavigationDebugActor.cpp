@@ -68,8 +68,8 @@ void AUKNavigationDebugActor::UpdatePathVisualization()
 	{
 		NavigationManage->DrawDebugHPA(DebugDrawDuration);
 
-		DrawDebugSphere(World, StartLoc, DebugSphereRadius, 24, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
-		DrawDebugSphere(World, EndLoc, DebugSphereRadius, 24, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
+		DrawDebugSphere(World, StartLoc, DebugSphereRadius, 16, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
+		DrawDebugSphere(World, EndLoc, DebugSphereRadius, 16, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
 
 		if (LastFoundPath.Num() > 0)
 		{

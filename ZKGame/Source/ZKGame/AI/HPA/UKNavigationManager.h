@@ -84,5 +84,5 @@ private:
     bool FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath);
     TArray<AUKWayPoint*> StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath);
     TArray<AUKWayPoint*> ConvertIndicesToWaypoints(const TArray<int32>& Indices) const; // const 추가
-    bool FindBestEntranceToNeighbor(AUKWayPoint* CurrentWayPoint, int32 NeighborClusterID, FHPAEntrance& OutEntrance, TArray<int32>& OutPathIndices);
+    bool FindBestEntranceToNeighbor(AUKWayPoint* CurrentWayPoint, AUKWayPoint* GoalWayPoint, int32 NeighborClusterID, FHPAEntrance& OutEntrance, TArray<int32>& OutPathIndices);
 };
