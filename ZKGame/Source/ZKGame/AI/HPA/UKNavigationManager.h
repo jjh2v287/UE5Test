@@ -44,8 +44,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Box"))
     void FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const;
     
-    int32 GetClusterIDFromLocation(const FVector& Location) const;
-
     // --- Debug ---
     void DrawDebugHPA(float Duration = 0.f) const;
 
@@ -80,10 +78,6 @@ private:
     FHPAAbstractGraph AbstractGraph;
 
     // --- Internal HPA function ---
-    bool FindPathLowLevel(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, int32 ClusterID, TArray<int32>& OutPathIndices);
     bool FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath);
-    TArray<AUKWayPoint*> StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath);
     TArray<AUKWayPoint*> FindPathInCluster(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath);
-    TArray<AUKWayPoint*> ConvertIndicesToWaypoints(const TArray<int32>& Indices) const; // const 추가
-    bool FindBestEntranceToNeighbor(AUKWayPoint* CurrentWayPoint, AUKWayPoint* GoalWayPoint, int32 NeighborClusterID, FHPAEntrance& OutEntrance, TArray<int32>& OutPathIndices);
 };

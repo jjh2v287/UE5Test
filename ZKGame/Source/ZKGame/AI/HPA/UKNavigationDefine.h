@@ -97,57 +97,6 @@ struct ZKGAME_API FWayPointFilter
 #pragma endregion Test
 
 // --- A* related structure for HPA. For interior of the cluster ---
-struct ZKGAME_API FWayPointAStarGraph
-{
-    // Use of indexes of full Wey -point array
-    typedef int32 FNodeRef;
-
-    // Refer to the entire way point array
-    const TArray<TWeakObjectPtr<AUKWayPoint>>* AllWaypointsPtr = nullptr;
-
-    // Pointer-> See index maps
-    const TMap<AUKWayPoint*, int32>* WaypointToIndexMapPtr = nullptr;
-
-    // Cluster ID to be explored
-    int32 CurrentClusterID = INDEX_NONE;
-
-    FWayPointAStarGraph(const TArray<TWeakObjectPtr<AUKWayPoint>>& InAllWaypoints, const TMap<AUKWayPoint*, int32>& InIndexMap, int32 InClusterID)
-        : AllWaypointsPtr(&InAllWaypoints), WaypointToIndexMapPtr(&InIndexMap), CurrentClusterID(InClusterID) {}
-
-    // Validate waypoint index
-    bool IsValidRef(FNodeRef NodeRef) const
-    {
-        return AllWaypointsPtr && AllWaypointsPtr->IsValidIndex(NodeRef);
-    }
-
-    // Return of the Way Point Object, which corresponds to a specific way point index
-    AUKWayPoint* GetWaypoint(FNodeRef NodeRef) const
-    {
-        return IsValidRef(NodeRef) ? (*AllWaypointsPtr)[NodeRef].Get() : nullptr;
-    }
-
-    // Returns to neighboring nodes accessible from certain Wei Point indexes (within the same cluster)
-    int32 GetNeighbourCount(FNodeRef NodeRef) const;
-
-    // Returns the index of the Nth neighboring node of a given waypoint index (within the same cluster).
-    FNodeRef GetNeighbour(const FNodeRef& NodeRef, int32 NeighbourIndex) const;
-};
-
-// Cluster internal search filter
-struct ZKGAME_API FWayPointAStarFilter
-{
-    const FWayPointAStarGraph& Graph;
-
-    FWayPointAStarFilter(const FWayPointAStarGraph& InGraph) : Graph(InGraph) {}
-
-    FVector::FReal GetHeuristicScale() const { return 1.0f; }
-    FVector::FReal GetHeuristicCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const;
-    FVector::FReal GetTraversalCost(FGraphAStarDefaultNode<FWayPointAStarGraph> StartNode, FGraphAStarDefaultNode<FWayPointAStarGraph> EndNode) const;
-    bool IsTraversalAllowed(FGraphAStarDefaultNode<FWayPointAStarGraph> NodeA, FGraphAStarDefaultNode<FWayPointAStarGraph> NodeB) const;
-    bool WantsPartialSolution() const { return false; }
-};
-
-
 // Abstract cluster graph search
 struct ZKGAME_API FClusterAStarGraph
 {
