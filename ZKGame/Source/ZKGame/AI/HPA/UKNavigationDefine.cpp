@@ -187,7 +187,7 @@ FVector::FReal FClusterFilter::GetTraversalCost(FGraphAStarDefaultNode<FClusterA
 		return TNumericLimits<FVector::FReal>::Max();
 	}
 
-	// The minimum value of the entrance cost to the startcluster to endNode.noderef (neighboring cluster ID) (simple version)
+	// The minimum value of the entrance cost to the StartCluster to EndNode.NodeRef (neighboring cluster ID) (simple version)
 	const TArray<FHPAEntrance>* EntrancesToNeighbor = StartCluster->Entrances.Find(EndNode.NodeRef);
 	if (!EntrancesToNeighbor || EntrancesToNeighbor->IsEmpty())
 	{

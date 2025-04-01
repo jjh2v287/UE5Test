@@ -42,7 +42,7 @@ void AUKNavigationDebugActor::UpdatePathVisualization()
 	if (!NavigationManage)
 	{
 		LastFoundPath.Empty();
-		UE_LOG(LogTemp, Error, TEXT("AUKHPADebugActor: Failed to get NavigationManage instance."));
+		UE_LOG(LogTemp, Error, TEXT("AUKNavigationDebugActor: Failed to get NavigationManage instance."));
 		return;
 	}
 

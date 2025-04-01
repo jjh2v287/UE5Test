@@ -27,30 +27,30 @@ void UUKNavigationManager::Deinitialize()
 	Super::Deinitialize();
 }
 
-FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
+FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* WayPoint)
 {
-	if (!IsValid(Waypoint))
+	if (!IsValid(WayPoint))
 	{
 		return FWayPointHandle::Invalid;
 		
 	}
 
-	if (WaypointToIndexMap.Contains(Waypoint))
+	if (WaypointToIndexMap.Contains(WayPoint))
 	{
-		return Waypoint->GetWayPointHandle();
+		return WayPoint->GetWayPointHandle();
 		
 	}
 
 	//----------- HPA -----------
-	AllWaypoints.Add(Waypoint);
-	WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
-	// Invalidation of the hierarchy when adding weightpoints
+	AllWaypoints.Add(WayPoint);
+	WaypointToIndexMap.Add(WayPoint, AllWaypoints.Num() - 1);
+	// Invalidation of the hierarchy when adding WeightPoints
 	AbstractGraph.bIsBuilt = false;
 
 	//----------- HashGrid -----------
-	if (RuntimeWayPoints.Contains(Waypoint->GetWayPointHandle()))
+	if (RuntimeWayPoints.Contains(WayPoint->GetWayPointHandle()))
 	{
-		return Waypoint->GetWayPointHandle();
+		return WayPoint->GetWayPointHandle();
 	}
 
     // Create a new handle
@@ -61,11 +61,11 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
     }
 
     // Creating and adding to the runtime data to the map
-    FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
+    FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(WayPoint, NewHandle));
 
     // Boundary box and transform calculation/storage
-    RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
-	RuntimeData.Transform = Waypoint->GetActorTransform();
+    RuntimeData.Bounds = CalculateWayPointBounds(WayPoint);
+	RuntimeData.Transform = WayPoint->GetActorTransform();
 
 
     // Add to the Hash grid
@@ -84,20 +84,20 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* Waypoint)
     return NewHandle;
 }
 
-bool UUKNavigationManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
+bool UUKNavigationManager::UnregisterWaypoint(const AUKWayPoint* WayPoint)
 {
-	if (!IsValid(Waypoint))
+	if (!IsValid(WayPoint))
 	{
 		return false;
 	}
 
 	//----------- HPA -----------
-	int32* IndexPtr = WaypointToIndexMap.Find(Waypoint);
+	int32* IndexPtr = WaypointToIndexMap.Find(WayPoint);
 	if (IndexPtr)
 	{
 		int32 IndexToRemove = *IndexPtr;
 		
-		WaypointToIndexMap.Remove(Waypoint);
+		WaypointToIndexMap.Remove(WayPoint);
 
 		if (AllWaypoints.IsValidIndex(IndexToRemove))
 		{
@@ -119,12 +119,12 @@ bool UUKNavigationManager::UnregisterWaypoint(AUKWayPoint* Waypoint)
 
 	//----------- HashGrid -----------
 	FWayPointRuntimeData RuntimeData;
-	if (RuntimeWayPoints.RemoveAndCopyValue(Waypoint->GetWayPointHandle(), RuntimeData))
+	if (RuntimeWayPoints.RemoveAndCopyValue(WayPoint->GetWayPointHandle(), RuntimeData))
 	{
 		const FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetPtr<FWayPointHashGridEntryData>();
 		if (GridEntryData)
 		{
-			WaypointGrid.Remove(Waypoint->GetWayPointHandle(), GridEntryData->CellLoc);
+			WaypointGrid.Remove(WayPoint->GetWayPointHandle(), GridEntryData->CellLoc);
 		}
 		else
 		{
@@ -267,13 +267,12 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 				// Make sure your neighbors are valid and belong to other clusters
 				if (NeighborWayPoint->ClusterID != INDEX_NONE && NeighborWayPoint->ClusterID != CurrentClusterID)
 				{
-					// 입구 발견
 					int32 NeighborClusterID = NeighborWayPoint->ClusterID;
 					float Cost = FVector::Dist(LocalWayPoint->GetActorLocation(), NeighborWayPoint->GetActorLocation());
 
-					// Add to the current cluster's enttranceS map
+					// Add to the current cluster's Entrances map
 					TArray<FHPAEntrance>& EntrancesList = CurrentCluster.Entrances.FindOrAdd(NeighborClusterID);
-					// Duplicate entrance prevention (optional) -Checks that the same localwp, neighborwp pairs are already available
+					// Duplicate entrance prevention (optional) -Checks that the same LocalWayPoint, NeighborWayPoint pairs are already available
 					bool bAlreadyExists = false;
 					for (const auto& ExistingEntrance : EntrancesList)
 					{
@@ -346,7 +345,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 		TArray<int32> PathIndices;
 		if (FindPathLowLevel(StartWayPoint, EndWayPoint, StartClusterID, PathIndices))
 		{
-			// Starting point-> First WayPoint, last wp-> end point connection is processed in the visualization part
+			// Starting point-> First WayPoint, last WayPoint-> end point connection is processed in the visualization part
 			return ConvertIndicesToWaypoints(PathIndices);
 		}
 		else
@@ -378,7 +377,7 @@ AUKWayPoint* UUKNavigationManager::FindNearestWaypoint(const FVector& Location, 
 	float MinDistSq = TNumericLimits<float>::Max();
 	bool bFoundInPreferred = false;
 
-	// 1. Search first within the preferred cluster (if the preferredclusterID is valid)
+	// 1. Search first within the preferred cluster (if the PreferredClusterID is valid)
 	if (PreferredClusterID != INDEX_NONE && AbstractGraph.Clusters.Contains(PreferredClusterID))
 	{
 		const FHPACluster& PreferredCluster = AbstractGraph.Clusters[PreferredClusterID];
@@ -558,7 +557,7 @@ bool UUKNavigationManager::FindPathHighLevel(int32 StartClusterID, int32 EndClus
 	return false;
 }
 
-TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath) // ClusterPath: [StartCluster, C1, C2, ..., EndCluster]
+TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocation, const FVector& EndLocation, AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath)
 {
 	TArray<AUKWayPoint*> FinalPath;
 	if (!StartWayPoint || !EndWayPoint || ClusterPath.Num() < 2)
@@ -578,7 +577,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::StitchPath(const FVector& StartLocati
 
 		FHPAEntrance BestEntrance;
 		TArray<int32> BestPathIndices;
-		// Within the current currency (currentClusterId), starting with a current custoriginwp and finding the most expensive entrance and path to the next cluster (NextClusterId)
+		// Within the current currency (currentClusterId), starting with a current WayPoint and finding the most expensive entrance and path to the next cluster (NextClusterId)
 		if (!FindBestEntranceToNeighbor(CurrentOriginWayPoint, NextClusterID, BestEntrance, BestPathIndices))
 		{
 			UE_LOG(LogTemp, Error, TEXT("StitchPath: Failed to find path segment within Cluster %d towards Cluster %d"), CurrentClusterID, NextClusterID);

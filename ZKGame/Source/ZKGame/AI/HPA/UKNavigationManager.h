@@ -22,8 +22,8 @@ public:
     virtual void Deinitialize() override;
 
     // --- Waypoint management ---
-    FWayPointHandle RegisterWaypoint(AUKWayPoint* Waypoint);
-    bool UnregisterWaypoint(AUKWayPoint* Waypoint);
+    FWayPointHandle RegisterWaypoint(AUKWayPoint* WayPoint);
+    bool UnregisterWaypoint(const AUKWayPoint* WayPoint);
     // All Wei Points forced registration and map update test
     void AllRegisterWaypoint();
 
