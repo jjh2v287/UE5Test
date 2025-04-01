@@ -4,7 +4,10 @@
 #include "UKWayPoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
+#include "NavigationData.h"
+#include "NavigationSystem.h"
 #include "Components/TextRenderComponent.h"
+#include "NavFilters/NavigationQueryFilter.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UKNavigationManager)
 
@@ -431,6 +434,69 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPathInCluster(AUKWayPoint* StartW
 		}
 	}
 	return FinalPath;
+}
+
+TArray<FVector> UUKNavigationManager::GetPathPointsFromStartToEnd(const FVector& StartPoint, const FVector& EndPoint) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return {};
+	}
+    
+	// 내비게이션 시스템 가져오기
+	UNavigationSystemV1* NavSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+	if (!NavSystem)
+	{
+		return {};
+	}
+    
+	// 기본 내비게이션 데이터 가져오기
+	const ANavigationData* NavData = NavSystem->GetDefaultNavDataInstance();
+	if (!NavData)
+	{
+		return {};
+	}
+    
+	// 내비게이션 쿼리 필터 설정
+	FNavAgentProperties NavAgentProps;
+	NavAgentProps.AgentRadius = 35.0f;    // 에이전트 반경 설정
+	NavAgentProps.AgentHeight = 190.0f;   // 에이전트 높이 설정
+    
+	// 경로 찾기 쿼리 생성
+	FPathFindingQuery Query;
+	Query.StartLocation = StartPoint;
+	Query.EndLocation = EndPoint;
+	Query.NavData = NavData;
+	Query.QueryFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, World, nullptr);
+	
+	// 경로 계산 수행
+	const FPathFindingResult Result = NavSystem->FindPathSync(NavAgentProps, Query);
+    
+	TArray<FVector> PathPoints;
+	// 경로가 성공적으로 계산되었는지 확인
+	if (Result.IsSuccessful() && Result.Path.IsValid())
+	{
+		// 경로 포인트 추출
+		const TArray<FNavPathPoint>& NavPathPoints = Result.Path->GetPathPoints();
+		for (const FNavPathPoint& Point : NavPathPoints)
+		{
+			PathPoints.Add(Point.Location);
+		}
+        
+#if WITH_EDITOR
+		if (GIsEditor)
+		{
+			Result.Path->DebugDraw(NavData, FColor::Green, nullptr, true, 10.0f);
+		}
+#endif
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Path finding failed. Result: %d"), (int32)Result.Result);
+	}
+    
+	return PathPoints;
 }
 
 FWayPointHandle UUKNavigationManager::GenerateNewHandle()

@@ -67,7 +67,8 @@ private:
     // --- Internal HPA function ---
     bool FindPathCluster(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath);
     TArray<AUKWayPoint*> FindPathInCluster(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath);
-
+    TArray<FVector> GetPathPointsFromStartToEnd(const FVector& StartPoint, const FVector& EndPoint) const;
+    
     // Unique handle generation function (internal use)
     FWayPointHandle GenerateNewHandle();
 
