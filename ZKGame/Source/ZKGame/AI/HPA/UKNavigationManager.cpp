@@ -135,80 +135,6 @@ bool UUKNavigationManager::UnregisterWaypoint(const AUKWayPoint* WayPoint)
 	return false;
 }
 
-
-void UUKNavigationManager::AllRegisterWaypoint()
-{
-	// 1. Existing information clear
-	AllWaypoints.Empty();
-	WaypointToIndexMap.Empty();
-	AbstractGraph.Clear();
-
-	// 2. Find all AUKWayPoint actors in the world
-	UWorld* World = GetWorld();
-	if (!World)
-	{
-		return;
-	}
-
-	TArray<AActor*> FoundWaypoints;
-	UGameplayStatics::GetAllActorsOfClass(World, AUKWayPoint::StaticClass(), FoundWaypoints);
-
-	// 3. Register the found actor
-	AllWaypoints.Reserve(FoundWaypoints.Num());
-	for (AActor* Actor : FoundWaypoints)
-	{
-		if (AUKWayPoint* Waypoint = Cast<AUKWayPoint>(Actor))
-		{
-			//----------- HPA -----------
-			if (IsValid(Waypoint) && !WaypointToIndexMap.Contains(Waypoint))
-			{
-				AllWaypoints.Add(Waypoint);
-				WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
-			}
-
-			//----------- HashGrid -----------
-			if (RuntimeWayPoints.Contains(Waypoint->GetWayPointHandle()))
-			{
-				continue;
-			}
-
-			// Create a new handle
-			FWayPointHandle NewHandle = GenerateNewHandle();
-			if (!NewHandle.IsValid())
-			{
-				continue;
-			}
-
-			// Creating and adding to the runtime data to the map
-			FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
-
-			// Boundary box and transform calculation/storage
-			RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
-			RuntimeData.Transform = Waypoint->GetActorTransform();
-
-
-			// Add to grid
-			FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetMutablePtr<FWayPointHashGridEntryData>();
-			if (GridEntryData)
-			{
-				GridEntryData->CellLoc = WaypointGrid.Add(NewHandle, RuntimeData.Bounds);
-			}
-			else
-			{
-				// Registration failure processing: removal from the map, etc.
-				RuntimeWayPoints.Remove(NewHandle);
-				continue;
-			}
-
-			Waypoint->SetWayPointHandle(NewHandle);
-		}
-	}
-
-	// 4. Hierarchical structure build (optional -decision to build right here)
-	BuildHierarchy(true);
-}
-
-
 void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 {
 	if (AbstractGraph.bIsBuilt && !bForceRebuild)
@@ -244,12 +170,12 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 	}
 
 	// 2. Identification of Entrance between clusters
-	for (auto& ClusterPair : AbstractGraph.Clusters)
+	for (TPair<int32, FHPACluster>& ClusterPair : AbstractGraph.Clusters)
 	{
 		const int32 CurrentClusterID = ClusterPair.Key;
 		FHPACluster& CurrentCluster = ClusterPair.Value;
 
-		for (const auto& WeakWayPoint : CurrentCluster.Waypoints)
+		for (const TWeakObjectPtr<AUKWayPoint>& WeakWayPoint : CurrentCluster.Waypoints)
 		{
 			AUKWayPoint* LocalWayPoint = WeakWayPoint.Get();
 			if (!LocalWayPoint)
@@ -274,7 +200,7 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 					TArray<FHPAEntrance>& EntrancesList = CurrentCluster.Entrances.FindOrAdd(NeighborClusterID);
 					// Duplicate entrance prevention (optional) -Checks that the same LocalWayPoint, NeighborWayPoint pairs are already available
 					bool bAlreadyExists = false;
-					for (const auto& ExistingEntrance : EntrancesList)
+					for (const FHPAEntrance& ExistingEntrance : EntrancesList)
 					{
 						if (ExistingEntrance.LocalWaypoint == LocalWayPoint && ExistingEntrance.NeighborWaypoint == NeighborWayPoint)
 						{
@@ -293,7 +219,7 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 	}
 
 	// 3. Cluster -centered calculation
-	for (auto& Pair : AbstractGraph.Clusters)
+	for (TPair<int32, FHPACluster>& Pair : AbstractGraph.Clusters)
 	{
 		Pair.Value.CalculateCenter();
 	}
@@ -541,13 +467,13 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 	};
 	int32 ColorIndex = 0;
 
-	for (const auto& ClusterPair : AbstractGraph.Clusters)
+	for (const TPair<int32, FHPACluster>& ClusterPair : AbstractGraph.Clusters)
 	{
 		const FHPACluster& Cluster = ClusterPair.Value;
 		FColor CurrentColor = ClusterColors[ColorIndex % ClusterColors.Num()];
 		ColorIndex++;
 
-		for (const auto& WeakWayPoint : Cluster.Waypoints)
+		for (const TWeakObjectPtr<AUKWayPoint>& WeakWayPoint : Cluster.Waypoints)
 		{
 			AUKWayPoint* WayPoint = WeakWayPoint.Get();
 			if (!WayPoint)
@@ -578,7 +504,7 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 			}
 		}
 
-		for (const auto& EntrancePair : Cluster.Entrances)
+		for (const TPair<int32, TArray<FHPAEntrance>>& EntrancePair : Cluster.Entrances)
 		{
 			const TArray<FHPAEntrance>& EntrancesList = EntrancePair.Value;
 			for (const FHPAEntrance& Entrance : EntrancesList)
@@ -602,10 +528,82 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 
 	// Hash Grid
 	const TSet<FWayPointHashGrid2D::FCell>& AllCells = WaypointGrid.GetCells();
-	for (auto It(AllCells.CreateConstIterator()); It; ++It)
+	for (const FWayPointHashGrid2D::FCell& Cell : AllCells)
 	{
-		FBox CellBounds = WaypointGrid.CalcCellBounds(FWayPointHashGrid2D::FCellLocation(It->X, It->Y, It->Level));
-		DrawDebugBox(World, CellBounds.GetCenter(), CellBounds.GetExtent(), GColorList.GetFColorByIndex(It->Level), false, Duration, SDPG_Foreground);
+		FBox CellBounds = WaypointGrid.CalcCellBounds(FWayPointHashGrid2D::FCellLocation(Cell.X, Cell.Y, Cell.Level));
+		DrawDebugBox(World, CellBounds.GetCenter(), CellBounds.GetExtent(), GColorList.GetFColorByIndex(Cell.Level), false, Duration, SDPG_Foreground);
 	}
 #endif
+}
+
+void UUKNavigationManager::AllRegisterWaypoint()
+{
+	// 1. Existing information clear
+	AllWaypoints.Empty();
+	WaypointToIndexMap.Empty();
+	AbstractGraph.Clear();
+
+	// 2. Find all AUKWayPoint actors in the world
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	TArray<AActor*> FoundWaypoints;
+	UGameplayStatics::GetAllActorsOfClass(World, AUKWayPoint::StaticClass(), FoundWaypoints);
+
+	// 3. Register the found actor
+	AllWaypoints.Reserve(FoundWaypoints.Num());
+	for (AActor* Actor : FoundWaypoints)
+	{
+		if (AUKWayPoint* Waypoint = Cast<AUKWayPoint>(Actor))
+		{
+			//----------- HPA -----------
+			if (IsValid(Waypoint) && !WaypointToIndexMap.Contains(Waypoint))
+			{
+				AllWaypoints.Add(Waypoint);
+				WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
+			}
+
+			//----------- HashGrid -----------
+			if (RuntimeWayPoints.Contains(Waypoint->GetWayPointHandle()))
+			{
+				continue;
+			}
+
+			// Create a new handle
+			FWayPointHandle NewHandle = GenerateNewHandle();
+			if (!NewHandle.IsValid())
+			{
+				continue;
+			}
+
+			// Creating and adding to the runtime data to the map
+			FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(Waypoint, NewHandle));
+
+			// Boundary box and transform calculation/storage
+			RuntimeData.Bounds = CalculateWayPointBounds(Waypoint);
+			RuntimeData.Transform = Waypoint->GetActorTransform();
+
+
+			// Add to grid
+			FWayPointHashGridEntryData* GridEntryData = RuntimeData.SpatialEntryData.GetMutablePtr<FWayPointHashGridEntryData>();
+			if (GridEntryData)
+			{
+				GridEntryData->CellLoc = WaypointGrid.Add(NewHandle, RuntimeData.Bounds);
+			}
+			else
+			{
+				// Registration failure processing: removal from the map, etc.
+				RuntimeWayPoints.Remove(NewHandle);
+				continue;
+			}
+
+			Waypoint->SetWayPointHandle(NewHandle);
+		}
+	}
+
+	// 4. Hierarchical structure build (optional -decision to build right here)
+	BuildHierarchy(true);
 }

@@ -25,9 +25,6 @@ public:
     FWayPointHandle RegisterWaypoint(AUKWayPoint* WayPoint);
     bool UnregisterWaypoint(const AUKWayPoint* WayPoint);
     
-    // All Wei Points forced registration and map update test
-    void AllRegisterWaypoint();
-
     // --- HPA hierarchy structure build ---
     UFUNCTION(BlueprintCallable, Category = "HPA")
     void BuildHierarchy(bool bForceRebuild = false);
@@ -80,4 +77,7 @@ private:
 public:
     // --- Debug ---
     void DrawDebugHPA(float Duration = 0.f) const;
+
+    // --- Debug. All Wei Points forced registration and map update ---
+    void AllRegisterWaypoint();
 };
