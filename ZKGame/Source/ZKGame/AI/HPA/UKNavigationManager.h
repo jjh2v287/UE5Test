@@ -31,7 +31,7 @@ public:
 
     // --- Path Finding (HPA application) ---
     UFUNCTION(BlueprintCallable, Category = "HPA")
-    TArray<AUKWayPoint*> FindPath(const FVector& StartLocation, const FVector& EndLocation);
+    TArray<FVector> FindPath(const FVector& StartLocation, const FVector& EndLocation);
 
     // --- Waypoint Finding ---
     UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Range"))
@@ -67,7 +67,7 @@ private:
     // --- Internal HPA function ---
     bool FindPathCluster(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath);
     TArray<AUKWayPoint*> FindPathInCluster(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath);
-    TArray<FVector> GetPathPointsFromStartToEnd(const FVector& StartPoint, const FVector& EndPoint) const;
+    TArray<FVector> GetPathPointsFromStartToEnd(const FVector& StartPoint, const FVector& EndPoint, const float AgentRadius = 50.0f, const float AgentHeight = 50.0f) const;
     
     // Unique handle generation function (internal use)
     FWayPointHandle GenerateNewHandle();

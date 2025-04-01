@@ -230,7 +230,7 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 	AbstractGraph.bIsBuilt = true;
 }
 
-TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation, const FVector& EndLocation)
+TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, const FVector& EndLocation)
 {
 	// 0. Check the hierarchy structure build
 	if (!AbstractGraph.bIsBuilt)
@@ -245,8 +245,8 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 	
 	if (AllWaypoints.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("No waypoints registered. Cannot find path."));
-		return {};
+		// UE_LOG(LogTemp, Warning, TEXT("No waypoints registered. Cannot find path."));
+		return GetPathPointsFromStartToEnd(StartLocation, EndLocation);
 	}
 
 
@@ -268,12 +268,13 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 		return {};
 	}
 
+	TArray<AUKWayPoint*> WayPoints; 
 	// 2. Search for paths in the same cluster
 	if (StartClusterID == EndClusterID)
 	{
 		TArray<int32> ClusterPathIDs = {StartClusterID};
 		// Path Stitching
-		return FindPathInCluster(StartWayPoint, EndWayPoint, ClusterPathIDs);
+		WayPoints =  FindPathInCluster(StartWayPoint, EndWayPoint, ClusterPathIDs);
 	}
 	// 3. Search for path between other clusters
 	else
@@ -282,14 +283,30 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 		if (FindPathCluster(StartClusterID, EndClusterID, ClusterPathIDs))
 		{
 			// Path Stitching
-			return FindPathInCluster(StartWayPoint, EndWayPoint, ClusterPathIDs);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("High-Level pathfinding failed between Cluster %d and %d."), StartClusterID, EndClusterID);
-			return {};
+			WayPoints = FindPathInCluster(StartWayPoint, EndWayPoint, ClusterPathIDs);
 		}
 	}
+
+	// 4. NavMesh
+	TArray<FVector> FinalWayPoint;
+	if (WayPoints.Num() > 0)
+	{
+		TArray<FVector> NavNodes = GetPathPointsFromStartToEnd(StartLocation, WayPoints[0]->GetActorLocation());
+		FinalWayPoint.Append(NavNodes);
+	
+		for (int32 i = 0; i < WayPoints.Num() - 1; i++)
+		{
+			const AUKWayPoint* WayPoint = WayPoints[i];
+			const AUKWayPoint* NextWayPoint = WayPoints[i + 1];
+			NavNodes = GetPathPointsFromStartToEnd(WayPoint->GetActorLocation(), NextWayPoint->GetActorLocation());
+			FinalWayPoint.Append(NavNodes);
+		}
+
+		NavNodes = GetPathPointsFromStartToEnd(WayPoints.Last()->GetActorLocation(), EndLocation);
+		FinalWayPoint.Append(NavNodes);
+	}
+
+	return FinalWayPoint;
 }
 
 AUKWayPoint* UUKNavigationManager::FindNearestWayPointinRange(const FVector& Location, const float Range /*= 1000.0f*/) const
@@ -436,7 +453,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPathInCluster(AUKWayPoint* StartW
 	return FinalPath;
 }
 
-TArray<FVector> UUKNavigationManager::GetPathPointsFromStartToEnd(const FVector& StartPoint, const FVector& EndPoint) const
+TArray<FVector> UUKNavigationManager::GetPathPointsFromStartToEnd(const FVector& StartPoint, const FVector& EndPoint, const float AgentRadius, const float AgentHeight) const
 {
 	UWorld* World = GetWorld();
 	if (!World)
@@ -457,18 +474,27 @@ TArray<FVector> UUKNavigationManager::GetPathPointsFromStartToEnd(const FVector&
 	{
 		return {};
 	}
-    
+
+	FSharedConstNavQueryFilter NavQueryFilter = NavData->GetDefaultQueryFilter();
+	if (NavQueryFilter->GetImplementation() == nullptr)
+	{
+		return {};
+	}
+	
 	// 내비게이션 쿼리 필터 설정
 	FNavAgentProperties NavAgentProps;
-	NavAgentProps.AgentRadius = 35.0f;    // 에이전트 반경 설정
-	NavAgentProps.AgentHeight = 190.0f;   // 에이전트 높이 설정
+	NavAgentProps.AgentRadius = AgentRadius;
+	NavAgentProps.AgentHeight = AgentHeight;
     
 	// 경로 찾기 쿼리 생성
 	FPathFindingQuery Query;
 	Query.StartLocation = StartPoint;
 	Query.EndLocation = EndPoint;
 	Query.NavData = NavData;
-	Query.QueryFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, World, nullptr);
+	FSharedNavQueryFilter NavigationFilterCopy = NavQueryFilter->GetCopy();
+	// NavigationFilterCopy->SetBacktrackingEnabled(true);
+	// Query.QueryFilter = UNavigationQueryFilter::GetQueryFilter(*NavData, World, nullptr);
+	Query.QueryFilter = NavigationFilterCopy;
 	
 	// 경로 계산 수행
 	const FPathFindingResult Result = NavSystem->FindPathSync(NavAgentProps, Query);
@@ -483,17 +509,13 @@ TArray<FVector> UUKNavigationManager::GetPathPointsFromStartToEnd(const FVector&
 		{
 			PathPoints.Add(Point.Location);
 		}
-        
-#if WITH_EDITOR
-		if (GIsEditor)
-		{
-			Result.Path->DebugDraw(NavData, FColor::Green, nullptr, true, 10.0f);
-		}
-#endif
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Path finding failed. Result: %d"), (int32)Result.Result);
+
+// #if WITH_EDITOR
+// 		if (GIsEditor)
+// 		{
+// 			Result.Path->DebugDraw(NavData, FColor::Green, nullptr, false, -1.0f);
+// 		}
+// #endif
 	}
     
 	return PathPoints;

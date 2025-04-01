@@ -42,11 +42,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path Testing|Debug", meta = (DisplayName = "Debug Draw Duration (0=Tick)"))
     float DebugDrawDuration = 0.0f;
 
+    UPROPERTY(EditAnywhere, Category=Query)
+    TSubclassOf<class UNavigationQueryFilter> FilterClass;
+    
     virtual bool ShouldTickIfViewportsOnly() const override { return true; }
 
 private:
     void UpdatePathVisualization();
-
-    UPROPERTY(Transient)
-    TArray<TObjectPtr<AUKWayPoint>> LastFoundPath;
 };
