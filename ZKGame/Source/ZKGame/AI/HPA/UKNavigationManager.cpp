@@ -350,7 +350,7 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 	else
 	{
 		TArray<int32> ClusterPathIDs;
-		if (FindPathHighLevel(StartClusterID, EndClusterID, ClusterPathIDs))
+		if (FindPathCluster(StartClusterID, EndClusterID, ClusterPathIDs))
 		{
 			// Path Stitching
 			return FindPathInCluster(StartWayPoint, EndWayPoint, ClusterPathIDs);
@@ -361,52 +361,6 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPath(const FVector& StartLocation
 			return {};
 		}
 	}
-}
-
-AUKWayPoint* UUKNavigationManager::FindNearestWaypoint(const FVector& Location, int32 PreferredClusterID) const
-{
-	AUKWayPoint* NearestWaypoint = nullptr;
-	float MinDistSq = TNumericLimits<float>::Max();
-	bool bFoundInPreferred = false;
-
-	// 1. Search first within the preferred cluster (if the PreferredClusterID is valid)
-	if (PreferredClusterID != INDEX_NONE && AbstractGraph.Clusters.Contains(PreferredClusterID))
-	{
-		const FHPACluster& PreferredCluster = AbstractGraph.Clusters[PreferredClusterID];
-		for (const auto& WeakWayPoint : PreferredCluster.Waypoints)
-		{
-			if (AUKWayPoint* WayPoint = WeakWayPoint.Get())
-			{
-				float DistSq = FVector::DistSquared(Location, WayPoint->GetActorLocation());
-				if (DistSq < MinDistSq)
-				{
-					MinDistSq = DistSq;
-					NearestWaypoint = WayPoint;
-					bFoundInPreferred = true;
-				}
-			}
-		}
-	}
-
-	// 2. If you haven't found it in your preferred cluster, or if you didn't have a preferred ID,
-	if (!bFoundInPreferred)
-	{
-		MinDistSq = TNumericLimits<float>::Max();
-		for (const auto& WeakWayPoint : AllWaypoints)
-		{
-			if (AUKWayPoint* WayPoint = WeakWayPoint.Get())
-			{
-				float DistSq = FVector::DistSquared(Location, WayPoint->GetActorLocation());
-				if (DistSq < MinDistSq)
-				{
-					MinDistSq = DistSq;
-					NearestWaypoint = WayPoint;
-				}
-			}
-		}
-	}
-
-	return NearestWaypoint;
 }
 
 AUKWayPoint* UUKNavigationManager::FindNearestWayPointinRange(const FVector& Location, const float Range /*= 1000.0f*/) const
@@ -465,7 +419,7 @@ void UUKNavigationManager::FindWayPoints(const FVector Location, const float Ran
 	}
 }
 
-bool UUKNavigationManager::FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath)
+bool UUKNavigationManager::FindPathCluster(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath)
 {
 	OutClusterPath.Empty();
 	if (StartClusterID == INDEX_NONE || EndClusterID == INDEX_NONE || !AbstractGraph.Clusters.Contains(StartClusterID) || !AbstractGraph.Clusters.Contains(EndClusterID))
@@ -553,6 +507,25 @@ TArray<AUKWayPoint*> UUKNavigationManager::FindPathInCluster(AUKWayPoint* StartW
 	return FinalPath;
 }
 
+FWayPointHandle UUKNavigationManager::GenerateNewHandle()
+{
+	// Simple incremental example (mimicking FSmartObjectHandleFactory::CreateHandleForDynamicObject)
+	// In practice, path hashing is recommended, like FSmartObjectHandleFactory::CreateHandleForComponent
+	return FWayPointHandle(NextHandleID++);
+}
+
+FBox UUKNavigationManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
+{
+	if (!IsValid(WayPoint))
+	{
+		return FBox(ForceInit);
+	}
+
+	const FVector Location = WayPoint->GetActorLocation();
+	const FVector Extent(50.0f);
+	return FBox(Location - Extent, Location + Extent);
+}
+
 void UUKNavigationManager::DrawDebugHPA(float Duration) const
 {
 #if ENABLE_DRAW_DEBUG
@@ -635,23 +608,4 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 		DrawDebugBox(World, CellBounds.GetCenter(), CellBounds.GetExtent(), GColorList.GetFColorByIndex(It->Level), false, Duration, SDPG_Foreground);
 	}
 #endif
-}
-
-FWayPointHandle UUKNavigationManager::GenerateNewHandle()
-{
-	// Simple incremental example (mimicking FSmartObjectHandleFactory::CreateHandleForDynamicObject)
-	// In practice, path hashing is recommended, like FSmartObjectHandleFactory::CreateHandleForComponent
-	return FWayPointHandle(NextHandleID++);
-}
-
-FBox UUKNavigationManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
-{
-	if (!IsValid(WayPoint))
-	{
-		return FBox(ForceInit);
-	}
-
-	const FVector Location = WayPoint->GetActorLocation();
-	const FVector Extent(50.0f);
-	return FBox(Location - Extent, Location + Extent);
 }

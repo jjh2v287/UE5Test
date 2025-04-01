@@ -24,6 +24,7 @@ public:
     // --- Waypoint management ---
     FWayPointHandle RegisterWaypoint(AUKWayPoint* WayPoint);
     bool UnregisterWaypoint(const AUKWayPoint* WayPoint);
+    
     // All Wei Points forced registration and map update test
     void AllRegisterWaypoint();
 
@@ -36,17 +37,12 @@ public:
     TArray<AUKWayPoint*> FindPath(const FVector& StartLocation, const FVector& EndLocation);
 
     // --- Waypoint Finding ---
-    AUKWayPoint* FindNearestWaypoint(const FVector& Location, int32 PreferredClusterID = INDEX_NONE) const;
-
     UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Range"))
     AUKWayPoint* FindNearestWayPointinRange(const FVector& Location, const float Range = 1000.0f) const;
     
     UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Box"))
     void FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const;
     
-    // --- Debug ---
-    void DrawDebugHPA(float Duration = 0.f) const;
-
 private:
     static UUKNavigationManager* Instance;
 
@@ -60,12 +56,6 @@ private:
     // Counter for creating a unique handle ID
     uint64 NextHandleID = 1;
 
-    // Unique handle generation function (internal use)
-    FWayPointHandle GenerateNewHandle();
-
-    // Wei Point Border Box Calculation Function (internal use)
-    FBox CalculateWayPointBounds(AUKWayPoint* WayPoint) const;
-    
     // All registered HPA Way Points lists (used or synchronized instead of existing PATHRAPH.WAYPOINTS)
     UPROPERTY(Transient)
     TArray<TWeakObjectPtr<AUKWayPoint>> AllWaypoints;
@@ -78,6 +68,16 @@ private:
     FHPAAbstractGraph AbstractGraph;
 
     // --- Internal HPA function ---
-    bool FindPathHighLevel(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath);
+    bool FindPathCluster(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath);
     TArray<AUKWayPoint*> FindPathInCluster(AUKWayPoint* StartWayPoint, AUKWayPoint* EndWayPoint, const TArray<int32>& ClusterPath);
+
+    // Unique handle generation function (internal use)
+    FWayPointHandle GenerateNewHandle();
+
+    // Wei Point Border Box Calculation Function (internal use)
+    FBox CalculateWayPointBounds(AUKWayPoint* WayPoint) const;
+
+public:
+    // --- Debug ---
+    void DrawDebugHPA(float Duration = 0.f) const;
 };
