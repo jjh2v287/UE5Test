@@ -39,6 +39,10 @@ public:
     
     UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "Find WayPoints In Box"))
     void FindWayPoints(const FVector Location, const float Range, TArray<FWayPointHandle>& OutWayPointHandles) const;
+
+    // --- Move ---
+    UFUNCTION(BlueprintCallable, Category = "WayPoint", meta = (DisplayName = "AI RequestMove"))
+    static void RequestMove(AActor* MoveOwner, const FVector GoalLocation);
     
 private:
     static UUKNavigationManager* Instance;

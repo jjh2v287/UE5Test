@@ -1,13 +1,17 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKNavigationManager.h"
+
+#include "AIController.h"
 #include "UKWayPoint.h"
 #include "Kismet/GameplayStatics.h"
 #include "DrawDebugHelpers.h"
 #include "NavigationData.h"
+#include "NavigationPath.h"
 #include "NavigationSystem.h"
 #include "Components/TextRenderComponent.h"
 #include "NavFilters/NavigationQueryFilter.h"
+#include "Navigation/PathFollowingComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UKNavigationManager)
 
@@ -363,6 +367,39 @@ void UUKNavigationManager::FindWayPoints(const FVector Location, const float Ran
 			}
 		}
 	}
+}
+
+void UUKNavigationManager::RequestMove(AActor* MoveOwner, const FVector GoalLocation)
+{
+	if (!UUKNavigationManager::Get() || !MoveOwner)
+	{
+		return;
+	}
+
+	AAIController* AIController = Cast<AAIController>(MoveOwner->GetInstigatorController());
+	if (!AIController)
+	{
+		return;
+	}
+
+	UPathFollowingComponent* PathFollowing = AIController->GetComponentByClass<UPathFollowingComponent>();
+	if (!PathFollowing)
+	{
+		return;
+	}
+
+	FAIMoveRequest MoveReq(GoalLocation);
+	MoveReq.SetUsePathfinding(true);
+	MoveReq.SetAllowPartialPath(true);
+	MoveReq.SetRequireNavigableEndLocation(true);
+	MoveReq.SetProjectGoalLocation(true);
+	MoveReq.SetReachTestIncludesGoalRadius(true);
+	MoveReq.SetAcceptanceRadius(5.0f);
+	MoveReq.SetNavigationFilter(AIController->GetDefaultNavigationFilterClass());
+	
+	TArray<FVector> RawPath = UUKNavigationManager::Get()->FindPath(MoveOwner->GetActorLocation(), GoalLocation);
+	FNavPathSharedPtr Path = MakeShareable(new FNavigationPath(RawPath, nullptr));
+	PathFollowing->RequestMove(MoveReq, Path);
 }
 
 bool UUKNavigationManager::FindPathCluster(int32 StartClusterID, int32 EndClusterID, TArray<int32>& OutClusterPath)
