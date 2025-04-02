@@ -55,7 +55,6 @@ struct ZKGAME_API FHPAAbstractGraph
     }
 };
 
-#pragma region Test
 struct ZKGAME_API FWayPointGraph
 {
     typedef int32 FNodeRef;
@@ -94,7 +93,6 @@ struct ZKGAME_API FWayPointFilter
 
     const FWayPointGraph* Graph;
 };
-#pragma endregion Test
 
 // --- A* related structure for HPA. For interior of the cluster ---
 // Abstract cluster graph search
