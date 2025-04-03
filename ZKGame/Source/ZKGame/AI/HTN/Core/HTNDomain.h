@@ -28,7 +28,8 @@ public:
 	TSubclassOf<UHTNCompoundTask> RootTaskClass;
 
 	/*
-	 * 도메인에서 이 설정을 해줘야한다 음... 나중에 비쥬얼 그래프로 해야할둣
+	 * 지식의 집합: HTN 도메인은 AI가 "어떤 목표(Compound Tasks)를 가지고 있고, 각 목표를 어떤 조건(Method Conditions) 하에서 어떤 절차(Methods -> Sub-Tasks)를 통해 달성할 수 있는지, 그리고 어떤 기본 행동(Primitive Tasks)을 할 수 있는지"에 대한 모든 정의와 규칙의 집합.
+	 * 각 태스크와 메서드 간의 관계 설정을 도메인에서 이 설정을 해줘야한다 음... 나중에 비쥬얼 그래프로 해야할둣
 	 *
 	 *                          RootTask(CompoundTask)
 	 *                                   /\
