@@ -63,10 +63,12 @@ void AUKNavigationDebugActor::UpdatePathVisualization()
 		if (RawPath.Num() > 0)
 		{
 			// Way point route
+			// DrawCentripetalCatmullRomSpline(World, RawPath, FColor::Black);
 			for (int32 i = 0; i < RawPath.Num() - 1; ++i)
 			{
-				const FVector CurrentWayPoint = RawPath[i];
-				const FVector NextWayPoint = RawPath[i + 1];
+				const FVector Offset = FVector(0.0f, 0.0f, 20.0f);
+				const FVector CurrentWayPoint = RawPath[i] + Offset;
+				const FVector NextWayPoint = RawPath[i + 1] + Offset;
 				DrawDebugDirectionalArrow(World, CurrentWayPoint, NextWayPoint, DebugArrowSize, DebugPathColor, false, DebugDrawDuration, SDPG_Foreground, DebugPathThickness);
 			}
 		}

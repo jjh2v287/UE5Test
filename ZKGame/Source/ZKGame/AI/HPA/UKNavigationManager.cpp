@@ -310,7 +310,10 @@ TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, con
 		FinalWayPoint.Append(NavNodes);
 	}
 
-	return FinalWayPoint;
+	// 5. Curve Path
+	TArray<FVector> CurvePath = GenerateCentripetalCatmullRomPath(FinalWayPoint, 4);
+	
+	return CurvePath;
 }
 
 AUKWayPoint* UUKNavigationManager::FindNearestWayPointinRange(const FVector& Location, const float Range /*= 1000.0f*/) const
@@ -575,6 +578,98 @@ FBox UUKNavigationManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
 	const FVector Location = WayPoint->GetActorLocation();
 	const FVector Extent(50.0f);
 	return FBox(Location - Extent, Location + Extent);
+}
+
+TArray<FVector> UUKNavigationManager::GenerateCentripetalCatmullRomPath(const TArray<FVector>& Points, int32 NumSamplesPerSegment /*= 8*/, float Alpha /*= 0.5f*/)
+{
+    TArray<FVector> InterpolatedPath;
+    const int32 NumPoints = Points.Num();
+    
+    // 경로점이 2개 미만이면 원본 배열 반환
+    if (NumPoints < 2)
+    {
+        return Points;
+    }
+    
+    // 첫 번째 포인트는 항상 경로에 포함
+    InterpolatedPath.Add(Points[0]);
+    
+    // 파라미터 값을 계산하는 람다 함수
+    auto GetT = [](float T, float Alpha, const FVector& P0, const FVector& P1)
+    {
+        const FVector P1P0 = P1 - P0;
+        const float Dot = P1P0 | P1P0; // 내적 연산
+        const float Pow = FMath::Pow(Dot, Alpha * 0.5f);
+        return Pow + T;
+    };
+    
+    // 각 세그먼트에 대해 보간 수행
+    for (int32 i = 0; i < NumPoints - 1; ++i)
+    {
+        // 4개의 제어점 가져오기 (경계 처리 포함)
+        const FVector& P0 = Points[FMath::Max(i - 1, 0)];
+        const FVector& P1 = Points[i];
+        const FVector& P2 = Points[i + 1];
+        const FVector& P3 = Points[FMath::Min(i + 2, NumPoints - 1)];
+        
+        // 파라미터 값 계산
+        const float T0 = 0.0f;
+        const float T1 = GetT(T0, Alpha, P0, P1);
+        const float T2 = GetT(T1, Alpha, P1, P2);
+        const float T3 = GetT(T2, Alpha, P2, P3);
+        
+        // 파라미터 간격 계산
+        const float T1T0 = T1 - T0;
+        const float T2T1 = T2 - T1;
+        const float T3T2 = T3 - T2;
+        const float T2T0 = T2 - T0;
+        const float T3T1 = T3 - T1;
+        
+        // 0에 가까운 값 체크 (분모가 0이 되는 것 방지)
+        const bool bIsNearlyZeroT1T0 = FMath::IsNearlyZero(T1T0, UE_KINDA_SMALL_NUMBER);
+        const bool bIsNearlyZeroT2T1 = FMath::IsNearlyZero(T2T1, UE_KINDA_SMALL_NUMBER);
+        const bool bIsNearlyZeroT3T2 = FMath::IsNearlyZero(T3T2, UE_KINDA_SMALL_NUMBER);
+        const bool bIsNearlyZeroT2T0 = FMath::IsNearlyZero(T2T0, UE_KINDA_SMALL_NUMBER);
+        const bool bIsNearlyZeroT3T1 = FMath::IsNearlyZero(T3T1, UE_KINDA_SMALL_NUMBER);
+        
+        // 첫 번째 포인트는 이미 추가되었으므로 다음 포인트부터 시작
+        // i == 0인 경우를 제외하고는 세그먼트의 시작점도 추가
+        if (i > 0)
+        {
+            InterpolatedPath.Add(P1);
+        }
+        
+        // 세그먼트 내 보간점 생성
+        for (int32 SampleIndex = 1; SampleIndex < NumSamplesPerSegment; ++SampleIndex)
+        {
+            // 파라메트릭 거리 (0.0 ~ 1.0)
+            const float ParametricDistance = static_cast<float>(SampleIndex) / static_cast<float>(NumSamplesPerSegment - 1);
+            
+            // 현재 T 값 (T1과 T2 사이를 보간)
+            const float T = FMath::Lerp(T1, T2, ParametricDistance);
+            
+            // De Boor 알고리즘을 사용한 보간 계산
+            // 1단계 보간
+            const FVector A1 = bIsNearlyZeroT1T0 ? P0 : (T1 - T) / T1T0 * P0 + (T - T0) / T1T0 * P1;
+            const FVector A2 = bIsNearlyZeroT2T1 ? P1 : (T2 - T) / T2T1 * P1 + (T - T1) / T2T1 * P2;
+            const FVector A3 = bIsNearlyZeroT3T2 ? P2 : (T3 - T) / T3T2 * P2 + (T - T2) / T3T2 * P3;
+            
+            // 2단계 보간
+            const FVector B1 = bIsNearlyZeroT2T0 ? A1 : (T2 - T) / T2T0 * A1 + (T - T0) / T2T0 * A2;
+            const FVector B2 = bIsNearlyZeroT3T1 ? A2 : (T3 - T) / T3T1 * A2 + (T - T1) / T3T1 * A3;
+            
+            // 최종 보간점
+            const FVector InterpolatedPoint = bIsNearlyZeroT2T1 ? B1 : (T2 - T) / T2T1 * B1 + (T - T1) / T2T1 * B2;
+            
+            // 결과 배열에 보간된 점 추가
+            InterpolatedPath.Add(InterpolatedPoint);
+        }
+    }
+    
+    // 마지막 점 추가
+    InterpolatedPath.Add(Points[NumPoints - 1]);
+    
+    return InterpolatedPath;
 }
 
 void UUKNavigationManager::DrawDebugHPA(float Duration) const

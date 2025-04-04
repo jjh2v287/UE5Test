@@ -79,6 +79,16 @@ private:
     // Wei Point Border Box Calculation Function (internal use)
     FBox CalculateWayPointBounds(AUKWayPoint* WayPoint) const;
 
+    /**
+     * Centripetal Catmull-Rom 스플라인을 사용하여 주어진 경로점에 대한 보간된 경로를 생성합니다. DrawCentripetalCatmullRomSpline 함수를 참고했습니다.
+     * 
+     * @param Points - 원본 경로점 배열
+     * @param Alpha - 텐션 매개변수 (0.5 = Centripetal, 0.0 = Uniform, 1.0 = Chordal)
+     * @param NumSamplesPerSegment - 각 세그먼트당 샘플 수 (높을수록 더 부드러운 곡선)
+     * @return - 보간된 경로점 배열
+     */
+    static TArray<FVector> GenerateCentripetalCatmullRomPath(const TArray<FVector>& Points, int32 NumSamplesPerSegment = 8, float Alpha = 0.5f);
+
 public:
     // --- Debug ---
     void DrawDebugHPA(float Duration = 0.f) const;
