@@ -47,7 +47,7 @@ public:
 private:
     static UUKNavigationManager* Instance;
 
-    // Registered Wei Point Management Map (handle-> runtime data)
+    // Registered Way Point Management Map (handle-> runtime data)
     UPROPERTY(Transient)
     TMap<FWayPointHandle, FWayPointRuntimeData> RuntimeWayPoints;
 
@@ -57,13 +57,9 @@ private:
     // Counter for creating a unique handle ID
     uint64 NextHandleID = 1;
 
-    // All registered HPA Way Points lists (used or synchronized instead of existing PATHRAPH.WAYPOINTS)
+    // Mapping for all WayPoint indexes
     UPROPERTY(Transient)
-    TArray<TWeakObjectPtr<AUKWayPoint>> AllWaypoints;
-
-    // Mapping quickly to an index of allwayPoints arrangements to an index of all wayPoints from Wei Points
-    UPROPERTY(Transient)
-    TMap<AUKWayPoint*, int32> WaypointToIndexMap;
+    TMap<AUKWayPoint*, FWayPointHandle> WaypointToIndexMap;
     
     // Builded hierarchy (abstract graph)
     FHPAAbstractGraph AbstractGraph;
@@ -76,7 +72,7 @@ private:
     // Unique handle generation function (internal use)
     FWayPointHandle GenerateNewHandle();
 
-    // Wei Point Border Box Calculation Function (internal use)
+    // Way Point Border Box Calculation Function (internal use)
     FBox CalculateWayPointBounds(AUKWayPoint* WayPoint) const;
 
     /**
@@ -93,6 +89,6 @@ public:
     // --- Debug ---
     void DrawDebugHPA(float Duration = 0.f) const;
 
-    // --- Debug. All Wei Points forced registration and map update ---
+    // --- Debug. All Way Points forced registration and map update ---
     void AllRegisterWaypoint();
 };

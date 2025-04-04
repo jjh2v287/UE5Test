@@ -27,7 +27,6 @@ void UUKNavigationManager::Initialize(FSubsystemCollectionBase& Collection)
 
 void UUKNavigationManager::Deinitialize()
 {
-	AllWaypoints.Empty();
 	WaypointToIndexMap.Empty();
 	AbstractGraph.Clear();
 	Instance = nullptr;
@@ -48,9 +47,15 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* WayPoint)
 		
 	}
 
+	// Create a new handle
+	FWayPointHandle NewHandle = GenerateNewHandle();
+	if (!NewHandle.IsValid())
+	{
+		return FWayPointHandle::Invalid;
+	}
+	
 	//----------- HPA -----------
-	AllWaypoints.Add(WayPoint);
-	WaypointToIndexMap.Add(WayPoint, AllWaypoints.Num() - 1);
+	WaypointToIndexMap.Add(WayPoint, NewHandle);
 	// Invalidation of the hierarchy when adding WeightPoints
 	AbstractGraph.bIsBuilt = false;
 
@@ -59,13 +64,6 @@ FWayPointHandle UUKNavigationManager::RegisterWaypoint(AUKWayPoint* WayPoint)
 	{
 		return WayPoint->GetWayPointHandle();
 	}
-
-    // Create a new handle
-    FWayPointHandle NewHandle = GenerateNewHandle();
-    if (!NewHandle.IsValid())
-    {
-        return FWayPointHandle::Invalid;
-    }
 
     // Creating and adding to the runtime data to the map
     FWayPointRuntimeData& RuntimeData = RuntimeWayPoints.Emplace(NewHandle, FWayPointRuntimeData(WayPoint, NewHandle));
@@ -99,28 +97,12 @@ bool UUKNavigationManager::UnregisterWaypoint(const AUKWayPoint* WayPoint)
 	}
 
 	//----------- HPA -----------
-	int32* IndexPtr = WaypointToIndexMap.Find(WayPoint);
-	if (IndexPtr)
+	if (WaypointToIndexMap.Contains(WayPoint))
 	{
-		int32 IndexToRemove = *IndexPtr;
-		
+		// Remove from the WayPoint map
 		WaypointToIndexMap.Remove(WayPoint);
-
-		if (AllWaypoints.IsValidIndex(IndexToRemove))
-		{
-			if (IndexToRemove < AllWaypoints.Num() - 1)
-			{
-				AllWaypoints.Swap(IndexToRemove, AllWaypoints.Num() - 1);
-				AUKWayPoint* SwappedWayPoint = AllWaypoints[IndexToRemove].Get();
-				if (SwappedWayPoint)
-				{
-					WaypointToIndexMap.Remove(SwappedWayPoint);
-					WaypointToIndexMap.Add(SwappedWayPoint, IndexToRemove);
-				}
-			}
-			AllWaypoints.Pop(EAllowShrinking::No);
-		}
-
+    
+		// indicate that the hierarchy has been changed
 		AbstractGraph.bIsBuilt = false;
 	}
 
@@ -153,9 +135,9 @@ void UUKNavigationManager::BuildHierarchy(bool bForceRebuild)
 	AbstractGraph.Clear();
 
 	// 1. Cluster creation and way point assignment
-	for (int32 i = 0; i < AllWaypoints.Num(); ++i)
+	for (const TTuple<AUKWayPoint*, FWayPointHandle>& Iter : WaypointToIndexMap)
 	{
-		AUKWayPoint* WayPoint = AllWaypoints[i].Get();
+		AUKWayPoint* WayPoint = Iter.Key;
 		if (!WayPoint)
 		{
 			continue;
@@ -247,7 +229,7 @@ TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, con
 		}
 	}
 	
-	if (AllWaypoints.IsEmpty())
+	if (WaypointToIndexMap.IsEmpty())
 	{
 		// UE_LOG(LogTemp, Warning, TEXT("No waypoints registered. Cannot find path."));
 		return GetPathPointsFromStartToEnd(StartLocation, EndLocation);
@@ -759,7 +741,6 @@ void UUKNavigationManager::DrawDebugHPA(float Duration) const
 void UUKNavigationManager::AllRegisterWaypoint()
 {
 	// 1. Existing information clear
-	AllWaypoints.Empty();
 	WaypointToIndexMap.Empty();
 	AbstractGraph.Clear();
 
@@ -774,27 +755,26 @@ void UUKNavigationManager::AllRegisterWaypoint()
 	UGameplayStatics::GetAllActorsOfClass(World, AUKWayPoint::StaticClass(), FoundWaypoints);
 
 	// 3. Register the found actor
-	AllWaypoints.Reserve(FoundWaypoints.Num());
+	WaypointToIndexMap.Reserve(FoundWaypoints.Num());
 	for (AActor* Actor : FoundWaypoints)
 	{
 		if (AUKWayPoint* Waypoint = Cast<AUKWayPoint>(Actor))
 		{
+			// Create a new handle
+			FWayPointHandle NewHandle = GenerateNewHandle();
+			if (!NewHandle.IsValid())
+			{
+				continue;
+			}
+			
 			//----------- HPA -----------
 			if (IsValid(Waypoint) && !WaypointToIndexMap.Contains(Waypoint))
 			{
-				AllWaypoints.Add(Waypoint);
-				WaypointToIndexMap.Add(Waypoint, AllWaypoints.Num() - 1);
+				WaypointToIndexMap.Add(Waypoint, NewHandle);
 			}
 
 			//----------- HashGrid -----------
 			if (RuntimeWayPoints.Contains(Waypoint->GetWayPointHandle()))
-			{
-				continue;
-			}
-
-			// Create a new handle
-			FWayPointHandle NewHandle = GenerateNewHandle();
-			if (!NewHandle.IsValid())
 			{
 				continue;
 			}
