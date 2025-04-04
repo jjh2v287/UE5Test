@@ -580,7 +580,7 @@ FBox UUKNavigationManager::CalculateWayPointBounds(AUKWayPoint* WayPoint) const
 	return FBox(Location - Extent, Location + Extent);
 }
 
-TArray<FVector> UUKNavigationManager::GenerateCentripetalCatmullRomPath(const TArray<FVector>& Points, int32 NumSamplesPerSegment /*= 8*/, float Alpha /*= 0.5f*/)
+TArray<FVector> UUKNavigationManager::GenerateCentripetalCatmullRomPath(const TArray<FVector>& Points, int32 NumSamplesPerSegment /*= 4*/, float Alpha /*= 0.5f*/)
 {
     TArray<FVector> InterpolatedPath;
     const int32 NumPoints = Points.Num();

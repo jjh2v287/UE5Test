@@ -87,7 +87,7 @@ private:
      * @param NumSamplesPerSegment - 각 세그먼트당 샘플 수 (높을수록 더 부드러운 곡선)
      * @return - 보간된 경로점 배열
      */
-    static TArray<FVector> GenerateCentripetalCatmullRomPath(const TArray<FVector>& Points, int32 NumSamplesPerSegment = 8, float Alpha = 0.5f);
+    static TArray<FVector> GenerateCentripetalCatmullRomPath(const TArray<FVector>& Points, int32 NumSamplesPerSegment = 4, float Alpha = 0.5f);
 
 public:
     // --- Debug ---
