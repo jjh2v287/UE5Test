@@ -224,8 +224,8 @@ TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, con
 		BuildHierarchy(true);
 		if (!AbstractGraph.bIsBuilt)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Failed to build HPA Hierarchy. Cannot find path."));
-			return {};
+			// UE_LOG(LogTemp, Error, TEXT("Failed to build HPA Hierarchy. Cannot find path."));
+			return GetPathPointsFromStartToEnd(StartLocation, EndLocation);
 		}
 	}
 	
@@ -242,16 +242,16 @@ TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, con
 
 	if (!StartWayPoint || !EndWayPoint)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Could not find nearest waypoints for start or end location."));
-		return {};
+		// UE_LOG(LogTemp, Warning, TEXT("Could not find nearest waypoints for start or end location."));
+		return GetPathPointsFromStartToEnd(StartLocation, EndLocation);
 	}
 
 	int32 StartClusterID = StartWayPoint->ClusterID;
 	int32 EndClusterID = EndWayPoint->ClusterID;
 	if (StartClusterID == INDEX_NONE || EndClusterID == INDEX_NONE)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Start or End Waypoint has invalid ClusterID."));
-		return {};
+		// UE_LOG(LogTemp, Warning, TEXT("Start or End Waypoint has invalid ClusterID."));
+		return GetPathPointsFromStartToEnd(StartLocation, EndLocation);
 	}
 
 	TArray<AUKWayPoint*> WayPoints; 
@@ -273,24 +273,26 @@ TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, con
 		}
 	}
 
+	if (WayPoints.IsEmpty())
+	{
+		return GetPathPointsFromStartToEnd(StartLocation, EndLocation);
+	}
+	
 	// 4. NavMesh
 	TArray<FVector> FinalWayPoint;
-	if (WayPoints.Num() > 0)
-	{
-		TArray<FVector> NavNodes = GetPathPointsFromStartToEnd(StartLocation, WayPoints[0]->GetActorLocation());
-		FinalWayPoint.Append(NavNodes);
-	
-		for (int32 i = 0; i < WayPoints.Num() - 1; i++)
-		{
-			const AUKWayPoint* WayPoint = WayPoints[i];
-			const AUKWayPoint* NextWayPoint = WayPoints[i + 1];
-			NavNodes = GetPathPointsFromStartToEnd(WayPoint->GetActorLocation(), NextWayPoint->GetActorLocation());
-			FinalWayPoint.Append(NavNodes);
-		}
+	TArray<FVector> NavNodes = GetPathPointsFromStartToEnd(StartLocation, WayPoints[0]->GetActorLocation());
+	FinalWayPoint.Append(NavNodes);
 
-		NavNodes = GetPathPointsFromStartToEnd(WayPoints.Last()->GetActorLocation(), EndLocation);
+	for (int32 i = 0; i < WayPoints.Num() - 1; i++)
+	{
+		const AUKWayPoint* WayPoint = WayPoints[i];
+		const AUKWayPoint* NextWayPoint = WayPoints[i + 1];
+		NavNodes = GetPathPointsFromStartToEnd(WayPoint->GetActorLocation(), NextWayPoint->GetActorLocation());
 		FinalWayPoint.Append(NavNodes);
 	}
+
+	NavNodes = GetPathPointsFromStartToEnd(WayPoints.Last()->GetActorLocation(), EndLocation);
+	FinalWayPoint.Append(NavNodes);
 
 	// 5. Curve Path
 	TArray<FVector> CurvePath = GenerateCentripetalCatmullRomPath(FinalWayPoint, 4);
