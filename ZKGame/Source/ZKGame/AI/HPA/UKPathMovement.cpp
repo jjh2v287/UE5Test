@@ -15,7 +15,6 @@ UUKPathMovement::UUKPathMovement()
     // 기본값 초기화
     bIsMoving = false;
     CurrentWaypointIndex = 0;
-    CurrentVelocity = FVector::ZeroVector;
 }
 
 // Called when the game starts
@@ -29,18 +28,14 @@ void UUKPathMovement::TickComponent(float DeltaTime, ELevelTick TickType, FActor
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    // 이동 중이라면 스티어링 힘 계산 및 적용
+    // 이동 중이라면 웨이포인트를 향해 이동
     if (bIsMoving)
     {
-        // 스티어링 힘 계산
-        FVector SteeringForce = CalculateSteeringForce(DeltaTime);
-        
-        // 스티어링 힘 적용
-        ApplySteeringForce(SteeringForce, DeltaTime);
+        MoveTowardsWaypoint(DeltaTime);
     }
 }
 
-void UUKPathMovement::Move(const FVector TargetLocation)
+void UUKPathMovement::MoveToLocation(const FVector TargetLocation)
 {
     // 네비게이션 매니저 존재 확인
     if (!UUKNavigationManager::Get())
@@ -49,7 +44,7 @@ void UUKPathMovement::Move(const FVector TargetLocation)
         return;
     }
 
-    // 현재 위치 가져오기
+    // 시작 위치 가져오기
     const FVector StartLocation = GetOwner()->GetActorLocation();
     
     // 경로 찾기
@@ -64,14 +59,6 @@ void UUKPathMovement::Move(const FVector TargetLocation)
 
     // 첫 번째 웨이포인트부터 시작
     CurrentWaypointIndex = 0;
-    
-    // 목표 위치 설정
-    UpdateGoalLocation();
-    
-    // 현재 속도 초기화
-    CurrentVelocity = FVector::ZeroVector;
-    
-    // 이동 상태 시작
     bIsMoving = true;
 
     UE_LOG(LogTemp, Log, TEXT("UKPathMovement: Starting movement with %d waypoints"), CurrentPath.Num());
@@ -82,7 +69,6 @@ void UUKPathMovement::StopMovement()
     bIsMoving = false;
     CurrentPath.Empty();
     CurrentWaypointIndex = 0;
-    CurrentVelocity = FVector::ZeroVector;
 }
 
 void UUKPathMovement::DestinationReached()
@@ -91,7 +77,6 @@ void UUKPathMovement::DestinationReached()
     
     // 이동 상태 초기화
     bIsMoving = false;
-    CurrentVelocity = FVector::ZeroVector;
     
     // 델리게이트 호출
     OnDestinationReached.Broadcast();
@@ -110,116 +95,52 @@ bool UUKPathMovement::MoveToNextWaypoint()
         return false;
     }
     
-    // 새 목표 위치 업데이트
-    UpdateGoalLocation();
     return true;
 }
 
-void UUKPathMovement::UpdateGoalLocation()
+void UUKPathMovement::MoveTowardsWaypoint(float DeltaTime)
 {
-    if (CurrentWaypointIndex < CurrentPath.Num())
-    {
-        CurrentGoalLocation = CurrentPath[CurrentWaypointIndex];
-    }
-}
-
-FVector UUKPathMovement::CalculateSteeringForce(float DeltaTime)
-{
-    if (!GetOwner())
-    {
-        return FVector::ZeroVector;
-    }
-
-    // 기본 스티어링 힘 - 현재 위치에서 목표 위치로 이동하는 힘
-    FVector CurrentLocation = GetOwner()->GetActorLocation();
-    FVector DesiredDirection = CurrentGoalLocation - CurrentLocation;
-    DesiredDirection.Z = 0.0f; // 평면 이동
-    
-    const float DistanceToTarget = DesiredDirection.Size();
-    
-    // 목표 웨이포인트에 도달했는지 확인
-    float Radius = AcceptanceRadius;
-    if (CurrentWaypointIndex == CurrentPath.Num() - 1)
-    {
-        Radius = 1.0f;
-    }
-
-    if (DistanceToTarget <= Radius)
-    {
-        // 다음 웨이포인트로 이동
-        if (!MoveToNextWaypoint())
-        {
-            return FVector::ZeroVector; // 모든 웨이포인트 방문 완료
-        }
-        
-        // 새로운 목표를 향한 방향 재계산
-        DesiredDirection = CurrentGoalLocation - CurrentLocation;
-        DesiredDirection.Z = 0.0f;
-    }
-    
-    if (DistanceToTarget > 1.0f)
-    {
-        DesiredDirection /= DistanceToTarget; // 방향 벡터 정규화
-        
-        // 최대 속도로 제한된 희망 속도
-        FVector DesiredVelocity = DesiredDirection * MaxSpeed;
-        
-        // 도착 시 감속
-        if (DistanceToTarget < SlowdownRadius)
-        {
-            DesiredVelocity *= (DistanceToTarget / SlowdownRadius);
-        }
-        
-        // 현재 속도 (컴포넌트에 저장된 속도 사용)
-        FVector CurrentMovementVelocity = CurrentVelocity;
-        CurrentMovementVelocity.Z = 0.0f;
-        
-        // Steering = 희망속도 - 현재속도
-        float SteerStrength = 1.0f / 0.3f; // 반응 시간의 역수
-        FVector NewSteeringForce = (DesiredVelocity - CurrentMovementVelocity) * SteerStrength;
-        
-        // 최대 힘으로 제한
-        if (NewSteeringForce.SizeSquared() > MaxForce * MaxForce)
-        {
-            NewSteeringForce.Normalize();
-            NewSteeringForce *= MaxForce;
-        }
-
-        return NewSteeringForce;
-    }
-    
-    return FVector::ZeroVector;
-}
-
-void UUKPathMovement::ApplySteeringForce(const FVector& SteeringForce, float DeltaTime)
-{
-    if (!GetOwner() || SteeringForce.IsNearlyZero())
+    if (!GetOwner() || CurrentWaypointIndex >= CurrentPath.Num() || !bIsMoving)
     {
         return;
     }
 
-    // 질량에 기반한 가속도 계산
-    FVector Acceleration = SteeringForce / Mass;
+    // 현재 액터 위치 및 현재 목표 웨이포인트 위치
+    FVector CurrentLocation = GetOwner()->GetActorLocation();
+    FVector TargetWaypoint = CurrentPath[CurrentWaypointIndex];
     
-    // 새 속도 계산
-    CurrentVelocity += Acceleration * DeltaTime;
+    // Z축 높이 맞추기 (필요에 따라 조정)
+    TargetWaypoint.Z = CurrentLocation.Z;
     
-    // 최대 속도 제한
-    if (CurrentVelocity.SizeSquared() > MaxSpeed * MaxSpeed)
+    // 현재 위치에서 목표 웨이포인트까지의 방향 및 거리 계산
+    FVector Direction = TargetWaypoint - CurrentLocation;
+    float DistanceSquared = Direction.SizeSquared();
+    
+    // 목표 웨이포인트에 도달했는지 확인
+    if (DistanceSquared <= FMath::Square(AcceptanceRadius))
     {
-        CurrentVelocity.Normalize();
-        CurrentVelocity *= MaxSpeed;
+        // 다음 웨이포인트로 이동
+        if (!MoveToNextWaypoint())
+        {
+            return; // 모든 웨이포인트 방문 완료
+        }
+        
+        // 다음 웨이포인트에 대한 정보 업데이트
+        TargetWaypoint = CurrentPath[CurrentWaypointIndex];
+        TargetWaypoint.Z = CurrentLocation.Z;
+        Direction = TargetWaypoint - CurrentLocation;
     }
     
-    // 위치 업데이트
-    FVector NewLocation = GetOwner()->GetActorLocation() + CurrentVelocity * DeltaTime;
+    // 이동 벡터 정규화 및 속도 적용
+    Direction.Normalize();
+    FVector MoveDelta = Direction * MovementSpeed * DeltaTime;
     
     // 회전 처리 (옵션)
-    if (bUseRotation && !CurrentVelocity.IsNearlyZero())
+    if (bUseRotation)
     {
-        // 이동 방향으로 회전
+        // 목표 방향으로 회전
         FRotator CurrentRotation = GetOwner()->GetActorRotation();
-        FRotator TargetRotation = UKismetMathLibrary::MakeRotFromX(CurrentVelocity.GetSafeNormal());
+        FRotator TargetRotation = UKismetMathLibrary::MakeRotFromX(Direction);
         
         // 부드러운 회전을 위한 보간
         FRotator NewRotation = UKismetMathLibrary::RInterpTo(
@@ -229,13 +150,9 @@ void UUKPathMovement::ApplySteeringForce(const FVector& SteeringForce, float Del
             RotationSpeed
         );
         
-        // 회전 설정
         GetOwner()->SetActorRotation(NewRotation);
     }
     
-    // 위치 설정
-    GetOwner()->SetActorLocation(NewLocation, true);
-    
-    // 디버그 로그
-    //UE_LOG(LogTemp, Log, TEXT("Velocity: %s (%f)"), *CurrentVelocity.ToString(), CurrentVelocity.Size());
+    // 액터 위치 업데이트
+    GetOwner()->SetActorLocation(CurrentLocation + MoveDelta, true);
 }
