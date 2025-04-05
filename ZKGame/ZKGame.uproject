@@ -73,10 +73,6 @@
 		{
 			"Name": "MassCrowd",
 			"Enabled": true
-		},
-		{
-			"Name": "HTNPlanner",
-			"Enabled": true
 		}
 	]
 }

@@ -295,7 +295,7 @@ TArray<FVector> UUKNavigationManager::FindPath(const FVector& StartLocation, con
 	FinalWayPoint.Append(NavNodes);
 
 	// 5. Curve Path
-	TArray<FVector> CurvePath = GenerateCentripetalCatmullRomPath(FinalWayPoint, 4);
+	TArray<FVector> CurvePath = GenerateCentripetalCatmullRomPath(FinalWayPoint);
 	
 	return CurvePath;
 }
