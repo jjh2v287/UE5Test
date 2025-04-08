@@ -134,13 +134,15 @@ void UUKPathMovement::MoveTowardsWaypoint(float DeltaTime)
     // 이동 벡터 정규화 및 속도 적용
     Direction.Normalize();
     FVector MoveDelta = Direction * MovementSpeed * DeltaTime;
+    FVector CurrentVelocity = MoveDelta / DeltaTime; // 현재 프레임의 속도 벡터 근사치 계산
     
     // 회전 처리 (옵션)
-    if (bUseRotation)
+    if (bUseRotation && !CurrentVelocity.IsNearlyZero())
     {
         // 목표 방향으로 회전
         FRotator CurrentRotation = GetOwner()->GetActorRotation();
-        FRotator TargetRotation = UKismetMathLibrary::MakeRotFromX(Direction);
+        // FRotator TargetRotation = UKismetMathLibrary::MakeRotFromX(Direction);
+        FRotator TargetRotation = CurrentVelocity.ToOrientationRotator(); // 속도 방향 기준
         
         // 부드러운 회전을 위한 보간
         FRotator NewRotation = UKismetMathLibrary::RInterpTo(
@@ -149,7 +151,14 @@ void UUKPathMovement::MoveTowardsWaypoint(float DeltaTime)
             DeltaTime,
             RotationSpeed
         );
-        
+
+        // FQuat StartQuat = CurrentRotation.Quaternion();  
+        // FQuat EndQuat = TargetRotation.Quaternion();
+        // FQuat SmoothQuat = FQuat::Slerp(StartQuat, EndQuat, RotationSpeed * DeltaTime);  
+        // FRotator NewRotation = SmoothQuat.Rotator();
+
+        // 5. 계산된 새 쿼터니언으로 액터의 회전을 설정합니다.
+        // SetActorRotation 함수는 FQuat을 직접 받을 수 있습니다.
         GetOwner()->SetActorRotation(NewRotation);
     }
     
