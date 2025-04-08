@@ -4,16 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "UKPathMovement.generated.h"
+#include "UKWayPointPathMovement.generated.h"
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class ZKGAME_API UUKPathMovement : public UActorComponent
+class ZKGAME_API UUKWayPointPathMovement : public UActorComponent
 {
     GENERATED_BODY()
 
 public:
     // Sets default values for this component's properties
-    UUKPathMovement();
+    UUKWayPointPathMovement();
 
 protected:
     // Called when the game starts

@@ -1,12 +1,12 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-#include "UKPathMovement.h"
+#include "UKWayPointPathMovement.h"
 #include "UKNavigationManager.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/KismetMathLibrary.h"
 
 // Sets default values for this component's properties
-UUKPathMovement::UUKPathMovement()
+UUKWayPointPathMovement::UUKWayPointPathMovement()
 {
     // Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
     // off to improve performance if you don't need them.
@@ -18,13 +18,14 @@ UUKPathMovement::UUKPathMovement()
 }
 
 // Called when the game starts
-void UUKPathMovement::BeginPlay()
+void UUKWayPointPathMovement::BeginPlay()
 {
     Super::BeginPlay();
+    SetComponentTickEnabled(false);
 }
 
 // Called every frame
-void UUKPathMovement::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UUKWayPointPathMovement::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -35,7 +36,7 @@ void UUKPathMovement::TickComponent(float DeltaTime, ELevelTick TickType, FActor
     }
 }
 
-void UUKPathMovement::MoveToLocation(const FVector TargetLocation)
+void UUKWayPointPathMovement::MoveToLocation(const FVector TargetLocation)
 {
     // 네비게이션 매니저 존재 확인
     if (!UUKNavigationManager::Get())
@@ -60,29 +61,31 @@ void UUKPathMovement::MoveToLocation(const FVector TargetLocation)
     // 첫 번째 웨이포인트부터 시작
     CurrentWaypointIndex = 0;
     bIsMoving = true;
+    SetComponentTickEnabled(bIsMoving);
 
     UE_LOG(LogTemp, Log, TEXT("UKPathMovement: Starting movement with %d waypoints"), CurrentPath.Num());
 }
 
-void UUKPathMovement::StopMovement()
+void UUKWayPointPathMovement::StopMovement()
 {
     bIsMoving = false;
     CurrentPath.Empty();
     CurrentWaypointIndex = 0;
 }
 
-void UUKPathMovement::DestinationReached()
+void UUKWayPointPathMovement::DestinationReached()
 {
     UE_LOG(LogTemp, Log, TEXT("UKPathMovement: Destination reached"));
     
     // 이동 상태 초기화
     bIsMoving = false;
+    SetComponentTickEnabled(bIsMoving);
     
     // 델리게이트 호출
     OnDestinationReached.Broadcast();
 }
 
-bool UUKPathMovement::MoveToNextWaypoint()
+bool UUKWayPointPathMovement::MoveToNextWaypoint()
 {
     // 다음 웨이포인트로 인덱스 증가
     CurrentWaypointIndex++;
@@ -98,7 +101,7 @@ bool UUKPathMovement::MoveToNextWaypoint()
     return true;
 }
 
-void UUKPathMovement::MoveTowardsWaypoint(float DeltaTime)
+void UUKWayPointPathMovement::MoveTowardsWaypoint(float DeltaTime)
 {
     if (!GetOwner() || CurrentWaypointIndex >= CurrentPath.Num() || !bIsMoving)
     {
@@ -140,25 +143,18 @@ void UUKPathMovement::MoveTowardsWaypoint(float DeltaTime)
     if (bUseRotation && !CurrentVelocity.IsNearlyZero())
     {
         // 목표 방향으로 회전
-        FRotator CurrentRotation = GetOwner()->GetActorRotation();
-        // FRotator TargetRotation = UKismetMathLibrary::MakeRotFromX(Direction);
-        FRotator TargetRotation = CurrentVelocity.ToOrientationRotator(); // 속도 방향 기준
+        const FRotator CurrentRotation = GetOwner()->GetActorRotation();
+        const FRotator TargetRotation = CurrentVelocity.ToOrientationRotator();
         
         // 부드러운 회전을 위한 보간
-        FRotator NewRotation = UKismetMathLibrary::RInterpTo(
+        const FRotator NewRotation = UKismetMathLibrary::RInterpTo(
             CurrentRotation,
             TargetRotation,
             DeltaTime,
             RotationSpeed
         );
 
-        // FQuat StartQuat = CurrentRotation.Quaternion();  
-        // FQuat EndQuat = TargetRotation.Quaternion();
-        // FQuat SmoothQuat = FQuat::Slerp(StartQuat, EndQuat, RotationSpeed * DeltaTime);  
-        // FRotator NewRotation = SmoothQuat.Rotator();
-
         // 5. 계산된 새 쿼터니언으로 액터의 회전을 설정합니다.
-        // SetActorRotation 함수는 FQuat을 직접 받을 수 있습니다.
         GetOwner()->SetActorRotation(NewRotation);
     }
     
