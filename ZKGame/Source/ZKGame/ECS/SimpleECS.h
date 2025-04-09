@@ -96,8 +96,26 @@ struct FEntityRecord
 	int32 Generation = 0;
 };
 
-// --- 청크 클래스 ---
-/** 데이터를 SoA 방식으로 저장하는 메모리 청크 */
+//				--- 청크 클래스 ---
+/*			데이터를 SoA 방식으로 저장하는 메모리 청크
+			청크 (Chunk for Arch_Move) - Capacity: N Entities
++---------------------------------------------------------------------------+
+| Entity Handles Array (FECSEntityHandle*)                                  |
+| E[0] | E[1] | E[2] | ... | E[N-1]                                         |
++---------------------------------------------------------------------------+
+| Position Component Array (FPositionComponent*)                            | <-- ComponentDataArrays[Position]이 여기를 가리킴
+| P[0] | P[1] | P[2] | ... | P[N-1]                                         |
++---------------------------------------------------------------------------+
+| Velocity Component Array (FVelocityComponent*)                            | <-- ComponentDataArrays[Velocity]가 여기를 가리킴
+| V[0] | V[1] | V[2] | ... | V[N-1]                                         |
++---------------------------------------------------------------------------+
+1. 하나의 청크는 여러 엔티티(최대 N개)의 데이터를 담습니다.
+2. 먼저 모든 엔티티의 핸들(E[0]~E[N-1])이 연속으로 저장됩니다.
+3. 그다음, 모든 엔티티의 Position 컴포넌트(P[0]~P[N-1])가 연속으로 저장됩니다.
+4. 그다음, 모든 엔티티의 Velocity 컴포넌트(V[0]~V[N-1])가 연속으로 저장됩니다.
+5. ComponentDataArrays 맵은 각 컴포넌트 배열(Position Component Array, Velocity Component Array)의 시작 메모리 주소를 저장하고 있습니다.
+6. 엔티티 E[i]의 Position 데이터는 P[i]에, Velocity 데이터는 V[i]에 저장됩니다.
+*/
 class FECSArchetypeChunk
 {
 public:
