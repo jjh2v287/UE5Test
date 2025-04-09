@@ -1,13 +1,8 @@
 ﻿#pragma once
 
-#include "CoreMinimal.h" // FVector 등 기본 타입 사용을 위해 포함
-#include "Containers/Set.h"
-#include "Containers/Map.h"
-#include "Containers/Array.h"
-#include "Logging/LogMacros.h"
+#include "CoreMinimal.h"
 #include "SimpleECS.generated.h"
 
-// 로그 카테고리 정의
 DECLARE_LOG_CATEGORY_EXTERN(LogSimpleECS, Log, All);
 
 // --- 기본 타입 정의 ---
@@ -24,10 +19,7 @@ struct FECSEntityHandle
 	{
 	}
 
-	bool IsValid() const
-	{
-		return Index != INDEX_NONE && Generation > 0;
-	}
+	bool IsValid() const { return Index != INDEX_NONE && Generation > 0; }
 
 	void Reset()
 	{
@@ -44,10 +36,14 @@ struct FECSEntityHandle
 	{
 		return HashCombine(GetTypeHash(Handle.Index), GetTypeHash(Handle.Generation));
 	}
+};
 
-	FString ToString() const
+/** FMemory를 사용하는 메모리 관리를 위한 커스텀 삭제자 */
+struct FMemoryDeleter
+{
+	void operator()(void* Ptr) const
 	{
-		return FString::Printf(TEXT("E(%d,%d)"), Index, Generation);
+		FMemory::Free(Ptr);
 	}
 };
 
@@ -62,20 +58,13 @@ struct FECSComponentBase
 /** 컴포넌트 타입 식별자 (UScriptStruct* 사용) */
 using FECSComponentTypeID = const UScriptStruct*;
 
-/** 아키타입의 컴포넌트 구성 (간단하게 TSet 사용) */
+/** 아키타입의 컴포넌트 구성 */
 struct FECSArchetypeComposition
 {
 	TSet<FECSComponentTypeID> ComponentTypes;
 
-	void Add(FECSComponentTypeID Type)
-	{
-		ComponentTypes.Add(Type);
-	}
-	
-	bool Contains(FECSComponentTypeID Type) const
-	{
-		return ComponentTypes.Contains(Type);
-	}
+	void Add(FECSComponentTypeID Type) { ComponentTypes.Add(Type); }
+	bool Contains(FECSComponentTypeID Type) const { return ComponentTypes.Contains(Type); }
 
 	bool operator==(const FECSArchetypeComposition& Other) const
 	{
@@ -86,33 +75,25 @@ struct FECSArchetypeComposition
 	{
 		uint32 Hash = 0;
 		for (FECSComponentTypeID Type : Comp.ComponentTypes)
-		{ 
+		{
 			Hash = HashCombine(Hash, GetTypeHash(Type));
 		}
 		return Hash;
-	}
-
-	FString ToString() const
-	{
-		FString S = TEXT("{");
-		for (FECSComponentTypeID Type : ComponentTypes) { S += GetNameSafe(Type) + TEXT(" "); }
-		S.TrimEndInline();
-		S += TEXT("}");
-		return S;
 	}
 };
 
 // --- 전방 선언 ---
 class FECSArchetype;
 class FECSArchetypeChunk;
+class FECSManager;
 
-/** 엔티티가 어느 아키타입, 어느 청크, 어느 위치에 있는지 기록 */
+/** 엔티티 레코드 */
 struct FEntityRecord
 {
-	FECSArchetype* Archetype = nullptr;
+	FECSArchetype* Archetype = nullptr; // 약한 참조 - 소유권 없음
 	int32 ChunkIndex = INDEX_NONE;
 	int32 IndexInChunk = INDEX_NONE;
-	int32 Generation = 0; // 현재 엔티티의 Generation
+	int32 Generation = 0;
 };
 
 // --- 청크 클래스 ---
@@ -123,12 +104,8 @@ public:
 	FECSArchetypeChunk(const FECSArchetypeComposition& InComposition, int32 InCapacity);
 	~FECSArchetypeChunk();
 
-	// 복사/이동 불가
-	FECSArchetypeChunk(const FECSArchetypeChunk&) = delete;
-	FECSArchetypeChunk& operator=(const FECSArchetypeChunk&) = delete;
-
 	int32 AddEntity(FECSEntityHandle Entity);
-	FECSEntityHandle RemoveEntity(int32 IndexInChunk); // 제거된 위치로 이동된 엔티티 핸들 반환
+	FECSEntityHandle RemoveEntity(int32 IndexInChunk);
 
 	void* GetComponentDataPtr(FECSComponentTypeID TypeID, int32 IndexInChunk);
 	const void* GetComponentDataPtr(FECSComponentTypeID TypeID, int32 IndexInChunk) const;
@@ -149,14 +126,6 @@ public:
 	int32 GetEntityCount() const { return NumEntities; }
 	bool IsFull() const { return NumEntities >= Capacity; }
 
-	// 쿼리용 데이터 접근
-	int32 GetCapacity() const { return Capacity; }
-
-	TArrayView<FECSEntityHandle> GetEntityHandleArrayView()
-	{
-		return TArrayView<FECSEntityHandle>(EntityHandles, NumEntities);
-	}
-
 	void* GetComponentRawDataArray(FECSComponentTypeID TypeID) { return ComponentDataArrays.FindRef(TypeID); }
 
 	const void* GetComponentRawDataArray(FECSComponentTypeID TypeID) const
@@ -169,11 +138,11 @@ private:
 	const int32 Capacity;
 	int32 NumEntities = 0;
 
-	// SoA 데이터 저장
-	FECSEntityHandle* EntityHandles = nullptr; // 엔티티 핸들 배열
-	TMap<FECSComponentTypeID, void*> ComponentDataArrays; // 컴포넌트 타입별 데이터 배열 시작 주소
-	TMap<FECSComponentTypeID, int32> ComponentSizes; // 컴포넌트 타입별 크기
-	uint8* ChunkMemory = nullptr; // 전체 컴포넌트 데이터 메모리 블록
+	// SoA 데이터 저장 (스마트 포인터 적용)
+	TUniquePtr<FECSEntityHandle[], FMemoryDeleter> EntityHandles;
+	TMap<FECSComponentTypeID, void*> ComponentDataArrays; // 청크 메모리 내부 포인터
+	TMap<FECSComponentTypeID, int32> ComponentSizes;
+	TUniquePtr<uint8[], FMemoryDeleter> ChunkMemory;
 };
 
 // --- 아키타입 클래스 ---
@@ -182,31 +151,25 @@ class FECSArchetype
 {
 public:
 	FECSArchetype(const FECSArchetypeComposition& InComposition, class FECSManager* InManager);
-	~FECSArchetype();
-
-	// 복사/이동 불가
-	FECSArchetype(const FECSArchetype&) = delete;
-	FECSArchetype& operator=(const FECSArchetype&) = delete;
+	~FECSArchetype() = default; // 스마트 포인터로 인해 청크 소멸은 자동 처리됨
 
 	void AddEntity(FECSEntityHandle Entity, int32& OutChunkIndex, int32& OutIndexInChunk);
-	// 제거된 위치로 이동된 엔티티 핸들 및 새 위치 정보 반환
 	TTuple<FECSEntityHandle, int32, int32> RemoveEntity(int32 ChunkIndex, int32 IndexInChunk);
 
 	void* GetComponentDataPtr(int32 ChunkIndex, int32 IndexInChunk, FECSComponentTypeID TypeID);
 	const void* GetComponentDataPtr(int32 ChunkIndex, int32 IndexInChunk, FECSComponentTypeID TypeID) const;
 
 	const FECSArchetypeComposition& GetComposition() const { return Composition; }
-	const TArray<FECSArchetypeChunk*>& GetChunks() const { return Chunks; }
-	int32 GetEntityCount() const;
+	const TArray<TUniquePtr<FECSArchetypeChunk>>& GetChunks() const { return Chunks; }
 
 private:
 	FECSArchetypeChunk* FindAvailableChunkOrCreate();
 	FECSArchetypeChunk* AllocateNewChunk();
 
 	const FECSArchetypeComposition Composition;
-	class FECSManager* Manager = nullptr; // ECS 매니저 참조
-	TArray<FECSArchetypeChunk*> Chunks;
-	int32 ChunkCapacity = 128; // 예시: 청크당 엔티티 수
+	class FECSManager* Manager = nullptr; // 약한 참조 - 소유권 없음
+	TArray<TUniquePtr<FECSArchetypeChunk>> Chunks; // 스마트 포인터 적용
+	int32 ChunkCapacity = 128;
 };
 
 // --- ECS 매니저 클래스 ---
@@ -215,11 +178,7 @@ class FECSManager
 {
 public:
 	FECSManager();
-	~FECSManager();
-
-	// 복사/이동 불가
-	FECSManager(const FECSManager&) = delete;
-	FECSManager& operator=(const FECSManager&) = delete;
+	~FECSManager() = default; // 스마트 포인터로 인해 아키타입 소멸은 자동 처리됨
 
 	FECSEntityHandle CreateEntity(const FECSArchetypeComposition& Composition);
 	bool DestroyEntity(FECSEntityHandle Entity);
@@ -251,8 +210,9 @@ public:
 
 	bool IsEntityValid(FECSEntityHandle Entity) const;
 
-	/** 쿼리 실행 함수: 특정 컴포넌트들을 모두 포함하는 아키타입의 청크들을 순회 */
-	void ForEachChunk(const TArray<FECSComponentTypeID>& ComponentTypes, TFunctionRef<void(FECSArchetypeChunk& Chunk)> Func);
+	/** 쿼리 실행 함수 */
+	void ForEachChunk(const TArray<FECSComponentTypeID>& ComponentTypes,
+	                  TFunctionRef<void(FECSArchetypeChunk& Chunk)> Func);
 
 private:
 	FECSArchetype* GetOrCreateArchetype(const FECSArchetypeComposition& Composition);
@@ -261,16 +221,13 @@ private:
 	FECSEntityHandle AllocateEntityHandle();
 	void ReleaseEntityHandle(FECSEntityHandle Handle);
 
-	TArray<FEntityRecord> Entities; // 엔티티 정보 저장
-	TArray<int32> FreeEntityIndices; // 재사용 가능한 엔티티 인덱스
-	TMap<uint32, FECSArchetype*> Archetypes; // 아키타입 구성 해시 -> 아키타입 맵
-	TMap<int32, int32> NextEntityGeneration; // 엔티티 Generation 관리
+	TArray<FEntityRecord> Entities;
+	TArray<int32> FreeEntityIndices;
+	TMap<uint32, TUniquePtr<FECSArchetype>> Archetypes; // 스마트 포인터 적용
+	TMap<int32, int32> NextEntityGeneration;
 };
 
-/*---------- ddd ----------*/
-/**
- * @brief 위치를 나타내는 예시 컴포넌트입니다.
- */
+// --- 예시 컴포넌트 타입들 ---
 USTRUCT(BlueprintType)
 struct ZKGAME_API FPositionComponent : public FECSComponentBase
 {
@@ -280,9 +237,6 @@ struct ZKGAME_API FPositionComponent : public FECSComponentBase
 	FVector Position = FVector::ZeroVector;
 };
 
-/**
- * @brief 속도를 나타내는 예시 컴포넌트입니다.
- */
 USTRUCT(BlueprintType)
 struct ZKGAME_API FVelocityComponent : public FECSComponentBase
 {
@@ -292,9 +246,6 @@ struct ZKGAME_API FVelocityComponent : public FECSComponentBase
 	FVector Velocity = FVector::ZeroVector;
 };
 
-/**
- * @brief 이동 속도를 정의하는 예시 컴포넌트입니다.
- */
 USTRUCT(BlueprintType)
 struct ZKGAME_API FMovementSpeedComponent : public FECSComponentBase
 {
