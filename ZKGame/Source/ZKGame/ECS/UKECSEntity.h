@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "SimpleECS.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSimpleECS, Log, All);
 
@@ -47,14 +46,6 @@ struct FMemoryDeleter
 	}
 };
 
-/** 모든 컴포넌트의 기본 구조체 */
-USTRUCT(BlueprintType)
-struct FECSComponentBase
-{
-	GENERATED_BODY()
-	virtual ~FECSComponentBase() = default;
-};
-
 /** 컴포넌트 타입 식별자 (UScriptStruct* 사용) */
 using FECSComponentTypeID = const UScriptStruct*;
 
@@ -85,7 +76,7 @@ struct FECSArchetypeComposition
 // --- 전방 선언 ---
 class FECSArchetype;
 class FECSArchetypeChunk;
-class FECSManager;
+class UUKECSManager;
 
 /** 엔티티 레코드 */
 struct FEntityRecord
@@ -168,7 +159,7 @@ private:
 class FECSArchetype
 {
 public:
-	FECSArchetype(const FECSArchetypeComposition& InComposition, class FECSManager* InManager);
+	FECSArchetype(const FECSArchetypeComposition& InComposition, class UUKECSManager* InManager);
 	~FECSArchetype() = default; // 스마트 포인터로 인해 청크 소멸은 자동 처리됨
 
 	void AddEntity(FECSEntityHandle Entity, int32& OutChunkIndex, int32& OutIndexInChunk);
@@ -185,90 +176,7 @@ private:
 	FECSArchetypeChunk* AllocateNewChunk();
 
 	const FECSArchetypeComposition Composition;
-	class FECSManager* Manager = nullptr; // 약한 참조 - 소유권 없음
+	class UUKECSManager* Manager = nullptr; // 약한 참조 - 소유권 없음
 	TArray<TUniquePtr<FECSArchetypeChunk>> Chunks; // 스마트 포인터 적용
 	int32 ChunkCapacity = 128;
-};
-
-// --- ECS 매니저 클래스 ---
-/** ECS 월드를 관리하는 중앙 클래스 */
-class FECSManager
-{
-public:
-	FECSManager();
-	~FECSManager() = default; // 스마트 포인터로 인해 아키타입 소멸은 자동 처리됨
-
-	FECSEntityHandle CreateEntity(const FECSArchetypeComposition& Composition);
-	bool DestroyEntity(FECSEntityHandle Entity);
-
-	bool AddComponent(FECSEntityHandle Entity, FECSComponentTypeID TypeID, const void* Data = nullptr);
-	bool RemoveComponent(FECSEntityHandle Entity, FECSComponentTypeID TypeID);
-
-	void* GetComponentData(FECSEntityHandle Entity, FECSComponentTypeID TypeID);
-	const void* GetComponentDataReadOnly(FECSEntityHandle Entity, FECSComponentTypeID TypeID) const;
-	bool HasComponent(FECSEntityHandle Entity, FECSComponentTypeID TypeID) const;
-
-	template <typename T>
-	T* GetComponentData(FECSEntityHandle Entity)
-	{
-		return static_cast<T*>(GetComponentData(Entity, T::StaticStruct()));
-	}
-
-	template <typename T>
-	const T* GetComponentDataReadOnly(FECSEntityHandle Entity) const
-	{
-		return static_cast<const T*>(GetComponentDataReadOnly(Entity, T::StaticStruct()));
-	}
-
-	template <typename T>
-	bool HasComponent(FECSEntityHandle Entity) const
-	{
-		return HasComponent(Entity, T::StaticStruct());
-	}
-
-	bool IsEntityValid(FECSEntityHandle Entity) const;
-
-	/** 쿼리 실행 함수 */
-	void ForEachChunk(const TArray<FECSComponentTypeID>& ComponentTypes,
-	                  TFunctionRef<void(FECSArchetypeChunk& Chunk)> Func);
-
-private:
-	FECSArchetype* GetOrCreateArchetype(const FECSArchetypeComposition& Composition);
-	void MoveEntityToArchetype(FECSEntityHandle Entity, FECSArchetype* TargetArchetype);
-
-	FECSEntityHandle AllocateEntityHandle();
-	void ReleaseEntityHandle(FECSEntityHandle Handle);
-
-	TArray<FEntityRecord> Entities;
-	TArray<int32> FreeEntityIndices;
-	TMap<uint32, TUniquePtr<FECSArchetype>> Archetypes; // 스마트 포인터 적용
-	TMap<int32, int32> NextEntityGeneration;
-};
-
-// --- 예시 컴포넌트 타입들 ---
-USTRUCT(BlueprintType)
-struct ZKGAME_API FPositionComponent : public FECSComponentBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ECS")
-	FVector Position = FVector::ZeroVector;
-};
-
-USTRUCT(BlueprintType)
-struct ZKGAME_API FVelocityComponent : public FECSComponentBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ECS")
-	FVector Velocity = FVector::ZeroVector;
-};
-
-USTRUCT(BlueprintType)
-struct ZKGAME_API FMovementSpeedComponent : public FECSComponentBase
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ECS")
-	float Speed = 100.0f;
 };
