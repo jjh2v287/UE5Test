@@ -178,5 +178,5 @@ private:
 	const FECSArchetypeComposition Composition;
 	class UUKECSManager* Manager = nullptr; // 약한 참조 - 소유권 없음
 	TArray<TUniquePtr<FECSArchetypeChunk>> Chunks; // 스마트 포인터 적용
-	int32 ChunkCapacity = 128;
+	int32 ChunkCapacity = 1024;
 };

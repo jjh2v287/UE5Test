@@ -40,3 +40,24 @@ struct ZKGAME_API FUKECSMovementSpeedComponent : public FUKECSComponentBase
 	UPROPERTY(VisibleAnywhere, Category = "ECS")
 	float Speed = 100.0f;
 };
+
+USTRUCT(BlueprintType)
+struct ZKGAME_API FUKECSForwardMoveComponent : public FUKECSComponentBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = "ECS")
+	FVector TargetLocation = FVector::ZeroVector;
+	
+	UPROPERTY(VisibleAnywhere, Category = "ECS")
+	FVector Location = FVector::ZeroVector;
+
+	UPROPERTY(VisibleAnywhere, Category = "ECS")
+	FRotator Rotator = FRotator::ZeroRotator;
+	
+	UPROPERTY(VisibleAnywhere, Category = "ECS")
+	FVector ForwardVector = FVector::ZeroVector;
+
+	UPROPERTY(VisibleAnywhere, Category = "ECS")
+	float Speed = 100.0f;
+};
