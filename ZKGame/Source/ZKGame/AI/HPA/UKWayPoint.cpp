@@ -29,8 +29,9 @@ void AUKWayPoint::BeginPlay()
     }
 }
 
-void AUKWayPoint::Destroyed()
+void AUKWayPoint::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+    Super::EndPlay(EndPlayReason);
     const UWorld* World = GetWorld();
     if (World && World->IsGameWorld() && UUKNavigationManager::Get())
     {
@@ -39,8 +40,6 @@ void AUKWayPoint::Destroyed()
             NavigationManage->UnregisterWaypoint(this);
         }
     }
-    
-    Super::Destroyed();
 }
 
 void AUKWayPoint::Tick(float DeltaTime)

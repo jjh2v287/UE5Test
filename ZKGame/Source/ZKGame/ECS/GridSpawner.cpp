@@ -107,13 +107,13 @@ void AGridSpawner::SpawnActorsInGrid()
 				if (bRandomizeRotation)
 				{
 					SpawnRotation = FRotator(
+						0.0f,
 						FMath::FRandRange(0.0f, 360.0f),
-						FMath::FRandRange(0.0f, 360.0f),
-						FMath::FRandRange(0.0f, 360.0f)
+						0.0f
 					);
 				}
 
-				FString ActorName = FString::Printf(TEXT("Actor_%d"), SpawnedCount + 1);
+				FString ActorName = FString::Printf(TEXT("%s_Actor_%d"), *GetName(), SpawnedCount + 1);
 				
 				// 액터 스폰 설정
 				FActorSpawnParameters SpawnParams;

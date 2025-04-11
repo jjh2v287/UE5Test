@@ -78,5 +78,7 @@ private:
 	TArray<int32> FreeEntityIndices;
 	TMap<uint32, TUniquePtr<FECSArchetype>> Archetypes;
 	TMap<int32, int32> NextEntityGeneration;
+
+	UPROPERTY(Transient)
 	TMap<TSubclassOf<UUKECSSystemBase>, TObjectPtr<UUKECSSystemBase>> Systems;
 };

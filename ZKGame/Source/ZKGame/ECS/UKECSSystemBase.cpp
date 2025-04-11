@@ -64,7 +64,7 @@ void UECSMoveSync::Tick(float DeltaTime, UUKECSManager* ECSManager)
 
 		if (MoveComponent)
 		{
-			/*AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [=]()
+			AsyncTask(ENamedThreads::GameThread, [=]()
 			{
 				// FCriticalSection Mutex;
 				// Mutex.Lock();
@@ -78,16 +78,16 @@ void UECSMoveSync::Tick(float DeltaTime, UUKECSManager* ECSManager)
 					}
 				}
 				// Mutex.Unlock();
-			});*/
+			});
 			
-			for (int32 i = 0; i < NumInChunk; ++i)
+			/*for (int32 i = 0; i < NumInChunk; ++i)
 			{
 				if (MoveComponent[i].OwnerActor.IsValid())
 				{
 					MoveComponent[i].OwnerActor.Get()->SetActorLocation(MoveComponent[i].Location);
 					MoveComponent[i].OwnerActor.Get()->SetActorRotation(MoveComponent[i].Rotator);
 				}
-			}
+			}*/
 		}
 	});
 }

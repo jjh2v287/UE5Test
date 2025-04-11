@@ -18,7 +18,7 @@ public:
 	AUKWayPoint(const FObjectInitializer& ObjectInitializer);
     
 	virtual void BeginPlay() override;
-	virtual void Destroyed() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaTime) override;
 
 	// This is the ID of the cluster that the Wei Point belongs to. -1 or index_none can mean that it is not assigned.

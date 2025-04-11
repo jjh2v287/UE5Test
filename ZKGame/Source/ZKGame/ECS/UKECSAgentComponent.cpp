@@ -65,7 +65,7 @@ void UUKECSAgentComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	if (!RunECS)
+	/*if (!RunECS)
 	{
 		return;
 	}
@@ -82,6 +82,6 @@ void UUKECSAgentComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 		const FRotator Rotator = MoveComponent->Rotator;
 		GetOwner()->SetActorLocation(Location);
 		GetOwner()->SetActorRotation(Rotator);
-	}
+	}*/
 }
 
