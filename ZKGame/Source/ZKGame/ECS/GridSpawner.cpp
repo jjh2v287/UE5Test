@@ -26,6 +26,7 @@ void AGridSpawner::BeginPlay()
 	}
 }
 
+#if WITH_EDITOR
 // 에디터에서 프로퍼티 변경 시 호출
 void AGridSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -40,6 +41,7 @@ void AGridSpawner::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 		SpawnActorsInGrid();
 	}
 }
+#endif
 
 // 격자 내 위치 계산 함수
 FVector AGridSpawner::CalculateGridPosition(int32 IndexX, int32 IndexY, int32 IndexZ) const
@@ -121,7 +123,9 @@ void AGridSpawner::SpawnActorsInGrid()
 
 				// 액터 스폰
 				AActor* SpawnedActor = World->SpawnActor<AActor>(ActorToSpawn, SpawnLocation, SpawnRotation, SpawnParams);
+				#if WITH_EDITOR
 				SpawnedActor->SetActorLabel(ActorName);
+				#endif
 				
 				// 스폰 성공 체크
 				if (SpawnedActor)

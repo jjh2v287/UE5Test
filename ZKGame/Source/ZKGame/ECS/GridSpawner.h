@@ -19,8 +19,10 @@ protected:
 	// 게임 시작 시 호출되는 함수
 	virtual void BeginPlay() override;
 
+#if WITH_EDITOR
 	// 에디터에서 변수 값이 변경됐을 때 호출
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 public:	
 	// 격자 형태로 액터 스폰 함수

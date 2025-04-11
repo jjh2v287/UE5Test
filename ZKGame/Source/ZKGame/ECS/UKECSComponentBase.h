@@ -60,4 +60,7 @@ struct ZKGAME_API FUKECSForwardMoveComponent : public FUKECSComponentBase
 
 	UPROPERTY(VisibleAnywhere, Category = "ECS")
 	float Speed = 100.0f;
+
+	UPROPERTY(VisibleAnywhere, Category = "ECS")
+	TWeakObjectPtr<AActor> OwnerActor = nullptr;
 };

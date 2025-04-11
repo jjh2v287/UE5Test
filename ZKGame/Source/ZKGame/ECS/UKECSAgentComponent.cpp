@@ -47,8 +47,9 @@ void UUKECSAgentComponent::BeginPlay()
 		MoveComponent->Location = GetOwner()->GetActorLocation();
 		MoveComponent->ForwardVector = GetOwner()->GetActorForwardVector();
 		MoveComponent->Rotator = GetOwner()->GetActorRotation();
-		MoveComponent->TargetLocation = MoveComponent->Location + (MoveComponent->ForwardVector * 2000.0f);
+		MoveComponent->TargetLocation = MoveComponent->Location + (MoveComponent->ForwardVector * 100000.0f);
 		MoveComponent->Speed = 100.0f;
+		MoveComponent->OwnerActor = GetOwner();
 	}
 
 	// 5. 시스템 로직 등록/실행

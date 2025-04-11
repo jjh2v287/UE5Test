@@ -34,8 +34,19 @@ protected:
 	TArray<FECSComponentTypeID> QueryTypes;
 };
 
+/*---------- Move Calculation ----------*/
 UCLASS()
 class ZKGAME_API UECSMove : public UUKECSSystemBase
+{
+	GENERATED_BODY()
+public:
+	virtual void Register() override;
+	virtual void Tick(float DeltaTime, UUKECSManager* ECSManager) override;
+};
+
+/*---------- Move Synchronization ----------*/
+UCLASS()
+class ZKGAME_API UECSMoveSync : public UUKECSSystemBase
 {
 	GENERATED_BODY()
 public:
