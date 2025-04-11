@@ -33,7 +33,7 @@ void UUKECSManager::Deinitialize()
 
 TStatId UUKECSManager::GetStatId() const
 {
-	RETURN_QUICK_DECLARE_CYCLE_STAT(UECSManager, STATGROUP_Tickables);
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UKECSManager, STATGROUP_Tickables);
 }
 
 void UUKECSManager::Tick(float DeltaTime)

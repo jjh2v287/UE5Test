@@ -3,27 +3,29 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UKAgentManager.h"
 #include "GameFramework/Actor.h"
-#include "UKECSAvoidTestActor.generated.h"
+#include "UKAgent.generated.h"
 
 UCLASS()
-class ZKGAME_API AUKECSAvoidTestActor : public AActor
+class ZKGAME_API AUKAgent : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AUKECSAvoidTestActor();
+	AUKAgent();
 	
 	virtual void Tick(float DeltaTime) override;
     virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     // 분리 및 회피 벡터 계산 함수들
-    FVector CalculateSeparationForce(const TArray<AUKECSAvoidTestActor*>& NearbyActors);
-    FVector CalculatePredictiveAvoidanceForce(const TArray<AUKECSAvoidTestActor*>& NearbyActors);
+    FVector CalculateSeparationForce(const TArray<AUKAgent*>& NearbyActors);
+    FVector CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>& NearbyActors);
     FVector CalculateEnvironmentAvoidanceForce();
     
     // 근처 액터 탐색
-    void FindNearbyActors(TArray<AUKECSAvoidTestActor*>& OutNearbyActors, float SearchRadius);
+    void FindNearbyActors(TArray<AUKAgent*>& OutNearbyActors, float SearchRadius);
     
     // 충돌 접근 시간 계산 (Closest Point of Approach)
     float ComputeClosestPointOfApproach(const FVector& RelPos, const FVector& RelVel, float TotalRadius, float TimeHorizon);
@@ -37,6 +39,16 @@ public:
 
     // 조향 벡터 계산
     FVector CalculateSteeringForce(float DeltaTime);
+
+	FAgentHandle GetAgentHandle() const
+	{
+		return AgentHandle;
+	}
+
+	void SetAgentHandle(FAgentHandle Handle)
+	{
+		AgentHandle = Handle;
+	}
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
@@ -94,6 +106,8 @@ protected:
     FVector MoveTargetForward;
     float DesiredSpeed = 0.0f;
     float DistanceToGoal = 0.0f;
+
+	FAgentHandle AgentHandle;
     
     // 디버그용
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")

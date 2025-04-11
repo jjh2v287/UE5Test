@@ -1,18 +1,28 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-#include "UKECSAvoidTestActor.h"
+#include "UKAgent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 
-AUKECSAvoidTestActor::AUKECSAvoidTestActor()
+AUKAgent::AUKAgent()
 {
     PrimaryActorTick.bCanEverTick = true;
 }
 
-void AUKECSAvoidTestActor::BeginPlay()
+void AUKAgent::BeginPlay()
 {
     Super::BeginPlay();
+
+    UWorld* World = GetWorld();
+    if (World && World->IsGameWorld())
+    {
+        if (UUKAgentManager* NavigationManage = World->GetSubsystem<UUKAgentManager>())
+        {
+            AgentHandle = NavigationManage->RegisterAgent(this);
+        }
+    }
+    
     SetActorTickEnabled(!IsRunECS);
     if (!IsRunECS)
     {
@@ -22,13 +32,42 @@ void AUKECSAvoidTestActor::BeginPlay()
     }
 }
 
-void AUKECSAvoidTestActor::Tick(float DeltaTime)
+void AUKAgent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    Super::EndPlay(EndPlayReason);
+
+    UWorld* World = GetWorld();
+    if (World && World->IsGameWorld())
+    {
+        if (UUKAgentManager* NavigationManage = GetWorld()->GetSubsystem<UUKAgentManager>())
+        {
+            NavigationManage->UnregisterAgent(this);
+        }
+    }
+}
+
+void AUKAgent::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     
     // 근처 액터 찾기
-    TArray<AUKECSAvoidTestActor*> NearbyActors;
-    FindNearbyActors(NearbyActors, ObstacleDetectionDistance);
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return;
+    }
+
+    if (!World->IsGameWorld())
+    {
+        return;
+    }
+
+    TArray<AUKAgent*> NearbyActors;
+    if (UUKAgentManager* NavigationManage = GetWorld()->GetSubsystem<UUKAgentManager>())
+    {
+        NearbyActors = NavigationManage->FindCloseAgentRange(this, ObstacleDetectionDistance);
+        // FindNearbyActors(NearbyActors, ObstacleDetectionDistance);
+    }
     
     // 회피력 계산
     FVector SeparationForce = CalculateSeparationForce(NearbyActors);
@@ -83,6 +122,11 @@ void AUKECSAvoidTestActor::Tick(float DeltaTime)
         FRotator NewRotation = FRotator(0, FMath::RadiansToDegrees(NewYaw), 0);
         SetActorRotation(NewRotation);
     }
+
+    if (UUKAgentManager* NavigationManage = GetWorld()->GetSubsystem<UUKAgentManager>())
+    {
+        NavigationManage->AgentMoveUpdate(this);
+    }
     
     // 디버그 드로잉
     if (bDrawDebug)
@@ -103,13 +147,13 @@ void AUKECSAvoidTestActor::Tick(float DeltaTime)
     }
 }
 
-void AUKECSAvoidTestActor::FindNearbyActors(TArray<AUKECSAvoidTestActor*>& OutNearbyActors, float SearchRadius)
+void AUKAgent::FindNearbyActors(TArray<AUKAgent*>& OutNearbyActors, float SearchRadius)
 {
     OutNearbyActors.Empty();
     
     // 모든 AvoidanceActor 찾기
     TArray<AActor*> FoundActors;
-    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AUKECSAvoidTestActor::StaticClass(), FoundActors);
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AUKAgent::StaticClass(), FoundActors);
     
     FVector MyLocation = GetActorLocation();
     float SquaredRadius = FMath::Square(SearchRadius);
@@ -119,7 +163,7 @@ void AUKECSAvoidTestActor::FindNearbyActors(TArray<AUKECSAvoidTestActor*>& OutNe
     {
         if (Actor == this) continue; // 자기 자신 제외
         
-        AUKECSAvoidTestActor* AvoidanceActor = Cast<AUKECSAvoidTestActor>(Actor);
+        AUKAgent* AvoidanceActor = Cast<AUKAgent>(Actor);
         if (!AvoidanceActor) continue;
         
         float DistSquared = FVector::DistSquared(MyLocation, Actor->GetActorLocation());
@@ -130,14 +174,14 @@ void AUKECSAvoidTestActor::FindNearbyActors(TArray<AUKECSAvoidTestActor*>& OutNe
     }
 }
 
-FVector AUKECSAvoidTestActor::CalculateSeparationForce(const TArray<AUKECSAvoidTestActor*>& NearbyActors)
+FVector AUKAgent::CalculateSeparationForce(const TArray<AUKAgent*>& NearbyActors)
 {
     FVector TotalForce = FVector::ZeroVector;
     
     // 분리 반경 계산
     float SeparationRadius = AgentRadius * SeparationRadiusScale;
     
-    for (AUKECSAvoidTestActor* OtherActor : NearbyActors)
+    for (AUKAgent* OtherActor : NearbyActors)
     {
         // 상대 위치 계산
         FVector RelPos = GetActorLocation() - OtherActor->GetActorLocation();
@@ -173,14 +217,14 @@ FVector AUKECSAvoidTestActor::CalculateSeparationForce(const TArray<AUKECSAvoidT
     return TotalForce;
 }
 
-FVector AUKECSAvoidTestActor::CalculatePredictiveAvoidanceForce(const TArray<AUKECSAvoidTestActor*>& NearbyActors)
+FVector AUKAgent::CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>& NearbyActors)
 {
     FVector TotalForce = FVector::ZeroVector;
     
     // 예측적 회피 반경 계산
     float AvoidanceRadius = AgentRadius * PredictiveAvoidanceRadiusScale;
     
-    for (AUKECSAvoidTestActor* OtherActor : NearbyActors)
+    for (AUKAgent* OtherActor : NearbyActors)
     {
         // 상대 위치와 속도 계산
         FVector RelPos = GetActorLocation() - OtherActor->GetActorLocation();
@@ -225,7 +269,7 @@ FVector AUKECSAvoidTestActor::CalculatePredictiveAvoidanceForce(const TArray<AUK
     return TotalForce;
 }
 
-FVector AUKECSAvoidTestActor::CalculateEnvironmentAvoidanceForce()
+FVector AUKAgent::CalculateEnvironmentAvoidanceForce()
 {
     // 환경 회피력은 별도의 충돌/레이캐스트 로직으로 구현해야 함
     // 여기서는 기본적인 틀만 제공
@@ -236,7 +280,7 @@ FVector AUKECSAvoidTestActor::CalculateEnvironmentAvoidanceForce()
     return TotalForce;
 }
 
-float AUKECSAvoidTestActor::ComputeClosestPointOfApproach(const FVector& RelPos, const FVector& RelVel, float TotalRadius, float TimeHorizon)
+float AUKAgent::ComputeClosestPointOfApproach(const FVector& RelPos, const FVector& RelVel, float TotalRadius, float TimeHorizon)
 {
     // 상대 속도와 위치로 충돌 시간 계산
     float A = FVector::DotProduct(RelVel, RelVel);
@@ -254,7 +298,7 @@ float AUKECSAvoidTestActor::ComputeClosestPointOfApproach(const FVector& RelPos,
     return FMath::Clamp(T, 0.0f, TimeHorizon);
 }
 
-FVector AUKECSAvoidTestActor::CalculateSteeringForce(float DeltaTime)
+FVector AUKAgent::CalculateSteeringForce(float DeltaTime)
 {
     // 목표까지 방향 및 거리 계산
     FVector DirectionToTarget = MoveTargetLocation - GetActorLocation();
@@ -296,13 +340,13 @@ FVector AUKECSAvoidTestActor::CalculateSteeringForce(float DeltaTime)
     return SteerForce;
 }
 
-void AUKECSAvoidTestActor::SetMoveTarget(const FVector& TargetLocation, const FVector& TargetForward)
+void AUKAgent::SetMoveTarget(const FVector& TargetLocation, const FVector& TargetForward)
 {
     MoveTargetLocation = TargetLocation;
     MoveTargetForward = TargetForward.GetSafeNormal();
 }
 
-void AUKECSAvoidTestActor::SetDesiredSpeed(float Speed)
+void AUKAgent::SetDesiredSpeed(float Speed)
 {
     DesiredSpeed = FMath::Max(0.0f, Speed);
 }
