@@ -7,7 +7,7 @@
 
 UUKECSAgentComponent::UUKECSAgentComponent()
 {
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
 
