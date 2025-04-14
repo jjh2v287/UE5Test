@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UKAgentManager.h"
+#include "UKECSComponentBase.h"
 #include "UKECSEntity.h"
 #include "UObject/Object.h"
 #include "UKECSSystemBase.generated.h"
@@ -52,4 +54,42 @@ class ZKGAME_API UECSMoveSync : public UUKECSSystemBase
 public:
 	virtual void Register() override;
 	virtual void Tick(float DeltaTime, UUKECSManager* ECSManager) override;
+};
+
+/*---------- AvoidMove Synchronization ----------*/
+UCLASS()
+class ZKGAME_API UECSAvoidMove : public UUKECSSystemBase
+{
+	GENERATED_BODY()
+public:
+	virtual void Register() override;
+	virtual void Tick(float DeltaTime, UUKECSManager* ECSManager) override;
+
+protected:
+	// 분리 및 회피 벡터 계산 함수들
+	FVector CalculateSeparationForce(const TArray<AUKAgent*>& NearbyActors, FUKECSAvoidMoveComponent& AvoidMoveComponent);
+	FVector CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>& NearbyActors, FUKECSAvoidMoveComponent& AvoidMoveComponent);
+	FVector CalculateEnvironmentAvoidanceForce();
+	// 조향 벡터 계산
+	FVector CalculateSteeringForce(float DeltaTime, FUKECSAvoidMoveComponent& AvoidMoveComponent);
+	// 충돌 접근 시간 계산 (Closest Point of Approach)
+	float ComputeClosestPointOfApproach(const FVector& RelPos, const FVector& RelVel, float TotalRadius, float TimeHorizon);
+    
+
+	UPROPERTY(Transient)
+	UUKAgentManager* NavigationManage = nullptr;
+};
+
+/*---------- AvoidMove Synchronization ----------*/
+UCLASS()
+class ZKGAME_API UECSAvoidMoveSync : public UUKECSSystemBase
+{
+	GENERATED_BODY()
+public:
+	virtual void Register() override;
+	virtual void Tick(float DeltaTime, UUKECSManager* ECSManager) override;
+
+protected:
+	UPROPERTY(Transient)
+	UUKAgentManager* NavigationManage = nullptr;
 };

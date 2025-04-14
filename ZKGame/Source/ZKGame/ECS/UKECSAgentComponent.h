@@ -22,6 +22,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite ,Category = "ECS")
 	bool RunECS = true;
 
+	UFUNCTION(BlueprintCallable)
+	void InitData();
+	
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;

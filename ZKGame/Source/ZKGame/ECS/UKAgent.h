@@ -50,7 +50,7 @@ public:
 		AgentHandle = Handle;
 	}
 
-protected:
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
 	bool IsRunECS = false;
 	
@@ -93,7 +93,7 @@ protected:
     float StandingObstacleAvoidanceScale = 0.65f;
     
     // 방향 보간 속성
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Avoidance")
     float OrientationSmoothingTime = 0.3f;
     
     // 현재 상태

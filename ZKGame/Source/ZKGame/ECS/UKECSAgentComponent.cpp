@@ -3,6 +3,7 @@
 #include "UKECSAgentComponent.h"
 #include "UKECSComponentBase.h"
 #include "UKECSManager.h"
+#include "UKAgent.h"
 #include "Engine/World.h"
 
 UUKECSAgentComponent::UUKECSAgentComponent()
@@ -10,12 +11,8 @@ UUKECSAgentComponent::UUKECSAgentComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-
-// Called when the game starts
-void UUKECSAgentComponent::BeginPlay()
+void UUKECSAgentComponent::InitData()
 {
-	Super::BeginPlay();
-
 	if (!RunECS)
 	{
 		return;
@@ -52,11 +49,44 @@ void UUKECSAgentComponent::BeginPlay()
 		MoveComponent->OwnerActor = GetOwner();
 	}
 
+	if (FUKECSAvoidMoveComponent* MoveComponent = ECSManager->GetComponentData<FUKECSAvoidMoveComponent>(Entity))
+	{
+		if (AUKAgent* Agent = Cast<AUKAgent>(GetOwner()))
+		{
+			MoveComponent->OwnerActor = Agent;
+			MoveComponent->MaxSpeed = Agent->MaxSpeed;
+			MoveComponent->MaxAcceleration = Agent->MaxAcceleration;
+			MoveComponent->AgentRadius = Agent->AgentRadius;
+			MoveComponent->ObstacleDetectionDistance = Agent->ObstacleDetectionDistance;
+			MoveComponent->SeparationRadiusScale = Agent->SeparationRadiusScale;
+			MoveComponent->ObstacleSeparationDistance = Agent->ObstacleSeparationDistance;
+			MoveComponent->ObstacleSeparationStiffness = Agent->ObstacleSeparationStiffness;
+			MoveComponent->PredictiveAvoidanceTime = Agent->PredictiveAvoidanceTime;
+			MoveComponent->PredictiveAvoidanceRadiusScale = Agent->PredictiveAvoidanceRadiusScale;
+			MoveComponent->PredictiveAvoidanceDistance = Agent->PredictiveAvoidanceDistance;
+			MoveComponent->ObstaclePredictiveAvoidanceStiffness =  Agent->ObstaclePredictiveAvoidanceStiffness;
+			MoveComponent->StandingObstacleAvoidanceScale = Agent->StandingObstacleAvoidanceScale;
+			MoveComponent->OrientationSmoothingTime = Agent->OrientationSmoothingTime;
+			MoveComponent->AgentHandle = Agent->GetAgentHandle();
+		
+			MoveComponent->MoveTargetLocation = GetOwner()->GetActorLocation() + (GetOwner()->GetActorForwardVector() * 10000.0f);
+			MoveComponent->MoveTargetForward = GetOwner()->GetActorForwardVector();
+			MoveComponent->DesiredSpeed = MoveComponent->MaxSpeed;
+			MoveComponent->DistanceToGoal = 0.0f;
+		}
+	}
+
 	// 5. 시스템 로직 등록/실행
 	for (TSubclassOf<UUKECSSystemBase>& System : ECSSystemBaseClasses)
 	{
 		ECSManager->AddSystem(System);
 	}
+}
+
+// Called when the game starts
+void UUKECSAgentComponent::BeginPlay()
+{
+	Super::BeginPlay();
 }
 
 
