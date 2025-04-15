@@ -68,7 +68,7 @@ void AUKAgent::Tick(float DeltaTime)
         NearbyActors = NavigationManage->FindCloseAgentRange(this, ObstacleDetectionDistance);
         // FindNearbyActors(NearbyActors, ObstacleDetectionDistance);
     }
-    
+
     // 회피력 계산
     FVector SeparationForce = CalculateSeparationForce(NearbyActors);
     FVector PredictiveAvoidanceForce = CalculatePredictiveAvoidanceForce(NearbyActors);
@@ -94,6 +94,7 @@ void AUKAgent::Tick(float DeltaTime)
     }
     
     // 위치 업데이트
+    TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_SetActorTransform);
     FVector NewLocation = GetActorLocation() + CurrentVelocity * DeltaTime;
     SetActorLocation(NewLocation);
     
@@ -176,6 +177,7 @@ void AUKAgent::FindNearbyActors(TArray<AUKAgent*>& OutNearbyActors, float Search
 
 FVector AUKAgent::CalculateSeparationForce(const TArray<AUKAgent*>& NearbyActors)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculateSeparationForce);
     FVector TotalForce = FVector::ZeroVector;
     
     // 분리 반경 계산
@@ -219,6 +221,7 @@ FVector AUKAgent::CalculateSeparationForce(const TArray<AUKAgent*>& NearbyActors
 
 FVector AUKAgent::CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>& NearbyActors)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculatePredictiveAvoidanceForce);
     FVector TotalForce = FVector::ZeroVector;
     
     // 예측적 회피 반경 계산
@@ -271,6 +274,7 @@ FVector AUKAgent::CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>& Nea
 
 FVector AUKAgent::CalculateEnvironmentAvoidanceForce()
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculateEnvironmentAvoidanceForce);
     // 환경 회피력은 별도의 충돌/레이캐스트 로직으로 구현해야 함
     // 여기서는 기본적인 틀만 제공
     FVector TotalForce = FVector::ZeroVector;
@@ -300,6 +304,7 @@ float AUKAgent::ComputeClosestPointOfApproach(const FVector& RelPos, const FVect
 
 FVector AUKAgent::CalculateSteeringForce(float DeltaTime)
 {
+    TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculateSteeringForce);
     // 목표까지 방향 및 거리 계산
     FVector DirectionToTarget = MoveTargetLocation - GetActorLocation();
     DirectionToTarget.Z = 0; // 평면 위에서만 고려

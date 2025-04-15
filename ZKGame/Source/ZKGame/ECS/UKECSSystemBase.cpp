@@ -186,6 +186,7 @@ void UECSAvoidMove::Tick(float DeltaTime, UUKECSManager* ECSManager)
 
 FVector UECSAvoidMove::CalculateSeparationForce(const TArray<AUKAgent*>& NearbyActors, FUKECSAvoidMoveComponent& AvoidMoveComponent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculateSeparationForce);
 	FVector TotalForce = FVector::ZeroVector;
     
 	// 분리 반경 계산
@@ -230,6 +231,7 @@ FVector UECSAvoidMove::CalculateSeparationForce(const TArray<AUKAgent*>& NearbyA
 
 FVector UECSAvoidMove::CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>& NearbyActors, FUKECSAvoidMoveComponent& AvoidMoveComponent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculatePredictiveAvoidanceForce);
 	FVector TotalForce = FVector::ZeroVector;
     
 	// 예측적 회피 반경 계산
@@ -282,6 +284,7 @@ FVector UECSAvoidMove::CalculatePredictiveAvoidanceForce(const TArray<AUKAgent*>
 
 FVector UECSAvoidMove::CalculateEnvironmentAvoidanceForce()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculateEnvironmentAvoidanceForce);
 	// 환경 회피력은 별도의 충돌/레이캐스트 로직으로 구현해야 함
 	// 여기서는 기본적인 틀만 제공
 	FVector TotalForce = FVector::ZeroVector;
@@ -293,6 +296,7 @@ FVector UECSAvoidMove::CalculateEnvironmentAvoidanceForce()
 
 FVector UECSAvoidMove::CalculateSteeringForce(float DeltaTime, FUKECSAvoidMoveComponent& AvoidMoveComponent)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_CalculateSteeringForce);
 	// 목표까지 방향 및 거리 계산
 	FVector DirectionToTarget = AvoidMoveComponent.MoveTargetLocation - AvoidMoveComponent.OwnerActor.Get()->GetActorLocation();
 	DirectionToTarget.Z = 0; // 평면 위에서만 고려
@@ -375,6 +379,7 @@ void UECSAvoidMoveSync::Tick(float DeltaTime, UUKECSManager* ECSManager)
 			{
 				if (MoveComponent[i].OwnerActor.IsValid())
 				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_SetActorTransform);
 					MoveComponent[i].OwnerActor.Get()->SetActorRotation(MoveComponent[i].NewRotation);
 					MoveComponent[i].OwnerActor.Get()->SetActorLocation(MoveComponent[i].NewLocation);
 					if (NavigationManage)

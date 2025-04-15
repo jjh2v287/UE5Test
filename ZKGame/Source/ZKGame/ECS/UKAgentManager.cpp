@@ -124,6 +124,7 @@ void UUKAgentManager::AgentMoveUpdate(const AUKAgent* Agent)
 
 TArray<AUKAgent*> UUKAgentManager::FindCloseAgentRange(const AUKAgent* Agent, const float Range) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AUKAgent_FindCloseAgentRange);
 	TArray<AUKAgent*> Agents;
 
 	FVector Location = Agent->GetActorLocation();
