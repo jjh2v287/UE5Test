@@ -296,6 +296,8 @@ FVector AAvoidanceCharacter::CalculateSteeringForce(float DeltaTime)
     // GetCharacterMovement()->RequestDirectMove(MovementInput, true)
 
     // UCharacterMovementComponent::SetBase(
+    
+    // bool UCharacterMovementComponent::FloorSweepTest(
 }
 
 void AAvoidanceCharacter::SetMoveTarget(const FVector& TargetLocation, const FVector& TargetForward)
