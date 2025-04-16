@@ -280,6 +280,20 @@ FVector AAvoidanceCharacter::CalculateSteeringForce(float DeltaTime)
     FVector SteerForce = (DesiredVelocity - GetCharacterMovement()->Velocity) * SteerStrength;
 
     return SteerForce;
+
+    // 캐릭터 무브먼트에 입력 적용 호출 스택
+    // GetCharacterMovement()->AddInputVector(MovementInput);
+    // void UCharacterMovementComponent::PhysWalking(
+    // void UCharacterMovementComponent::MoveAlongFloor(
+    // bool UMovementComponent::SafeMoveUpdatedComponent(
+    // FORCEINLINE_DEBUGGABLE bool UMovementComponent::MoveUpdatedComponent(
+    // bool UMovementComponent::MoveUpdatedComponentImpl(
+    // FORCEINLINE_DEBUGGABLE bool USceneComponent::MoveComponent(
+    // bool UPrimitiveComponent::MoveComponentImpl(
+
+    // void UCharacterMovementComponent::CalcVelocity(
+    // bool UCharacterMovementComponent::ApplyRequestedMove(
+    // GetCharacterMovement()->RequestDirectMove(MovementInput, true)
 }
 
 void AAvoidanceCharacter::SetMoveTarget(const FVector& TargetLocation, const FVector& TargetForward)
