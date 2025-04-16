@@ -24,7 +24,7 @@ public:
 
     friend FString LexToString(const FAgentHandle Handle)
     {
-        return FString::Printf(TEXT("Agent_0x%016llX"), Handle.ID);
+        return FString::Printf(TEXT("Agent_0x%llu"), Handle.ID);
     }
 
     bool operator==(const FAgentHandle Other) const { return ID == Other.ID; }
