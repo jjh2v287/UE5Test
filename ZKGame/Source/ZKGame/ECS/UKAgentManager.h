@@ -26,7 +26,7 @@ public:
     {
         return FString::Printf(TEXT("Agent_0x%llu"), Handle.ID);
     }
-
+ 
     bool operator==(const FAgentHandle Other) const { return ID == Other.ID; }
     bool operator!=(const FAgentHandle Other) const { return !(*this == Other); }
     bool operator<(const FAgentHandle Other) const { return ID < Other.ID; }
