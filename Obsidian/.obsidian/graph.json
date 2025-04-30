@@ -17,6 +17,10 @@
   "repelStrength": 1.26819126819127,
   "linkStrength": 1,
   "linkDistance": 99,
-  "scale": 1.9655560456567187,
+<<<<<<< HEAD
+  "scale": 1.4019828977761344,
+=======
+  "scale": 1.9655560456567127,
+>>>>>>> parent of 7fdb41a4 (수정)
   "close": false
 }

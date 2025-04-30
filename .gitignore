@@ -9,3 +9,4 @@ Saved
 *.user
 PythonProject/__pycache__
 PythonProject/llvm
+Python/AIAgent/.venv
