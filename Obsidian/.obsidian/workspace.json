@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "할일/2025-04-30 할일.md",
+                "file": "게임 개발/게임 행동 AI/욕망 파라미터.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "2025-04-30 할일"
+              "title": "욕망 파라미터"
             }
           }
         ]
@@ -168,8 +168,12 @@
       "command-palette:명령어 팔레트 열기": false
     }
   },
-  "active": "592b40af5c536bce",
+  "active": "39b3756bee30590f",
   "lastOpenFiles": [
+    "게임 개발/C++/new Placement 문법.md",
+    "게임 개발/게임 행동 AI",
+    "게임 개발/C++",
+    "할일/2025-04-30 할일.md",
     "생성형 AI/Perplexity-멀티 에이전트 aI 시스템을 만들때 완전한 동적으로 멀티 AI 에이전트를 만드는 방법이 존.md",
     "생성형 AI/ChatGPT o3-지식 기반 인사이트 축적 개념 증명(PoC) 설계.md",
     "생성형 AI/Claude 3.7 Sonnet-계획(Planning)과 주제 분해(Topic Decomposition)의 차이점.md",
@@ -180,11 +184,11 @@
     "게임 개발/RVO/Claude 3.7 Sonnet-RVO(Reciprocal Velocity Obstacles) 파생 알고리즘 종합 분석.md",
     "사고 프레임워크/신한투자증권 이선엽 이사.md",
     "사고 프레임워크/Claude 3.7 Sonnet-김학주 교수의 경제 분석 방법론 이론과 실제.md",
-    "게임 개발/Utility Based AI.md",
-    "게임 개발/HTN(계층적 작업 네트워크, Hierarchical Task Network).md",
-    "게임 개발/Goal-Oriented Action Planning.md",
-    "게임 개발/Generative Agents Interactive Simulacra of Human Behavior.md",
-    "게임 개발/욕망 파라미터.md",
+    "게임 개발/게임 행동 AI/Utility Based AI.md",
+    "게임 개발/게임 행동 AI/HTN(계층적 작업 네트워크, Hierarchical Task Network).md",
+    "게임 개발/게임 행동 AI/Goal-Oriented Action Planning.md",
+    "게임 개발/게임 행동 AI/Generative Agents Interactive Simulacra of Human Behavior.md",
+    "게임 개발/게임 행동 AI/욕망 파라미터.md",
     "게임 개발/RVO/Gemini 2.5 Pro-Reciprocal Velocity Obstacles (RVO) 기반 충돌 회피 알고리즘 상세 비교.md",
     "게임 개발/게임 아이디어/Claude 3.7 Sonnet-창의적인 인디 게임 아이디어 발상법 2024년 성공 가이드.md",
     "게임 개발/게임 아이디어/Claude 3.7 Sonnet-창의적인 인디 게임 아이디어 발상법.md",
@@ -194,17 +198,13 @@
     "Prompt/🚀AI가 당신의 지시를 따르지 않나요 AI가 알려주지 않는 비밀 비법을 알려드립니다🤯.md",
     "생성형 AI/ChatGPT-멀티 에이전트 지식 기반.md",
     "생성형 AI",
-    "할일/2025-04-30 할일.md",
     "할일",
-    "사고 프레임워크/김학주 교수의 종합적 분석 방법론-Claude 3.7 Sonnet.md",
-    "사고 프레임워크/김학주 교수의 분석 스타일-Claude 3.7 Sonnet.md",
     "사고 프레임워크",
     "투자",
     "게임 개발",
     "게임 개발/게임 아이디어",
     "게임 개발/RVO",
     "무제.canvas",
-    "Prompt/reddit",
-    "Prompt"
+    "Prompt/reddit"
   ]
 }
