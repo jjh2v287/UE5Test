@@ -2,11 +2,13 @@ from crewai import Agent, Task, Crew, Process, LLM
 from dotenv import load_dotenv
 import os
 
-# .env 파일에서 환경 변수 로드
-# load_dotenv()는 보통 스크립트 최상단에서 한번만 호출합니다.
-load_dotenv()
+# .env 파일에서 환경 변수 로드 시도
+loaded = load_dotenv(dotenv_path='.env')
 
-gemini_llm = LLM(model="gemini/gemini-2.5-flash-preview-04-17", api_key=os.environ["GOOGLE_API_KEY"])
+# API 키 로드 확인
+api_key = os.getenv("GOOGLE_API_KEY")
+
+gemini_llm = LLM(model="gemini/gemini-2.5-flash-preview-04-17", api_key=api_key)
 
 researcher = Agent(
   role='선임 연구 분석가',
