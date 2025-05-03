@@ -8,13 +8,17 @@
         "type": "tabs",
         "children": [
           {
-            "id": "592b40af5c536bce",
+            "id": "84880dc9b80a259f",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "게임 개발/게임 아이디어/Gemini 2.5 Pro-UE5에서 Unravel 스타일의 로프 물리를 구현.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "새 탭"
+              "title": "Gemini 2.5 Pro-UE5에서 Unravel 스타일의 로프 물리를 구현"
             }
           }
         ]
@@ -164,44 +168,44 @@
       "command-palette:명령어 팔레트 열기": false
     }
   },
-  "active": "592b40af5c536bce",
+  "active": "84880dc9b80a259f",
   "lastOpenFiles": [
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Claude 3.7 Sonnet-다각적 관점에서 병렬적으로 연구하는 리서치 에이전트 개발 가이드.md",
-    "생성형 AI/Perplexity-멀티 에이전트 aI 시스템을 만들때 완전한 동적으로 멀티 AI 에이전트를 만드는 방법이 존.md",
-    "생성형 AI/Gemini 2.5 Pro-멀티 에이전트 지식 축적 PoC.md",
-    "생성형 AI/Claude 3.7 Sonnet-심층 리서치 전문 멀티 에이전트 AI 시스템 계획.md",
-    "생성형 AI/Claude 3.7 Sonnet-멀티 에이전트 시스템에서의 Knowledge Base(지식 기반) 인사이트 축적.md",
-    "생성형 AI/Claude 3.7 Sonnet-다각적 관점에서 병렬적으로 연구하는 리서치 에이전트 개발 가이드.md",
-    "생성형 AI/Claude 3.7 Sonnet-계획(Planning)과 주제 분해(Topic Decomposition)의 차이점.md",
-    "생성형 AI/Claude 3.7 Sonnet-MCP와 A2A 프로토콜 멀티 에이전트 시스템.md",
+    "게임 개발/게임 아이디어/Gemini 2.5 Pro-UE5에서 Unravel 스타일의 로프 물리를 구현.md",
+    "게임 개발/게임 아이디어/ChatGPT-혼자 인디 액션 게임을 개발할 때.md",
+    "게임 개발/게임 아이디어/Claude 3.7 Sonnet-게임 디자인에 적용되는 심리학적 이론들의 심층 분석.md",
+    "게임 개발/게임 아이디어/ChatGPT-패턴 예측 가능성과 정밀한 컨트롤.md",
+    "게임 개발/게임 아이디어/ChatGPT-정밀한 컨트롤 (Precise Player Agency).md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/What's_special_about_Dark_Souls'_level_design_rdarksouls.md",
+    "게임 개발/게임 아이디어/ChatGPT-패턴 예측 가능성(Pattern Predictability).md",
+    "게임 개발/게임 아이디어/ChatGPT-도전적이면서 공정한 게임 디자인.md",
+    "게임 개발/게임 아이디어/ChatGPT-게임 디자인 아이디어 기법.md",
+    "게임 개발/게임 아이디어/Claude 3.7 Sonnet-창의적인 인디 게임 아이디어 발상법 2024년 성공 가이드.md",
+    "게임 개발/게임 아이디어/Claude 3.7 Sonnet-창의적인 인디 게임 아이디어 발상법.md",
+    "게임 개발/게임 아이디어/Claude 3.7 Sonnet-게임에서의 동기부여 설계 - 성공적인 게임을 위한 심리학적 접근.md",
+    "게임 개발/게임 아이디어/Claude 3.7 Sonnet-게임에서 동기 부여 모델 을 기반으로 심리적 요구(역량)를 어떻게 충족시키는지 분석하여 플레이어들이 이 매우 어려운 타이틀을 선호하는 이유.md",
+    "게임 개발/게임 아이디어/ChatGPT-SCAMPER.md",
+    "게임 개발/게임 아이디어/ChatGPT-역발상(Inversion).md",
+    "게임 개발/게임 아이디어/ChatGPT o4m-게임 디자인에서 창의적이고 참신한 아이디어를 얻기 위한 기법.md",
     "생성형 AI/ChatGPT o3-지식 기반 인사이트 축적 개념 증명(PoC) 설계.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Claude 3.7 Sonnet-멀티 에이전트 시스템에서의 Knowledge Base(지식 기반) 인사이트 축적.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Claude 3.7 Sonnet-심층 리서치 전문 멀티 에이전트 AI 시스템 계획.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Claude 3.7 Sonnet-MCP와 A2A 프로토콜 멀티 에이전트 시스템.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Gemini 2.5 Pro-멀티 에이전트 지식 축적 PoC.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Perplexity-멀티 에이전트 aI 시스템을 만들때 완전한 동적으로 멀티 AI 에이전트를 만드는 방법이 존.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/ChatGPT o3-지식 기반 인사이트 축적 개념 증명(PoC) 설계.md",
-    "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적/Claude 3.7 Sonnet-계획(Planning)과 주제 분해(Topic Decomposition)의 차이점.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/Why_do_we_play_Dark_Souls.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/［CEDEC_2017］「ゼルダの伝説BotW」の完璧なゲーム世界は，任天堂の開発スタイルが変わったからこそ生まれた.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/엘든_링_플레이어가_필드를_자유롭게_탐색하도록_유도하는_방법.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/야숨의_삼각형_법칙으로_알아보는_엘든_링의_필드_유도_디자인.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/Ten_Principles_of_Good_Level_Design_(Part_2).md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/Ten_Principles_of_Good_Level_Design_(Part_1).md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/Soulmates_-_How_The_Souls-Like_Genre_Has_Changed_Combat_In_Gaming_TechRaptor.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/Keys_to_Combat_Design_Anatomy_of_an_Attack_-_GDKeys.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석/Anatomy_of_an_Enemy_Attack_in_Dark_Souls_3.md",
+    "게임 개발/게임 아이디어/다크 소울 게임 분석",
     "생성형 AI/멀티 에이전트 AI 시스템에서의 지식 기반 인사이트 축적",
-    "게임 개발/게임 행동 AI/욕망 파라미터.md",
-    "게임 개발/C++/new Placement 문법.md",
     "게임 개발/게임 행동 AI",
     "게임 개발/C++",
-    "할일/2025-04-30 할일.md",
-    "게임 개발/RVO/Claude 3.7 Sonnet-RVO(Reciprocal Velocity Obstacles) 파생 알고리즘 종합 분석.md",
-    "사고 프레임워크/신한투자증권 이선엽 이사.md",
-    "사고 프레임워크/Claude 3.7 Sonnet-김학주 교수의 경제 분석 방법론 이론과 실제.md",
-    "게임 개발/게임 행동 AI/Utility Based AI.md",
-    "게임 개발/게임 행동 AI/HTN(계층적 작업 네트워크, Hierarchical Task Network).md",
-    "게임 개발/게임 행동 AI/Goal-Oriented Action Planning.md",
-    "게임 개발/게임 행동 AI/Generative Agents Interactive Simulacra of Human Behavior.md",
     "생성형 AI",
     "할일",
     "사고 프레임워크",
     "투자",
     "게임 개발",
     "게임 개발/게임 아이디어",
-    "게임 개발/RVO",
     "무제.canvas"
   ]
 }
