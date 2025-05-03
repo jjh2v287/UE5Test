@@ -18,6 +18,9 @@ void ACustomPBDRopeActor::BeginPlay()
 	Particles.Empty();
 	Particles.SetNum(NumSegments + 1); // 파티클 수는 세그먼트 수 + 1
 
+	StartLocation = GetActorLocation();
+	EndLocation = StartLocation + EndLocation;
+
 	// 시작점과 끝점 사이의 벡터
 	const FVector Delta = EndLocation - StartLocation;
 	const FVector Direction = Delta.GetSafeNormal();

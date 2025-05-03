@@ -71,11 +71,11 @@ public:
 
 	// 로프의 시작점 (월드 좌표)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PBD Rope|Parameters", Meta = (MakeEditWidget = true))
-	FVector StartLocation = FVector(0, 0, 200);
+	FVector StartLocation = FVector(0, 0, 0);
 
 	// 로프의 끝점 (월드 좌표, 시작점 기준 상대 좌표 아님)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PBD Rope|Parameters", Meta = (MakeEditWidget = true))
-	FVector EndLocation = FVector(100, 0, 200);
+	FVector EndLocation = FVector(100, 0, 0);
 
 	// PBD 제약 조건 솔버 반복 횟수 (높을수록 정확하지만 무거움)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PBD Rope|Parameters")
