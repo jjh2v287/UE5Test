@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public class DarkHonEditorTarget : TargetRules
 {
-	public DarkHonEditorTarget( TargetInfo Target) : base(Target)
+	public DarkHonEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
