@@ -104,8 +104,11 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Needs")
 	FNeedRuntimeData GetNeedRuntimeData(const EUKNeedType NeedType) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Needs")
+	FNeedRuntimeData GetHighestNeed() const;
+	
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Needs")
-	static float Evaluate(UUKNeedComponent* NeedsComponent, const EUKNeedType TargetNeedType);
+	float Evaluate(const EUKNeedType TargetNeedType) const;
 	
 protected:
 	void UpdateNeeds(const float DeltaTime);

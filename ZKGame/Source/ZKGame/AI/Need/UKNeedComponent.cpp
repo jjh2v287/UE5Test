@@ -147,19 +147,51 @@ FNeedRuntimeData UUKNeedComponent::GetNeedRuntimeData(const EUKNeedType NeedType
 	return *NeedData;
 }
 
-float UUKNeedComponent::Evaluate(UUKNeedComponent* NeedsComponent, const EUKNeedType TargetNeedType)
+
+FNeedRuntimeData UUKNeedComponent::GetHighestNeed() const
 {
-	if (!NeedsComponent)
+	float OutHighestScore = -1.0f;
+	EUKNeedType HighestNeedType = EUKNeedType::None;
+
+	for (TMap<EUKNeedType, FNeedRuntimeData>::TConstIterator It(Needs); It; ++It)
 	{
-		return 0.0f; 
+		const EUKNeedType CurrentNeedType = It.Key();
+		const FNeedRuntimeData& CurrentNeedData = It.Value();
+
+		if (CurrentNeedType == EUKNeedType::None)
+		{
+			continue;
+		}
+
+		// 현재 Need의 유틸리티 점수를 계산.
+		float CurrentScore = Evaluate(CurrentNeedType);
+
+		// 현재까지의 최고 점수와 비교하여 업데이트.
+		if (CurrentScore > OutHighestScore)
+		{
+			OutHighestScore = CurrentScore;
+			HighestNeedType = CurrentNeedType;
+		}
+	}
+
+	const FNeedRuntimeData* NeedData = Needs.Find(HighestNeedType);
+	if (!NeedData)
+	{
+		// UK_LOG(Warning, "UUKNeedComponent: Attempted to get runtime data of unknown NeedType '%s'", *UEnum::GetValueAsString(NeedType));
+		return FNeedRuntimeData();
 	}
 	
+	return *NeedData;
+}
+
+float UUKNeedComponent::Evaluate(const EUKNeedType TargetNeedType) const
+{
 	if (TargetNeedType == EUKNeedType::None)
 	{
 		return 0.0f; 
 	}
 
-	FNeedRuntimeData NeedData = NeedsComponent->GetNeedRuntimeData(TargetNeedType);
+	FNeedRuntimeData NeedData = GetNeedRuntimeData(TargetNeedType);
 	if (NeedData.Type == EUKNeedType::None || NeedData.MaxValue == NeedData.MinValue) 
 	{
 		return 0.0f;
