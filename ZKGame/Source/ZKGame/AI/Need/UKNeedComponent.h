@@ -105,7 +105,7 @@ public:
 	FNeedRuntimeData GetNeedRuntimeData(const EUKNeedType NeedType) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Needs")
-	FNeedRuntimeData GetHighestNeed() const;
+	EUKNeedType GetHighestNeed() const;
 	
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Needs")
 	float Evaluate(const EUKNeedType TargetNeedType) const;
@@ -114,7 +114,7 @@ protected:
 	void UpdateNeeds(const float DeltaTime);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Needs|Configuration", meta=(RequiredAssetDataTags="RowStructure=NeedDefinition"))
-	UDataTable* NeedDefinitionsTable;
+	UDataTable* NeedDefinitionsTable {nullptr};
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Needs|CurrentState")
 	TMap<EUKNeedType, FNeedRuntimeData> Needs;

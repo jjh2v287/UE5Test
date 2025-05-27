@@ -148,7 +148,7 @@ FNeedRuntimeData UUKNeedComponent::GetNeedRuntimeData(const EUKNeedType NeedType
 }
 
 
-FNeedRuntimeData UUKNeedComponent::GetHighestNeed() const
+EUKNeedType UUKNeedComponent::GetHighestNeed() const
 {
 	float OutHighestScore = -1.0f;
 	EUKNeedType HighestNeedType = EUKNeedType::None;
@@ -156,7 +156,6 @@ FNeedRuntimeData UUKNeedComponent::GetHighestNeed() const
 	for (TMap<EUKNeedType, FNeedRuntimeData>::TConstIterator It(Needs); It; ++It)
 	{
 		const EUKNeedType CurrentNeedType = It.Key();
-		const FNeedRuntimeData& CurrentNeedData = It.Value();
 
 		if (CurrentNeedType == EUKNeedType::None)
 		{
@@ -174,14 +173,7 @@ FNeedRuntimeData UUKNeedComponent::GetHighestNeed() const
 		}
 	}
 
-	const FNeedRuntimeData* NeedData = Needs.Find(HighestNeedType);
-	if (!NeedData)
-	{
-		// UK_LOG(Warning, "UUKNeedComponent: Attempted to get runtime data of unknown NeedType '%s'", *UEnum::GetValueAsString(NeedType));
-		return FNeedRuntimeData();
-	}
-	
-	return *NeedData;
+	return HighestNeedType;
 }
 
 float UUKNeedComponent::Evaluate(const EUKNeedType TargetNeedType) const
@@ -201,7 +193,7 @@ float UUKNeedComponent::Evaluate(const EUKNeedType TargetNeedType) const
 	float NormalizedNeedValue = 0.0f;
 	if (NeedData.MaxValue - NeedData.MinValue > 0)
 	{
-		NormalizedNeedValue = (float)(NeedData.CurrentValue - NeedData.MinValue) / (float)(NeedData.MaxValue - NeedData.MinValue);
+		NormalizedNeedValue = static_cast<float>(NeedData.CurrentValue - NeedData.MinValue) / static_cast<float>(NeedData.MaxValue - NeedData.MinValue);
 	}
 
 	// 중요도
