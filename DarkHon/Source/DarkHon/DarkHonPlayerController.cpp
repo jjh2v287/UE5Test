@@ -53,6 +53,16 @@ void ADarkHonPlayerController::SetupInputComponent()
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Triggered, this, &ADarkHonPlayerController::OnTouchTriggered);
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Completed, this, &ADarkHonPlayerController::OnTouchReleased);
 		EnhancedInputComponent->BindAction(SetDestinationTouchAction, ETriggerEvent::Canceled, this, &ADarkHonPlayerController::OnTouchReleased);
+
+		// Setup jump events
+		if (JumpAction)
+		{
+			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ADarkHonPlayerController::RequestJump);
+			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ADarkHonPlayerController::RequestStopJump);
+		}
+
+		// Moving
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADarkHonPlayerController::Move);
 	}
 	else
 	{
@@ -122,4 +132,70 @@ void ADarkHonPlayerController::OnTouchReleased()
 {
 	bIsTouch = false;
 	OnSetDestinationReleased();
+}
+
+void ADarkHonPlayerController::RequestJump()
+{
+	if (ACharacter* ControlledCharacter = GetCharacter())
+	{
+		ControlledCharacter->Jump();
+	}
+
+}
+
+void ADarkHonPlayerController::RequestStopJump()
+{
+	if (ACharacter* ControlledCharacter = GetCharacter())
+	{
+		ControlledCharacter->StopJumping();
+	}
+}
+
+void ADarkHonPlayerController::Move(const FInputActionValue& Value)
+{
+	// input is a Vector2D
+	const FVector2D MovementVector = Value.Get<FVector2D>();
+	const float Right = MovementVector.X;
+	const float Forward  = MovementVector.Y;
+
+	if (ACharacter* ControlledCharacter = GetCharacter())
+	{
+		// find out which way is forward
+		const FRotator Rotation = GetControlRotation();
+		const FRotator YawRotation(0, Rotation.Yaw, 0);
+
+		// get forward vector
+		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+
+		// get right vector 
+		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+		// add movement 
+		ControlledCharacter->AddMovementInput(ForwardDirection, Forward);
+		ControlledCharacter->AddMovementInput(RightDirection, Right);
+	}
+}
+
+void ADarkHonPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	APawn* ControlledPawn = GetPawn();
+	if (ControlledPawn)
+	{
+		FHitResult HitResult;
+		// 마우스 커서 위치에 대한 라인 트레이스를 수행합니다.
+		if (GetHitResultUnderCursor(ECollisionChannel::ECC_Visibility, false, HitResult))
+		{
+			FVector CursorLocation = HitResult.Location;
+			FVector CharacterLocation = ControlledPawn->GetActorLocation();
+
+			// 캐릭터에서 마우스를 향하는 방향 벡터를 계산합니다.
+			FVector LookDirection = CursorLocation - CharacterLocation;
+			LookDirection.Z = 0.f; // 캐릭터가 기울어지지 않도록 Z축 값을 0으로 설정합니다.
+
+			// 새로운 회전 값을 설정합니다.
+			ControlledPawn->SetActorRotation(LookDirection.Rotation());
+		}
+	}
 }
