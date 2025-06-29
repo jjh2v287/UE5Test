@@ -63,6 +63,8 @@ void ADarkHonPlayerController::SetupInputComponent()
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADarkHonPlayerController::Move);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &ADarkHonPlayerController::MoveReleased);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Canceled, this, &ADarkHonPlayerController::MoveReleased);
 	}
 	else
 	{
@@ -173,7 +175,15 @@ void ADarkHonPlayerController::Move(const FInputActionValue& Value)
 		// add movement 
 		ControlledCharacter->AddMovementInput(ForwardDirection, Forward);
 		ControlledCharacter->AddMovementInput(RightDirection, Right);
+
+		// 입력값을 저장 (나중에 PlayerTick에서 사용)
+		CurrentInputVector = MovementVector;
 	}
+}
+
+void ADarkHonPlayerController::MoveReleased()
+{
+	CurrentInputVector = FVector2D::ZeroVector;
 }
 
 void ADarkHonPlayerController::PlayerTick(float DeltaTime)
@@ -195,7 +205,33 @@ void ADarkHonPlayerController::PlayerTick(float DeltaTime)
 			LookDirection.Z = 0.f; // 캐릭터가 기울어지지 않도록 Z축 값을 0으로 설정합니다.
 
 			// 새로운 회전 값을 설정합니다.
+			LookDirection = LookDirection.GetSafeNormal();
 			ControlledPawn->SetActorRotation(LookDirection.Rotation());
+
+			// Blend Space용 로컬 좌표 계산
+			if (CurrentInputVector.Size() > 0.1f) // 입력이 있을 때만
+			{
+				// 월드 공간에서의 실제 이동 방향
+				// Move() 함수에서 사용한 ControlRotation을 가져와 이동 방향을 재구성합니다.
+				const FRotator ControlYawRotation(0, GetControlRotation().Yaw, 0);
+				const FVector WorldForwardFromInput = FRotationMatrix(ControlYawRotation).GetUnitAxis(EAxis::X);
+				const FVector WorldRightFromInput = FRotationMatrix(ControlYawRotation).GetUnitAxis(EAxis::Y);
+                
+				FVector WorldMovementDirection = (WorldForwardFromInput * CurrentInputVector.Y + WorldRightFromInput * CurrentInputVector.X).GetSafeNormal();
+
+				// 캐릭터가 현재 바라보는 방향 벡터 (정규화)
+				const FVector CharacterForward = LookDirection.GetSafeNormal();
+				// 캐릭터의 오른쪽 벡터 (외적 및 정규화)
+				const FVector CharacterRight = FVector::CrossProduct(FVector::UpVector, CharacterForward).GetSafeNormal(); // Up과 Forward 순서가 더 직관적일 수 있습니다. 결과는 같습니다.
+                
+				// 내적을 통해 각 축의 값을 계산
+				BlendSpaceInput.X = FVector::DotProduct(WorldMovementDirection, CharacterForward); // 앞(1)/뒤(-1)
+				BlendSpaceInput.Y = FVector::DotProduct(WorldMovementDirection, CharacterRight);   // 우(1)/좌(-1)
+			}
+			else
+			{
+				BlendSpaceInput = FVector2D::ZeroVector; // 입력이 없으면 Idle
+			}
 		}
 	}
 }

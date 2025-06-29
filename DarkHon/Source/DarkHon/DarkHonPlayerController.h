@@ -51,6 +51,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input")
 	UInputAction* MoveAction;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient)
+	FVector2D BlendSpaceInput = FVector2D::ZeroVector;
+
 protected:
 	/** True if the controlled character should navigate to the mouse cursor. */
 	uint32 bMoveToMouseCursor : 1;
@@ -71,6 +74,7 @@ protected:
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
+	void MoveReleased();
 
 	virtual void PlayerTick(float DeltaTime) override;
 
@@ -80,6 +84,8 @@ private:
 
 	bool bIsTouch; // Is it a touch device
 	float FollowTime; // For how long it has been pressed
+
+	FVector2D CurrentInputVector = FVector2D::ZeroVector;
 };
 
 
