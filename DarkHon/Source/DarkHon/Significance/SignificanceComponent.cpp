@@ -90,6 +90,15 @@ float USignificanceComponent::SignificanceFunction(USignificanceManager::FManage
 	const bool bFrontView = FVector::DotProduct(Viewpoint.GetRotation().GetForwardVector(), Direction) > 0;
 	Distance = bFrontView ? Distance : Distance * 10.0f;
 	return GetSignificanceByDistance(Distance);
+
+	/*// 탑다운 뷰에서는 Z축(높이)을 무시한 2D 거리를 사용하는 것이 더 적합할 수 있습니다.
+	const float Distance = FVector::Dist2D(OwnerActor->GetActorLocation(), Viewpoint.GetLocation());
+
+	// 만약 높이(Z)까지 포함한 3D 거리가 필요하다면 아래 코드를 사용하세요.
+	// const float Distance = (OwnerActor->GetActorLocation() - Viewpoint.GetLocation()).Size();
+
+	return GetSignificanceByDistance(Distance);*/
+
 }
 
 float USignificanceComponent::GetSignificanceByDistance(const float Distance)
