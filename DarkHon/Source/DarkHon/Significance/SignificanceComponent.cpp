@@ -145,6 +145,11 @@ void USignificanceComponent::PostSignificanceFunction(USignificanceManager::FMan
 				FrameSkipCount = SignificanceThresholds[Significance].AnimationFrameSkipCount;
 			}
 		}
+
+		if (BehaviorTreeComponent)
+		{
+			BehaviorTreeComponent->SetComponentTickInterval(TickInterval);	
+		}
 	}
 
 	DrawDebugText(Significance);
@@ -163,11 +168,6 @@ void USignificanceComponent::SetTickEnabled(const bool bEnabled)
 	if (SkeletalMeshComponent)
 	{
 		SkeletalMeshComponent->SetComponentTickEnabled(bEnabled);	
-	}
-
-	if (BehaviorTreeComponent)
-	{
-		BehaviorTreeComponent->SetComponentTickEnabled(bEnabled);	
 	}
 }
 
