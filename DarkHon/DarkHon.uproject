@@ -41,6 +41,10 @@
 		{
 			"Name": "StaticMeshEditorModeling",
 			"Enabled": true
+		},
+		{
+			"Name": "HTN",
+			"Enabled": true
 		}
 	]
 }

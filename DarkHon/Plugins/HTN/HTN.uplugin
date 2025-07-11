@@ -1,0 +1,42 @@
+{
+	"FileVersion": 3,
+	"Version": 75,
+	"VersionName": "1.18.6",
+	"FriendlyName": "HTN Planning",
+	"Description": "Adds Hierarchical Task Network planning functionality as an alternative to Behavior Trees",
+	"Category": "AI",
+	"CreatedBy": "Maks Maisak",
+	"CreatedByURL": "maksmaisak.github.io",
+	"DocsURL": "http://maksmaisak.github.io/htn",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/29560d88937e4cd1a435f4b634890655",
+	"SupportURL": "mailto:max.maisak+support@gmail.com",
+	"EngineVersion": "5.6.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "HTN",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux",
+				"IOS",
+				"Android"
+			]
+		},
+		{
+			"Name": "HTNEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux",
+				"IOS",
+				"Android"
+			]
+		}
+	]
+}
