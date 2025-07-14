@@ -26,13 +26,15 @@ void ADHAIController::BeginPlay()
 		if (NavData)
 		{
 			const FVector StartLocation = GetPawn()->GetActorLocation();
+			const FVector MedeLocation = FVector(0.f, 0.f, 0.f);
 			const FVector GoalLocation = GetPawn()->GetActorLocation() + (GetPawn()->GetActorForwardVector() * 1000.f);
 			FPathFindingQuery Query(this, *NavData, AgentNavLocation, GoalLocation);
 			FPathFindingResult Result = NavSys->FindPathSync(Query);
 			// if (Result.IsSuccessful())
 			{
-				TArray<FVector> InWaypoints = {StartLocation, GoalLocation};
+				TArray<FVector> InWaypoints = {StartLocation, MedeLocation, GoalLocation};
 				TSharedRef<FMetaNavMeshPath> Path = MakeShareable(new FMetaNavMeshPath(InWaypoints, *this));
+				Path->SetWaypointSwitchRadius(0.0f);
 				// FNavPathSharedPtr
 				// FNavigationPath
 				// FNavMeshPath
