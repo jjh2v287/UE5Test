@@ -10,7 +10,9 @@
 #include "EnhancedInputComponent.h"
 #include "InputActionValue.h"
 #include "EnhancedInputSubsystems.h"
+#include "SignificanceManager.h"
 #include "Engine/LocalPlayer.h"
+#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -231,6 +233,23 @@ void ADarkHonPlayerController::PlayerTick(float DeltaTime)
 			else
 			{
 				BlendSpaceInput = FVector2D::ZeroVector; // 입력이 없으면 Idle
+			}
+		}
+	}
+
+	// 유효한 월드 및 시그니피컨스 매니저 인스턴스가 있는지 확인합니다.
+	if (UWorld* World = GetWorld())
+	{
+		if (USignificanceManager* SignificanceManager = USignificanceManager::Get(World))
+		{
+			// 프레임당 한 번 업데이트하며, 플레이어 0 의 월드 트랜스폼만 사용합니다.
+			if (APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0))
+			{
+				// 시그니피컨스 매니저가 배열 뷰를 사용합니다. 엘리먼트가 하나인 배열을 생성하여 트랜스폼을 저장합니다.
+				TArray<FTransform> TransformArray;
+				TransformArray.Add(PlayerPawn->GetTransform());
+				// 시그니피컨스 매니저를 배열 뷰를 통해 엘리먼트가 하나인 배열로 업데이트합니다.
+				SignificanceManager->Update(TArrayView<FTransform>(TransformArray));
 			}
 		}
 	}
