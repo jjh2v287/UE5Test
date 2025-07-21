@@ -3,9 +3,17 @@
 
 #include "SignificanceComponent.h"
 
+#include "DrawDebugHelpers.h"
+#include "SceneManagement.h"
 #include "SignificanceManager.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/GameViewportClient.h"
+#include "UnrealClient.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "GameFramework/Pawn.h"
 
 
 // Sets default values for this component's properties
@@ -94,9 +102,6 @@ float USignificanceComponent::SignificanceFunction(USignificanceManager::FManage
 	}
 
 	// 이제 ViewInfo를 사용하여 투영 행렬(Projection Matrix)을 계산합니다.
-	FSceneViewProjectionData ProjectionData;
-	LocalPlayer->GetProjectionData(LocalPlayer->ViewportClient->Viewport, ProjectionData);
-	const FMatrix ProjectionMatrix2 = ProjectionData.ComputeViewProjectionMatrix();
 	const FVector CamLocation = Viewpoint.GetLocation(); // 파라미터로 받은 Viewpoint를 사용
 	
 	// 2. 액터의 경계(Bounds)와 화면 크기 계산
@@ -105,9 +110,24 @@ float USignificanceComponent::SignificanceFunction(USignificanceManager::FManage
 	OwnerActor->GetStreamingBounds(OutRuntimeBounds,OutEditorBounds); // 혹은 GetActorBounds(false, Origin, Extent);
 	const FBoxSphereBounds Bounds = OutRuntimeBounds;
 
-	static const float ScreenX = 1920;
-	static const float ScreenY = 1080;
-	static const float HalfFOVRad = FMath::DegreesToRadians(55.0f);
+	const FViewport* Viewport = LocalPlayer->ViewportClient->Viewport;
+	const FIntPoint ViewportSize = Viewport->GetSizeXY();
+	const float ScreenX = ViewportSize.X;
+	const float ScreenY = ViewportSize.Y;
+	float FullFOV = 90.f; // 기본값
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		if (APlayerCameraManager* CameraManager = PlayerController->PlayerCameraManager)
+		{
+			FullFOV = CameraManager->GetFOVAngle();
+		}
+	}
+	const float HalfFOVRad = FMath::DegreesToRadians(FullFOV * 0.5f);
+
+	
+	// static const float ScreenX = 1920;
+	// static const float ScreenY = 1080;
+	// static const float HalfFOVRad = FMath::DegreesToRadians(55.0f);
 	static const FMatrix ProjectionMatrix = FPerspectiveMatrix(HalfFOVRad, ScreenX, ScreenY, 0.01f);
 
 	
@@ -139,7 +159,6 @@ float USignificanceComponent::SignificanceFunction(USignificanceManager::FManage
 	{
 		// 화면에 보이지 않음 (Frustum Culling)
 	}
-	
 	
 	const FVector Direction = OwnerActor->GetActorLocation() - Viewpoint.GetLocation();
 	float Distance = Direction.Size();

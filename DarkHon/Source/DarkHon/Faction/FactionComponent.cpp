@@ -2,6 +2,8 @@
 
 #include "FactionComponent.h"
 
+#include "GameFramework/Actor.h"
+
 
 UFactionComponent::UFactionComponent()
 {
