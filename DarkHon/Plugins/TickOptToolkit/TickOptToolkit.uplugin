@@ -1,0 +1,40 @@
+{
+	"FileVersion": 3,
+	"Version": 14,
+	"VersionName": "1.4.5",
+	"FriendlyName": "Tick Optimization Toolkit",
+	"Description": "Tick Optimization Toolkit optimizes ticks in actors, components, and timelines by reducing their frequency or disabling them with distance and visibility",
+	"Category": "Gameplay",
+	"CreatedBy": "loonyware",
+	"CreatedByURL": "https://loonyware.com/assets",
+	"DocsURL": "https://loonyware.com/assets/tick-optimization-toolkit/#Documentation",
+	"MarketplaceURL": "https://www.fab.com/listings/de8d1c17-cb95-4f41-9a15-6d3e57ea214e",
+	"SupportURL": "https://discord.gg/4PajBva3mA",
+	"EngineVersion": "5.6.0",
+	"CanContainContent": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "TickOptToolkit",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux",
+				"Mac",
+				"Android",
+				"IOS"
+			]
+		},
+		{
+			"Name": "TickOptToolkitEditor",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux",
+				"Mac"
+			]
+		}
+	]
+}

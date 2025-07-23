@@ -243,11 +243,14 @@ void ADarkHonPlayerController::PlayerTick(float DeltaTime)
 		if (USignificanceManager* SignificanceManager = USignificanceManager::Get(World))
 		{
 			// 프레임당 한 번 업데이트하며, 플레이어 0 의 월드 트랜스폼만 사용합니다.
-			if (APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0))
+			if (APlayerController* PlayerController = World->GetFirstPlayerController())
 			{
 				// 시그니피컨스 매니저가 배열 뷰를 사용합니다. 엘리먼트가 하나인 배열을 생성하여 트랜스폼을 저장합니다.
+				FVector CamLocation;
+				FRotator CamRotation;
+				PlayerController->GetPlayerViewPoint(CamLocation, CamRotation);
 				TArray<FTransform> TransformArray;
-				TransformArray.Add(PlayerPawn->GetTransform());
+				TransformArray.Add({CamRotation.Quaternion(), CamLocation, FVector(1.0f)});
 				// 시그니피컨스 매니저를 배열 뷰를 통해 엘리먼트가 하나인 배열로 업데이트합니다.
 				SignificanceManager->Update(TArrayView<FTransform>(TransformArray));
 			}

@@ -1,0 +1,36 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.1.7",
+	"FriendlyName": "WorldDirectorActor",
+	"Description": "World Director Actor",
+	"Category": "BitProtectStudio",
+	"CreatedBy": "Taueron",
+	"CreatedByURL": "https://www.fab.com/sellers/BitProtectStudio",
+	"DocsURL": "https://docs.google.com/document/d/1cdWPEIOP_0ZWM5zNZfCsGrGn45nB96TmXSlB72HhjfM/edit?usp=sharing",
+	"MarketplaceURL": "",
+	"SupportURL": "https://discord.gg/DN4PhbmShg",
+	"EngineVersion": "5.6.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "WorldDirectorActor",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Android",
+				"Mac",
+				"IOS",
+				"Linux"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		}
+	]
+}
