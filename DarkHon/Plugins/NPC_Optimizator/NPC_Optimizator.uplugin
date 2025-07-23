@@ -10,7 +10,7 @@
 	"DocsURL": "https://github.com/SpaceRaccoonGameStudio/NPC_Optimizator",
 	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/1d7dbb65f6b24b2db0401a80d07e84d9",
 	"SupportURL": "https://space-raccoon.com/get-in-touch/",
-	"EngineVersion": "5.5.0",
+	"EngineVersion": "5.6.0",
 	"CanContainContent": false,
 	"Installed": true,
 	"Modules": [
