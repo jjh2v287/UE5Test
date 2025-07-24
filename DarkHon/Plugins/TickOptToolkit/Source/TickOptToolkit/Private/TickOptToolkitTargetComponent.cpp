@@ -5,6 +5,7 @@
 #include "TickOptToolkitMimicComponent.h"
 #include "TickOptToolkit.h"
 #include "TimerManager.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Engine/World.h"
 #include "Misc/EngineVersionComparison.h"

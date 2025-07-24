@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Widgets/SWidget.h"
 
 // A helper for customizing the toolbar of an HTN editor.
 class FHTNEditorToolbarBuilder : public TSharedFromThis<FHTNEditorToolbarBuilder>

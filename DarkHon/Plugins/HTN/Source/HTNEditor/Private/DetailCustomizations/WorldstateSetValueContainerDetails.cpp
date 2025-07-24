@@ -25,6 +25,7 @@
 #include "HTNEditor.h"
 #include "HTNNode.h"
 #include "Utility/WorldstateSetValueContainer.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #define LOCTEXT_NAMESPACE "WorldstateSetValueContainerDetails"
 

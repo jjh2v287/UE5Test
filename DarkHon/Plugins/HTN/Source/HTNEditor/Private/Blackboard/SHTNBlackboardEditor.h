@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SHTNBlackboardView.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 

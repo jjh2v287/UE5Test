@@ -17,6 +17,8 @@
 #include "Misc/PackageName.h"
 #include "SourceControlHelpers.h"
 #include "ToolMenuDelegates.h"
+#include "Misc/MessageDialog.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "WorkflowOrientedApp/SModeWidget.h"
 

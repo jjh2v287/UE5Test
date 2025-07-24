@@ -6,7 +6,7 @@
 #include "HTNAppStyle.h"
 #include "HTNCommands.h"
 #include "HTNTypes.h"
-
+#include "UObject/UObjectIterator.h"
 #include "Misc/EngineVersionComparison.h"
 #if UE_VERSION_OLDER_THAN(5, 1, 0)
 #include "ARFilter.h"
