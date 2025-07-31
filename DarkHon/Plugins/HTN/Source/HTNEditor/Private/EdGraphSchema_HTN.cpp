@@ -21,6 +21,7 @@
 #include "HTNGraphNode_Service.h"
 #include "HTNGraphNode_TwoBranches.h"
 #include "HTNService.h"
+#include "ScopedTransaction.h"
 #include "Nodes/HTNNode_SubNetwork.h"
 #include "Nodes/HTNNode_TwoBranches.h"
 #include "Tasks/HTNTask_EQSQuery.h"

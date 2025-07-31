@@ -9,6 +9,7 @@
 
 #include "AIModule.h"
 #include "IAssetTools.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Misc/EngineVersionComparison.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_HTN"

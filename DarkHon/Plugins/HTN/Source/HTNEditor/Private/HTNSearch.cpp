@@ -1,7 +1,7 @@
 // Copyright 2020-2025 Maksym Maisak. All Rights Reserved.
 
 #include "HTNSearch.h"
-
+#include "EdGraph/EdGraph.h"
 #include "HTNAppStyle.h"
 #include "HTNEditor.h"
 #include "HTNGraphNode.h"
@@ -11,6 +11,8 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Transform.h"
 #include "SGraphPanel.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Layout/WidgetPath.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Views/STableRow.h"

@@ -19,6 +19,8 @@
 #include "GameFramework/Controller.h"
 #include "UnrealEdGlobals.h"
 #include "WorldStateProxy.h"
+#include "Framework/Application/SlateApplication.h"
+#include "GameFramework/Pawn.h"
 
 #define LOCTEXT_NAMESPACE "HTNDebugger"
 
