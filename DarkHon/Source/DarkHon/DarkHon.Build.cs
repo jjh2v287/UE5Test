@@ -18,7 +18,8 @@ public class DarkHon : ModuleRules
 	        "AIModule",
 	        "Niagara",
 	        "EnhancedInput",
-	        "SignificanceManager"
+	        "SignificanceManager",
+	        "Landscape"
         });
     }
 }
