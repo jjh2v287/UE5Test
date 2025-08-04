@@ -1,33 +1,34 @@
 ﻿// Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "AttackTokenTestActor.h"
 
-
-// Sets default values
 AAttackTokenTestActor::AAttackTokenTestActor()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-// Called when the game starts or when spawned
 void AAttackTokenTestActor::BeginPlay()
 {
 	Super::BeginPlay();
-	// 사용 FSword FFireWeapon
-	TSharedPtr<IWeapon> Weapon =
-		MakeShared<FFireWeapon>(   // 화염
-			MakeShared<FPoisonWeapon>( // +독
-				MakeShared<FSword>() ) ); // 기본검
+	
+	// 데코레이터 패턴으로 공격 조건 조합
+	TSharedPtr<IAttackCondition> AttackConditions =
+		MakeShared<FAngleConditionDecorator>(
+			MakeShared<FDistanceConditionDecorator>(
+				MakeShared<FHasAttackTokenCondition>()
+			)
+		);
 
-	// 출력: "기본 검+독+화염 : 140"
-	UE_LOG(LogTemp, Log, TEXT("%s : %f"), *Weapon->GetName(), Weapon->GetDamage());
+	// 최종 조건 충족 여부 확인
+	if (AttackConditions->IsSatisfied())
+	{
+		// 토큰 보유 + 거리 조건 + 각도 조건 : 공격 가능
+		UE_LOG(LogTemp, Log, TEXT("%s : 공격 가능"), *AttackConditions->GetDescription());
+	}
+	else
+	{
+		// 토큰 보유 + 거리 조건 + 각도 조건 : 공격 불가능
+		UE_LOG(LogTemp, Log, TEXT("%s : 공격 불가능"), *AttackConditions->GetDescription());
+	}
+	// 토큰 보유 + 거리 조건 + 각도 조건 : 공격 가능
 }
-
-// Called every frame
-void AAttackTokenTestActor::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
-
