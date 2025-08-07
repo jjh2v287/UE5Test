@@ -53,6 +53,10 @@
 		{
 			"Name": "MotionWarping",
 			"Enabled": true
+		},
+		{
+			"Name": "DynamicAvoidance",
+			"Enabled": true
 		}
 	]
 }

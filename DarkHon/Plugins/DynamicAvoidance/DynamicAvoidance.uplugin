@@ -1,0 +1,26 @@
+{
+	"FileVersion": 3,
+	"Version": 2,
+	"VersionName": "1.1",
+	"FriendlyName": "Dynamic Avoidance",
+	"Description": "System on top of UE Nav System for avoiding dynamic obstacles",
+	"Category": "Other",
+	"CreatedBy": "Juan Escudero Vizcaíno",
+	"CreatedByURL": "https://github.com/bizcocho-man",
+	"DocsURL": "https://docs.google.com/document/d/1bzlI10WgrI6VX29AXdsDnRymEikPxLszF98HprTWoUI/edit?usp=drive_link",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.6.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "DynamicAvoidance",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"PlatformAllowList": [
+				"Win64"
+			]
+		}
+	]
+}
