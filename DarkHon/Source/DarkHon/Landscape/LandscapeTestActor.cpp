@@ -14,10 +14,29 @@ ALandscapeTestActor::ALandscapeTestActor()
 	PrimaryActorTick.bCanEverTick = true;
 }
 
+void ALandscapeTestActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	// 에디터 배치 액터라면 수동으로 GUID를 넣어둘 수도 있고,
+	// 런타임 스폰이라면 BeginPlay에서 보장해도 됩니다.
+	if (!PersistentId.IsValid())
+	{
+		PersistentId = FGuid::NewGuid(); // 안정적 영속 ID 발급
+	}
+}
+
 // Called when the game starts or when spawned
 void ALandscapeTestActor::BeginPlay()
 {
 	Super::BeginPlay();
+	// 에디터 배치 액터라면 수동으로 GUID를 넣어둘 수도 있고,
+	// 런타임 스폰이라면 BeginPlay에서 보장해도 됩니다.
+	if (!PersistentId.IsValid())
+	{
+		PersistentId = FGuid::NewGuid(); // 안정적 영속 ID 발급
+	}
+	
 	TArray<AActor*> Landscapes;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ALandscapeProxy::StaticClass(), Landscapes);
 
