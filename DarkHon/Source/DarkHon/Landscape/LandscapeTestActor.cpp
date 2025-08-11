@@ -14,17 +14,27 @@ ALandscapeTestActor::ALandscapeTestActor()
 	PrimaryActorTick.bCanEverTick = true;
 }
 
-void ALandscapeTestActor::OnConstruction(const FTransform& Transform)
+#if WITH_EDITOR
+void ALandscapeTestActor::PostActorCreated()
 {
-	Super::OnConstruction(Transform);
-
-	// 에디터 배치 액터라면 수동으로 GUID를 넣어둘 수도 있고,
-	// 런타임 스폰이라면 BeginPlay에서 보장해도 됩니다.
+	Super::PostActorCreated();
 	if (!PersistentId.IsValid())
 	{
-		PersistentId = FGuid::NewGuid(); // 안정적 영속 ID 발급
+		PersistentId = FGuid::NewGuid();
+		Modify(); // 외부액터 파일 더티 → 저장 시 직렬화
 	}
 }
+
+void ALandscapeTestActor::PostLoad()
+{
+	Super::PostLoad();
+	if (!PersistentId.IsValid())
+	{
+		PersistentId = FGuid::NewGuid();
+		Modify();
+	}
+}
+#endif
 
 // Called when the game starts or when spawned
 void ALandscapeTestActor::BeginPlay()
@@ -67,9 +77,24 @@ void ALandscapeTestActor::BeginPlay()
 	// }
 }
 
+FName ALandscapeTestActor::GetStableKey(const AActor* A)
+{
+	// 대안 키: 외부 패키지/객체 이름 기반 (배치 액터용으로 안정)
+	if (const UPackage* Pkg = A ? A->GetOutermost() : nullptr)
+	{
+		return Pkg->GetFName();
+	}
+	
+	return A ? A->GetFName() : NAME_None;
+}
+
 // Called every frame
 void ALandscapeTestActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	if (PersistentId.IsValid())
+	{
+		DrawDebugString(GetWorld(), GetActorLocation(), PersistentId.ToString(), this, FColor::Black, -1, false, 12);
+	}
 }
 

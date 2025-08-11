@@ -105,9 +105,7 @@ float USignificanceComponent::SignificanceFunction(USignificanceManager::FManage
 	const FVector CamLocation = Viewpoint.GetLocation(); // 파라미터로 받은 Viewpoint를 사용
 	
 	// 2. 액터의 경계(Bounds)와 화면 크기 계산
-	FBox OutRuntimeBounds;
-	FBox OutEditorBounds;
-	OwnerActor->GetStreamingBounds(OutRuntimeBounds,OutEditorBounds); // 혹은 GetActorBounds(false, Origin, Extent);
+	const FBox OutRuntimeBounds  = OwnerActor->GetComponentsBoundingBox(); // GetActorBounds(false, Origin, Extent);
 	const FBoxSphereBounds Bounds = OutRuntimeBounds;
 
 	const FViewport* Viewport = LocalPlayer->ViewportClient->Viewport;
