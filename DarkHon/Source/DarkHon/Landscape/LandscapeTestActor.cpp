@@ -23,6 +23,8 @@ void ALandscapeTestActor::PostActorCreated()
 		PersistentId = FGuid::NewGuid();
 		Modify(); // 외부액터 파일 더티 → 저장 시 직렬화
 	}
+	
+	ActorUID = FName(*GetStableKey(this));
 }
 
 void ALandscapeTestActor::PostLoad()
@@ -33,6 +35,8 @@ void ALandscapeTestActor::PostLoad()
 		PersistentId = FGuid::NewGuid();
 		Modify();
 	}
+
+	ActorUID = FName(*GetStableKey(this));
 }
 #endif
 
@@ -77,15 +81,17 @@ void ALandscapeTestActor::BeginPlay()
 	// }
 }
 
-FName ALandscapeTestActor::GetStableKey(const AActor* A)
+FString ALandscapeTestActor::GetStableKey(const AActor* A)
 {
-	// 대안 키: 외부 패키지/객체 이름 기반 (배치 액터용으로 안정)
+	/*// 대안 키: 외부 패키지/객체 이름 기반 (배치 액터용으로 안정)
 	if (const UPackage* Pkg = A ? A->GetOutermost() : nullptr)
 	{
 		return Pkg->GetFName();
 	}
 	
-	return A ? A->GetFName() : NAME_None;
+	return A ? A->GetFName() : NAME_None;*/
+	
+	return UKStringUtil::GetActorUID(A);
 }
 
 // Called every frame
