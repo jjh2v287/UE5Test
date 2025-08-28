@@ -4,6 +4,7 @@
 #include "WorldPartition/WorldPartitionRuntimeCellData.h"
 #include "WorldPartition/RuntimeHashSet/WorldPartitionRuntimeCellDataHashSet.h"
 #include "WorldPartition/WorldPartitionActorDescInstance.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 
 FManualActorLoader::FManualActorLoader(UWorld* InWorld)
     : World(InWorld)

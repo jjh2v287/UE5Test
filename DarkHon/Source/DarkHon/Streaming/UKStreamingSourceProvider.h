@@ -27,12 +27,12 @@ public:
 		return WorldPartitionStreamingSource;
 	}
 
-	void Active()
+	void Active() const
 	{
 		WorldPartitionStreamingSource->EnableStreamingSource();
 	}
 	
-	void Deactive()
+	void Deactive() const
 	{
 		WorldPartitionStreamingSource->DisableStreamingSource();
 	}

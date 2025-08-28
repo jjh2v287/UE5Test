@@ -2,7 +2,7 @@
 
 
 #include "LandscapeTestActor.h"
-
+#include "Engine/World.h"
 #include "LandscapeProxy.h"
 #include "Kismet/GameplayStatics.h"
 
