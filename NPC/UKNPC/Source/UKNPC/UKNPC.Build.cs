@@ -18,7 +18,9 @@ public class UKNPC : ModuleRules
 			"StateTreeModule",
 			"GameplayStateTreeModule",
 			"UMG",
-			"Slate"
+			"Slate",
+			"NavigationSystem",
+			"AIModule"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

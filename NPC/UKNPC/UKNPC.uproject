@@ -50,6 +50,18 @@
 		{
 			"Name": "MassGameplay",
 			"Enabled": true
+		},
+		{
+			"Name": "MoverTests",
+			"Enabled": true
+		},
+		{
+			"Name": "MoverExamples",
+			"Enabled": true
+		},
+		{
+			"Name": "Mover",
+			"Enabled": true
 		}
 	]
 }
