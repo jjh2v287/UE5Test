@@ -68,10 +68,10 @@ void UUKSimpleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 		UMovementComponent::SafeMoveUpdatedComponent(MoveDelta, NewRotation, true, Hit);
 
 		// 충돌 시 벽 타기 처리 (경량화 수준에 따라 생략 가능)
-		/*if (Hit.IsValidBlockingHit())
+		if (Hit.IsValidBlockingHit() && CheckWalkable(Hit.ImpactNormal))
 		{
 			UMovementComponent::SlideAlongSurface(MoveDelta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-		}*/
+		}
 	}
 	else
 	{
@@ -191,14 +191,18 @@ void UUKSimpleMovementComponent::SimpleTick(float DeltaTime)
 	FHitResult GroundHit;
 	const bool bHasGround = FindGround(Location, GroundHit, DeltaTime);
 
-	if (bHasGround /*&& CheckWalkable(GroundHit.ImpactNormal)*/)
+	if (bHasGround)
 	{
 		// 지상 처리: 중력 제거 + 바닥에 스냅
-		bGrounded = true;
 		GravityVelocity = FVector::ZeroVector;
 
+		FVector TangentVel = FVector::VectorPlaneProject(InputVector, GroundHit.ImpactNormal);
+		if (!CheckWalkable(GroundHit.ImpactNormal))
+		{
+			TangentVel = FVector::ZeroVector;
+		}
+
 		// 슬로프를 따라가도록 수평 속도를 평면 투영
-		const FVector TangentVel = FVector::VectorPlaneProject(InputVector, GroundHit.ImpactNormal);
 		if (GroundHit.ImpactNormal != FVector::UpVector)
 		{
 			Location.X = UpdatedComponent->GetComponentLocation().X + TangentVel.X * DeltaTime * MaxSpeed;
@@ -220,7 +224,6 @@ void UUKSimpleMovementComponent::SimpleTick(float DeltaTime)
 		else if (DeltaZ < -MaxStepDown)
 		{
 			// 너무 급격한 낙차: Falling로 전환
-			bGrounded = false;
 		}
 		else
 		{
@@ -231,10 +234,8 @@ void UUKSimpleMovementComponent::SimpleTick(float DeltaTime)
 	else
 	{
 		// 3) 공중 처리: 중력 적용
-		bGrounded = false;
 		GravityVelocity.Z += GetGravityZ() * DeltaTime;
 		GravityVelocity.Z = FMath::Clamp(GravityVelocity.Z, -MaxFallSpeed, MaxFallSpeed);
-
 		Location.Z += GravityVelocity.Z * DeltaTime;
 	}
 

@@ -64,10 +64,8 @@ protected:
 	float GroundSnapDistance = 80.f; // 아래로 찾을 거리
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
-	float WalkableFloorAngleDeg = 80.f;
+	float WalkableFloorAngleDeg = 45.f;
 	
 	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Movement|Debug")
 	USkeletalMeshComponent* Mesh;
-	
-	bool bGrounded = true;
 };
