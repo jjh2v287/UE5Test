@@ -4,6 +4,7 @@
 
 #include "CollisionDebugDrawingPublic.h"
 #include "NavigationSystem.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/HitResult.h"
@@ -67,16 +68,16 @@ void UUKSimpleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 		UMovementComponent::SafeMoveUpdatedComponent(MoveDelta, NewRotation, true, Hit);
 
 		// 충돌 시 벽 타기 처리 (경량화 수준에 따라 생략 가능)
-		if (Hit.IsValidBlockingHit())
+		/*if (Hit.IsValidBlockingHit())
 		{
 			UMovementComponent::SlideAlongSurface(MoveDelta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-		}
+		}*/
 	}
 	else
 	{
 		// 루트 모션 X
 		// GravityTick(DeltaTime);
-		NavTick(DeltaTime);
+		SimpleTick(DeltaTime);
 	}
 }
 
@@ -89,11 +90,14 @@ void UUKSimpleMovementComponent::GravityTick(float DeltaTime)
     // [2단계] 좌우(수평) 이동 처리 (Lateral Movement)
     // -------------------------------------------------------
     FVector InputVector = ConsumeInputVector();
+	InputVector = FVector(InputVector.X, InputVector.Y, 0.f);
+	InputVector = InputVector.GetSafeNormal();
 	FRotator NewRotation = UpdatedComponent->GetComponentRotation();
     if (!InputVector.IsNearlyZero())
     {
-        FVector DesiredMove = InputVector * 70.0f * DeltaTime;
-
+        FVector DesiredMove = InputVector * MaxSpeed * DeltaTime;
+    	DesiredMove = DesiredMove.GetClampedToMaxSize2D(MaxSpeed);
+    	
         // 경사면 보정: 바닥에 있다면 입력 벡터를 바닥 기울기에 맞춰 투영
         if (bIsGrounded)
         {
@@ -142,6 +146,13 @@ void UUKSimpleMovementComponent::GravityTick(float DeltaTime)
 	{
 		CurrentFloorNormal = GravityHit.Normal;
 		GravityVelocity = FVector::ZeroVector;
+		
+		FVector SlopeMove = FVector::VectorPlaneProject(GravityMove, GravityHit.Normal);
+		SlopeMove = SlopeMove.GetSafeNormal() * GravityMove.Size();
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_GravityMoveSlideAlongSurface);
+			UMovementComponent::SlideAlongSurface(SlopeMove, 1.f - GravityHit.Time, GravityHit.Normal, GravityHit, true);
+		}
 	}
 	else
 	{
@@ -149,54 +160,124 @@ void UUKSimpleMovementComponent::GravityTick(float DeltaTime)
 	}
 }
 
-void UUKSimpleMovementComponent::NavTick(float DeltaTime)
+void UUKSimpleMovementComponent::SimpleTick(float DeltaTime)
 {
-    FVector InputVector = ConsumeInputVector();
+	// 1) 수평 이동 의도(일단 XY만 이동)
+	FVector InputVector = ConsumeInputVector();
+	InputVector = FVector(InputVector.X, InputVector.Y, 0.f);
+	InputVector = InputVector.GetSafeNormal();
+	
+	// 회전 처리
+	FRotator TargetRotation = InputVector.Rotation();
 	FRotator NewRotation = UpdatedComponent->GetComponentRotation();
-    if (!InputVector.IsNearlyZero())
-    {
-    	GravityVelocity += -(GetGravityDirection() * GetGravityZ() * DeltaTime);
-    	GravityVelocity = GravityVelocity.GetClampedToMaxSize(MaxFallSpeed);
-    	FVector GravityMove = GravityVelocity * DeltaTime;
-    	
-    	// SlingLineTrace
-    	
-    	// 이동 계산
-        FVector DesiredMove = InputVector * 70.0f * DeltaTime;
-    	DesiredMove += GravityMove;
-    	if (CurrentFloorNormal != FVector::UpVector)
-    	{
-    		DesiredMove = FVector::VectorPlaneProject(DesiredMove, CurrentFloorNormal);
-    		DesiredMove = DesiredMove.GetSafeNormal() * 70.0f * DeltaTime;
-    	}
-    	
-        // 회전 처리
-        FRotator TargetRotation = InputVector.Rotation();
-        NewRotation = FMath::RInterpTo(NewRotation, TargetRotation, DeltaTime, 10.0f);
-        NewRotation.Pitch = 0.0f; 
-        NewRotation.Roll = 0.0f;
+	if (!InputVector.IsNearlyZero())
+	{
+		NewRotation = FMath::RInterpTo(NewRotation, TargetRotation, DeltaTime, 10.0f);
+		NewRotation.Pitch = 0.0f; 
+		NewRotation.Roll = 0.0f;
+	}
 
-        // A. 이동 시도
-    	FHitResult Hit;
-    	{
-    		TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_SweepSingleByChannel)
-    		FCollisionShape CollisionShape = UpdatedPrimitive->GetCollisionShape();
-    		FVector Start = UpdatedComponent->GetComponentLocation();
-    		FVector End = Start - CollisionShape.GetCapsuleHalfHeight();
-    		End.Z += -CollisionShape.GetCapsuleHalfHeight();
-    		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(UKSimpleMovement), false, PawnOwner);
-    		GetWorld()->SweepSingleByChannel(Hit, Start, End, PawnOwner->GetActorRotation().Quaternion(), ECC_Pawn, CollisionShape, QueryParams);
-    	}
-    	
-        UMovementComponent::SafeMoveUpdatedComponent(DesiredMove, NewRotation, true, Hit);
-    	if (Hit.IsValidBlockingHit())
-    	{
-    		CurrentFloorNormal = Hit.Normal;
-    		GravityVelocity = FVector::ZeroVector;
-    	}
-	    else
-	    {
-		    CurrentFloorNormal = FVector::UpVector;
-	    }
-    }
+	// 지상 상태면, 이전 프레임 바닥 노멀 기준으로 투영하고 싶지만
+	// "1쿼리" 정책이라 이번 프레임에서 바닥을 찾고 그 노멀로 투영해도 충분히 자연스럽습니다.
+	FVector DeltaXY = FVector(InputVector.X, InputVector.Y, 0.f) * DeltaTime * MaxSpeed;
+	DeltaXY = DeltaXY.GetClampedToMaxSize(MaxSpeed);
+
+	// 일단 XY 적용 (충돌 없이 텔레포트처럼 이동)
+	// ※ 여기서 수평 충돌까지 하려면 MoveComponent의 Sweep=true가 필요하지만 쿼리 비용이 늘어납니다.
+	FVector Location = UpdatedComponent->GetComponentLocation();
+	Location += DeltaXY;
+
+	// 2) 바닥 찾기(딱 1회)
+	FHitResult GroundHit;
+	const bool bHasGround = FindGround(Location, GroundHit, DeltaTime);
+
+	if (bHasGround /*&& CheckWalkable(GroundHit.ImpactNormal)*/)
+	{
+		// 지상 처리: 중력 제거 + 바닥에 스냅
+		bGrounded = true;
+		GravityVelocity = FVector::ZeroVector;
+
+		// 슬로프를 따라가도록 수평 속도를 평면 투영
+		const FVector TangentVel = FVector::VectorPlaneProject(InputVector, GroundHit.ImpactNormal);
+		if (GroundHit.ImpactNormal != FVector::UpVector)
+		{
+			Location.X = UpdatedComponent->GetComponentLocation().X + TangentVel.X * DeltaTime * MaxSpeed;
+			Location.Y = UpdatedComponent->GetComponentLocation().Y + TangentVel.Y * DeltaTime * MaxSpeed;
+		}
+
+		// 스텝 업/다운 제한
+		const float CurrentZ = UpdatedComponent->GetComponentLocation().Z;
+		const float TargetZ  = GroundHit.Location.Z; // 스윕 히트 위치
+		const float DeltaZ   = TargetZ - CurrentZ;
+
+		if (DeltaZ > MaxStepUp)
+		{
+			// 너무 높은 단차: 이동 취소(또는 Falling)
+			Location.X = UpdatedComponent->GetComponentLocation().X;
+			Location.Y = UpdatedComponent->GetComponentLocation().Y;
+			Location.Z = CurrentZ;
+		}
+		else if (DeltaZ < -MaxStepDown)
+		{
+			// 너무 급격한 낙차: Falling로 전환
+			bGrounded = false;
+		}
+		else
+		{
+			// 허용 범위면 Z 스냅
+			Location.Z = TargetZ;
+		}
+	}
+	else
+	{
+		// 3) 공중 처리: 중력 적용
+		bGrounded = false;
+		GravityVelocity.Z += GetGravityZ() * DeltaTime;
+		GravityVelocity.Z = FMath::Clamp(GravityVelocity.Z, -MaxFallSpeed, MaxFallSpeed);
+
+		Location.Z += GravityVelocity.Z * DeltaTime;
+	}
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_SetWorldLocation);
+		UpdatedComponent->SetWorldLocationAndRotation(Location, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
+	}
+}
+
+bool UUKSimpleMovementComponent::CheckWalkable(const FVector& FloorNormal) const
+{
+	const float Cos = FMath::Cos(FMath::DegreesToRadians(WalkableFloorAngleDeg));
+	// FloorNormal · Up >= cos(angle) 이면 워커블
+	return FVector::DotProduct(FloorNormal, FVector::UpVector) >= Cos;
+}
+
+bool UUKSimpleMovementComponent::FindGround(const FVector& QueryOrigin, FHitResult& OutHit, const float DeltaTime) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_FindGround);
+
+	FVector TempGravityVelocity = GravityVelocity;
+	TempGravityVelocity.Z += GetGravityZ() * DeltaTime;
+	TempGravityVelocity.Z = FMath::Clamp(GravityVelocity.Z, -MaxFallSpeed, MaxFallSpeed);
+	float LocationZ = TempGravityVelocity.Z * DeltaTime;
+	
+	// QueryOrigin은 보통 "캡슐 중심"
+	// 바닥 스윕은 살짝 위에서 아래로
+	FVector Location = UpdatedComponent->GetComponentLocation();
+	const FVector Start = QueryOrigin + FVector(0,0, 10.f);
+	const FVector End   = QueryOrigin + FVector(0,0, -10);
+	
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(SimpleMovementSweep), false);
+	Params.AddIgnoredActor(PawnOwner);
+
+	// 캡슐 형태로 아래 스윕(라인보다 안정적: 작은 단차/경사에서 바닥 놓치는 걸 줄임)
+	const FCollisionShape CollisionShape = UpdatedPrimitive->GetCollisionShape();
+
+	return GetWorld()->SweepSingleByChannel(
+		OutHit,
+		Start, End,
+		FQuat::Identity,
+		UpdatedComponent ? UpdatedComponent->GetCollisionObjectType() : ECC_Pawn,
+		CollisionShape,
+		Params
+	);
 }

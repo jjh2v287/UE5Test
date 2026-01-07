@@ -30,7 +30,10 @@ public:
 	
 protected:
 	void GravityTick(float DeltaTime);
-	void NavTick(float DeltaTime);
+	void SimpleTick(float DeltaTime);
+	
+	bool CheckWalkable(const FVector& FloorNormal) const;
+	bool FindGround(const FVector& QueryOrigin, FHitResult& OutHit, const float DeltaTime) const;
 	
 protected:
 	// 중력 방향 단위 벡터 (일반적으로 FVector::DownVector (0,0,-1))
@@ -45,9 +48,26 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Movement|Gravity")
 	float MaxFallSpeed = 4000.0f;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move")
+	float MaxSpeed = 70.f;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
+	float MaxStepUp = 40.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
+	float MaxStepDown = 60.f;
+	
 	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Movement|Debug")
 	FVector CurrentFloorNormal = FVector::UpVector;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
+	float GroundSnapDistance = 80.f; // 아래로 찾을 거리
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
+	float WalkableFloorAngleDeg = 80.f;
+	
 	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Movement|Debug")
 	USkeletalMeshComponent* Mesh;
+	
+	bool bGrounded = true;
 };
