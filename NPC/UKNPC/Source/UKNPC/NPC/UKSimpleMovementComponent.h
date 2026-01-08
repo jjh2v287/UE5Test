@@ -29,6 +29,7 @@ public:
 	virtual void RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed) override;
 	
 protected:
+	void RootMotionUpdate(const FRootMotionMovementParams& TempRootMotionParams);
 	void SimpleWalkingUpdate(float DeltaTime);
 	
 	bool CheckWalkable(const FVector& FloorNormal) const;

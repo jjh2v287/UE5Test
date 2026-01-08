@@ -49,34 +49,39 @@ void UUKSimpleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick 
 	if (TempRootMotionParams.bHasRootMotion)
 	{
 		// 루트 모션 O
-		// Transform 가져오기 (로컬 좌표계 기준의 델타 값)
-		FTransform RootMotionDelta = TempRootMotionParams.GetRootMotionTransform();
-            
-		// 회전 적용 (Pawn의 회전에 누적)
-		// 루트 모션의 회전을 현재 액터의 회전에 적용합니다.
-		FQuat NewRotation = UpdatedComponent->GetComponentQuat() * RootMotionDelta.GetRotation();
-		// UpdatedComponent->SetWorldRotation(NewRotation);
-
-		// 이동 적용 (월드 좌표계로 변환 필요)
-		// 로컬 델타 위치를 월드 공간으로 변환하여 이동시킵니다.
-		FVector MoveDelta = RootMotionDelta.GetTranslation();
-		MoveDelta = Mesh->GetComponentQuat().RotateVector(MoveDelta);
-		// MoveDelta = UpdatedComponent->GetComponentQuat().RotateVector(MoveDelta);
-
-		// 충돌 처리를 포함한 이동 (SlideAlongSurface 등 사용 가능)
-		FHitResult Hit;
-		UMovementComponent::SafeMoveUpdatedComponent(MoveDelta, NewRotation, true, Hit);
-
-		// 충돌 시 벽 타기 처리 (경량화 수준에 따라 생략 가능)
-		if (Hit.IsValidBlockingHit() && CheckWalkable(Hit.ImpactNormal))
-		{
-			UMovementComponent::SlideAlongSurface(MoveDelta, 1.f - Hit.Time, Hit.Normal, Hit, true);
-		}
+		RootMotionUpdate(TempRootMotionParams);
 	}
 	else
 	{
 		// 루트 모션 X
 		SimpleWalkingUpdate(DeltaTime);
+	}
+}
+
+void UUKSimpleMovementComponent::RootMotionUpdate(const FRootMotionMovementParams& TempRootMotionParams)
+{
+	// Transform 가져오기 (로컬 좌표계 기준의 델타 값)
+	FTransform RootMotionDelta = TempRootMotionParams.GetRootMotionTransform();
+            
+	// 회전 적용 (Pawn의 회전에 누적)
+	// 루트 모션의 회전을 현재 액터의 회전에 적용합니다.
+	FQuat NewRotation = UpdatedComponent->GetComponentQuat() * RootMotionDelta.GetRotation();
+	// UpdatedComponent->SetWorldRotation(NewRotation);
+
+	// 이동 적용 (월드 좌표계로 변환 필요)
+	// 로컬 델타 위치를 월드 공간으로 변환하여 이동시킵니다.
+	FVector MoveDelta = RootMotionDelta.GetTranslation();
+	MoveDelta = Mesh->GetComponentQuat().RotateVector(MoveDelta);
+	// MoveDelta = UpdatedComponent->GetComponentQuat().RotateVector(MoveDelta);
+
+	// 충돌 처리를 포함한 이동 (SlideAlongSurface 등 사용 가능)
+	FHitResult Hit;
+	UMovementComponent::SafeMoveUpdatedComponent(MoveDelta, NewRotation, true, Hit);
+
+	// 충돌 시 벽 타기 처리 (경량화 수준에 따라 생략 가능)
+	if (Hit.IsValidBlockingHit() && CheckWalkable(Hit.ImpactNormal))
+	{
+		UMovementComponent::SlideAlongSurface(MoveDelta, 1.f - Hit.Time, Hit.Normal, Hit, true);
 	}
 }
 
