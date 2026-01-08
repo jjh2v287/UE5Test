@@ -29,43 +29,24 @@ public:
 	virtual void RequestDirectMove(const FVector& MoveVelocity, bool bForceMaxSpeed) override;
 	
 protected:
-	void GravityTick(float DeltaTime);
-	void SimpleTick(float DeltaTime);
+	void SimpleWalkingUpdate(float DeltaTime);
 	
 	bool CheckWalkable(const FVector& FloorNormal) const;
 	bool FindGround(const FVector& QueryOrigin, FHitResult& OutHit, const float DeltaTime) const;
 	
 protected:
-	// 중력 방향 단위 벡터 (일반적으로 FVector::DownVector (0,0,-1))
-	// UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement|Gravity")
-	// FVector GravityDirection = FVector::DownVector;
-
-	// 현재 중력에 의해 누적된 속도
-	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Movement|Debug")
-	FVector GravityVelocity = FVector::ZeroVector;
-    
 	// 낙하 최대 속도 (Terminal Velocity)
-	UPROPERTY(EditAnywhere, Category = "Movement|Gravity")
+	UPROPERTY(EditAnywhere, Category = "Move|Simple")
 	float MaxFallSpeed = 4000.0f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move")
-	float MaxSpeed = 70.f;
+	// 아래로 찾을 거리
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Simple")
+	float GroundSnapDistance = 10.f;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
-	float MaxStepUp = 40.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
-	float MaxStepDown = 60.f;
+	// 현재 중력에 의해 누적된 속도
+	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Move|Simple")
+	FVector GravityVelocity = FVector::ZeroVector;
 	
-	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Movement|Debug")
-	FVector CurrentFloorNormal = FVector::UpVector;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
-	float GroundSnapDistance = 80.f; // 아래로 찾을 거리
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Move|Ground")
-	float WalkableFloorAngleDeg = 45.f;
-	
-	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Movement|Debug")
+	UPROPERTY(Transient, VisibleInstanceOnly, Category = "Move|Simple")
 	USkeletalMeshComponent* Mesh;
 };
