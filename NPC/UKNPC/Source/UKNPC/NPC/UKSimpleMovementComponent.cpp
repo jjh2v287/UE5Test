@@ -1,7 +1,6 @@
 ﻿// Copyright Kong Studios, Inc. All Rights Reserved.
 
 #include "UKSimpleMovementComponent.h"
-
 #include "CollisionDebugDrawingPublic.h"
 #include "NavigationSystem.h"
 #include "Components/CapsuleComponent.h"
@@ -10,7 +9,8 @@
 #include "Engine/HitResult.h"
 #include "NavMesh/RecastNavMesh.h"
 
-UUKSimpleMovementComponent::UUKSimpleMovementComponent()
+UUKSimpleMovementComponent::UUKSimpleMovementComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
@@ -20,7 +20,6 @@ void UUKSimpleMovementComponent::BeginPlay()
 	Super::BeginPlay();
 	
 	Mesh = PawnOwner->FindComponentByClass<USkeletalMeshComponent>();
-	MovementMode = EMovementMode::MOVE_Walking;
 }
 
 // 1. AI의 이동 요청 수신
@@ -39,13 +38,17 @@ void UUKSimpleMovementComponent::RequestDirectMove(const FVector& MoveVelocity, 
 void UUKSimpleMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_Tick);
+	Velocity = FVector::ZeroVector;
     if (!PawnOwner || !UpdatedComponent || ShouldSkipUpdate(DeltaTime))
     {
        return;
     }
 	
-	const FRootMotionMovementParams TempRootMotionParams = Mesh ? Mesh->ConsumeRootMotion() : FRootMotionMovementParams();
+	FUKScopedMeshBoneUpdateOverride ScopedNoMeshBoneUpdate(Mesh, EKinematicBonesUpdateToPhysics::SkipAllBones);
+	// FUKScopedCapsuleMovementUpdate ScopedCapsule(UpdatedComponent, bEnableScopedMovementUpdates);
+	// FUKScopedMeshMovementUpdate  ScopedMesh(Mesh, true);
 	
+	const FRootMotionMovementParams TempRootMotionParams = Mesh ? Mesh->ConsumeRootMotion() : FRootMotionMovementParams();
 	if (TempRootMotionParams.bHasRootMotion)
 	{
 		// 루트 모션 O
@@ -83,6 +86,7 @@ void UUKSimpleMovementComponent::RootMotionUpdate(const FRootMotionMovementParam
 	{
 		UMovementComponent::SlideAlongSurface(MoveDelta, 1.f - Hit.Time, Hit.Normal, Hit, true);
 	}
+	Velocity = MoveDelta;
 }
 
 void UUKSimpleMovementComponent::SimpleWalkingUpdate(float DeltaTime)
@@ -108,13 +112,13 @@ void UUKSimpleMovementComponent::SimpleWalkingUpdate(float DeltaTime)
 
 	// 일단 XY 적용 (충돌 없이 텔레포트처럼 이동)
 	// ※ 여기서 수평 충돌까지 하려면 MoveComponent의 Sweep=true가 필요하지만 쿼리 비용이 늘어남.
-	FVector Location = UpdatedComponent->GetComponentLocation();
-	Location += DeltaXY;
+	const FVector PreLocation  = UpdatedComponent->GetComponentLocation();
+	FVector NewLocation = PreLocation;
+	NewLocation += DeltaXY;
 
 	// 2) 바닥 찾기
 	FHitResult GroundHit;
-	const bool bHasGround = FindGround(Location, GroundHit, DeltaTime);
-
+	const bool bHasGround = FindGround(NewLocation, GroundHit, DeltaTime);
 	if (bHasGround)
 	{
 		// 지상 처리: 중력 제거 + 바닥에 스냅
@@ -122,19 +126,20 @@ void UUKSimpleMovementComponent::SimpleWalkingUpdate(float DeltaTime)
 
 		// 이동 가능한 경사면 체크
 		FVector TangentVel = FVector::VectorPlaneProject(InputVector, GroundHit.ImpactNormal);
-		if (!CheckWalkable(GroundHit.ImpactNormal))
+		const bool bIsWalkable = CheckWalkable(GroundHit.ImpactNormal);
+		if (!bIsWalkable)
 		{
 			// 오르막일때만 막고 내리막에서는 이동 가능하게
 			const bool bDownhill = (TangentVel.SizeSquared() > KINDA_SMALL_NUMBER) && (TangentVel.GetSafeNormal().Z < -0.05f);
 			const bool bUphill = (TangentVel.SizeSquared() > KINDA_SMALL_NUMBER) && (TangentVel.GetSafeNormal().Z > 0.05f);
-			TangentVel = bUphill ? FVector::ZeroVector : TangentVel;
+			TangentVel = bDownhill ? TangentVel : FVector::ZeroVector;
 		}
 
 		// 슬로프를 따라가도록 수평 속도를 평면 투영
 		if (GroundHit.ImpactNormal != FVector::UpVector)
 		{
-			Location.X = UpdatedComponent->GetComponentLocation().X + TangentVel.X * DeltaTime * MaxWalkSpeed;
-			Location.Y = UpdatedComponent->GetComponentLocation().Y + TangentVel.Y * DeltaTime * MaxWalkSpeed;
+			NewLocation.X = UpdatedComponent->GetComponentLocation().X + TangentVel.X * DeltaTime * MaxWalkSpeed;
+			NewLocation.Y = UpdatedComponent->GetComponentLocation().Y + TangentVel.Y * DeltaTime * MaxWalkSpeed;
 		}
 
 		// 스텝 업/다운 제한
@@ -145,31 +150,33 @@ void UUKSimpleMovementComponent::SimpleWalkingUpdate(float DeltaTime)
 		if (DeltaZ > MaxStepHeight)
 		{
 			// 너무 높은 단차: 이동 취소(또는 Falling)
-			Location.X = UpdatedComponent->GetComponentLocation().X;
-			Location.Y = UpdatedComponent->GetComponentLocation().Y;
-			Location.Z = CurrentZ;
+			NewLocation.X = UpdatedComponent->GetComponentLocation().X;
+			NewLocation.Y = UpdatedComponent->GetComponentLocation().Y;
+			NewLocation.Z = CurrentZ;
 		}
 		else if (DeltaZ < -MaxStepHeight)
 		{
 			// 너무 급격한 낙차: Falling로 전환
 		}
-		else
+		else if (bIsWalkable || TangentVel != FVector::ZeroVector)
 		{
 			// 허용 범위면 Z 스냅
-			Location.Z = TargetZ;
+			NewLocation.Z = TargetZ;
 		}
+		Velocity = (NewLocation - PreLocation) / DeltaTime;
 	}
 	else
 	{
 		// 3) 공중 처리: 중력 적용
-		GravityVelocity.Z += GetGravityZ() * DeltaTime * DeltaTime;
+		const float SafeDeltaTime = FMath::Min(DeltaTime, 0.1f);
+		GravityVelocity.Z += GetGravityZ() * SafeDeltaTime;
 		GravityVelocity.Z = FMath::Clamp(GravityVelocity.Z, -MaxFallSpeed, MaxFallSpeed);
-		Location.Z += GravityVelocity.Z;
+		NewLocation.Z += GravityVelocity.Z * SafeDeltaTime;
 	}
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_SetWorldLocation);
-		UpdatedComponent->SetWorldLocationAndRotation(Location, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
+		UpdatedComponent->SetWorldLocationAndRotation(NewLocation, NewRotation, false, nullptr, ETeleportType::TeleportPhysics);
 	}
 }
 
@@ -184,17 +191,23 @@ bool UUKSimpleMovementComponent::FindGround(const FVector& QueryOrigin, FHitResu
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SimpleMovement_FindGround);
 
-	// QueryOrigin은 캡슐 중심으로 수평 이동
-	// 바닥 스윕은 살짝 위에서 아래로
-	const FVector Start = QueryOrigin + FVector(0,0, GroundSnapDistance);
-	const FVector End   = QueryOrigin + FVector(0,0, -GroundSnapDistance);
+	if (!UpdatedComponent || !UpdatedPrimitive)
+	{
+		return false;
+	}
+
+	// 캡슐 하단부터 시작 (초기화 시 더 정확)
+	const FCollisionShape CollisionShape = UpdatedPrimitive->GetCollisionShape();
+	
+	// 캡슐 하단에서 약간 위
+	const FVector Start = QueryOrigin + FVector(0, 0, GroundSnapDistance);
+	// 충분한 거리로 스윕 (초기화 시 높은 곳에 있을 수 있음)
+	const FVector End = QueryOrigin + FVector(0, 0, -GroundSnapDistance);
 	
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(SimpleMovementSweep), false);
 	Params.AddIgnoredActor(PawnOwner);
 
-	// 캡슐 형태로 아래 스윕
-	const FCollisionShape CollisionShape = UpdatedPrimitive->GetCollisionShape();
-	const ECollisionChannel CollisionChannel = UpdatedComponent ? UpdatedComponent->GetCollisionObjectType() : ECC_Pawn;
+	const ECollisionChannel CollisionChannel = UpdatedComponent->GetCollisionObjectType();
 	
 	return GetWorld()->SweepSingleByChannel(
 		OutHit,

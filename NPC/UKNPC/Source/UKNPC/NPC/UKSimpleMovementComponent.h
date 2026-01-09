@@ -3,10 +3,63 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/PawnMovementComponent.h"
 #include "UKSimpleMovementComponent.generated.h"
 
+struct FUKScopedMeshBoneUpdateOverride
+{
+	FUKScopedMeshBoneUpdateOverride(USkeletalMeshComponent* Mesh, EKinematicBonesUpdateToPhysics::Type OverrideSetting)
+		: MeshRef(Mesh)
+	{
+		if (MeshRef)
+		{
+			// 현재 상태 저장
+			SavedUpdateSetting = MeshRef->KinematicBonesUpdateType;
+			// 오버라이드 설정 적용
+			MeshRef->KinematicBonesUpdateType = OverrideSetting;
+		}
+	}
+
+	~FUKScopedMeshBoneUpdateOverride()
+	{
+		if (MeshRef)
+		{
+			// 원래 설정 복원
+			MeshRef->KinematicBonesUpdateType = SavedUpdateSetting;
+		}
+	}
+
+private:
+	USkeletalMeshComponent* MeshRef = nullptr;
+	EKinematicBonesUpdateToPhysics::Type SavedUpdateSetting;
+};
+
+struct FUKScopedCapsuleMovementUpdate : public FScopedMovementUpdate
+{
+	typedef FScopedMovementUpdate Super;
+
+	FUKScopedCapsuleMovementUpdate(USceneComponent* UpdatedComponent, bool bEnabled)
+	: Super(bEnabled ? UpdatedComponent : nullptr, EScopedUpdate::DeferredUpdates)
+	{
+	}
+};
+
+
+/**
+ * Similar to FScopedCapsuleMovementUpdate, but intended for the character mesh instead.
+ * @see FScopedCapsuleMovementUpdate
+ */
+struct FUKScopedMeshMovementUpdate
+{
+	FUKScopedMeshMovementUpdate(USkeletalMeshComponent* Mesh, bool bEnabled = true)
+	: ScopedMoveUpdate(bEnabled ? Mesh : nullptr, EScopedUpdate::DeferredUpdates)
+	{
+	}
+
+private:
+	FScopedMovementUpdate ScopedMoveUpdate;
+};
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class UKNPC_API UUKSimpleMovementComponent : public UCharacterMovementComponent
@@ -14,8 +67,7 @@ class UKNPC_API UUKSimpleMovementComponent : public UCharacterMovementComponent
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this component's properties
-	UUKSimpleMovementComponent();
+	explicit UUKSimpleMovementComponent(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	// Called when the game starts
