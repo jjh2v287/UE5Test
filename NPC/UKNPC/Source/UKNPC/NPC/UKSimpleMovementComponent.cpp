@@ -20,6 +20,7 @@ void UUKSimpleMovementComponent::BeginPlay()
 	Super::BeginPlay();
 	
 	Mesh = PawnOwner->FindComponentByClass<USkeletalMeshComponent>();
+	SetMovementMode(EMovementMode::MOVE_Walking);
 }
 
 // 1. AI의 이동 요청 수신
